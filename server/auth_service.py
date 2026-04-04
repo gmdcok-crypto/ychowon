@@ -276,7 +276,7 @@ def role_from_request(request: Request) -> Optional[str]:
         return None
     r = payload.get("role")
     if r in ROLES:
-        return str(r)
+        return str(r).strip()
     return None
 
 
@@ -327,24 +327,31 @@ def static_allows(path: str, role: Optional[str]) -> bool:
 
 
 def api_allows(path: str, method: str, role: Optional[str]) -> bool:
-    if is_public_auth_api_path(path) or path == "/api/health":
+    # 프록시/클라이언트에 따라 끝에 / 가 붙는 경우가 있어 통일
+    p = path.rstrip("/") or "/"
+    if is_public_auth_api_path(p) or p == "/api/health":
         return True
-    if path.startswith("/api/auth/accounts"):
+    if p.startswith("/api/auth/accounts"):
         return role == "admin"
     if not role:
         return False
+
+    # 현황판 하단: 업로드·목록 저장은 관리자만. (이 블록을 admin 조기 return보다 먼저 두어 권한이 분명히 적용되도록 함)
+    if p.startswith("/api/display"):
+        if p == "/api/display/upload" or (p == "/api/display/content" and method == "POST"):
+            return role == "admin"
+        if role == "admin":
+            return True
+        return role == "display"
+
     if role == "admin":
         return True
-    if path.startswith("/api/reservations/today"):
+    if p.startswith("/api/reservations/today"):
         if method == "GET":
             return role == "display"
         return False
-    if path.startswith("/api/tel/"):
+    if p.startswith("/api/tel/"):
         return role == "tel"
-    if path.startswith("/api/display/"):
-        if path == "/api/display/upload" or (path == "/api/display/content" and method == "POST"):
-            return False
-        return role == "display"
     return False
 
 
