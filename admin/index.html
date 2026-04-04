@@ -31,24 +31,21 @@
         <form id="add-form" class="add-form">
           <div class="field field-time">
             <label for="time">시간</label>
-            <div class="time-spin-wrap">
+            <div class="staff-time-field-row">
               <input
                 type="text"
                 id="time"
                 name="time"
                 class="input-time-24"
-                inputmode="numeric"
-                placeholder="14:00"
+                placeholder="선택"
                 maxlength="5"
-                title="24시간 형식 HH:MM (예: 09:30, 17:00)"
+                title="전화예약과 동일한 시간 슬롯"
                 autocomplete="off"
                 spellcheck="false"
+                readonly
                 required
               />
-              <div class="time-spin-btns" role="group" aria-label="15분 단위로 시간 조절">
-                <button type="button" class="time-spin-btn" id="time-spin-up" title="15분 뒤" aria-label="15분 뒤">▲</button>
-                <button type="button" class="time-spin-btn" id="time-spin-down" title="15분 앞" aria-label="15분 앞">▼</button>
-              </div>
+              <button type="button" class="btn staff-time-open-btn" id="staff-time-open">시간 선택</button>
             </div>
           </div>
           <div class="add-form-name-room">
@@ -138,6 +135,39 @@
         <div class="accounts-modal-actions">
           <button type="button" class="btn btn-cancel" id="accounts-modal-cancel">취소</button>
           <button type="button" class="btn btn-add" id="accounts-modal-save">저장</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="room-dialog staff-time-dialog hidden" id="staff-time-dialog" aria-hidden="true">
+      <div class="room-dialog-backdrop" id="staff-time-dialog-backdrop"></div>
+      <div class="room-dialog-panel staff-time-dialog-panel" role="dialog" aria-modal="true" aria-labelledby="staff-time-dialog-title">
+        <div class="room-dialog-head">
+          <div>
+            <h2 id="staff-time-dialog-title">예약 시간 선택</h2>
+            <p class="room-dialog-meta">전화예약과 동일한 점심·저녁 슬롯입니다.</p>
+          </div>
+          <button type="button" class="room-dialog-close" id="staff-time-dialog-close">닫기</button>
+        </div>
+        <div class="staff-time-quick">
+          <div class="staff-time-tabs">
+            <button type="button" class="staff-time-tab active" data-slot="lunch">점심 12:00~14:00</button>
+            <button type="button" class="staff-time-tab" data-slot="dinner">저녁 17:00~19:00</button>
+          </div>
+          <div class="staff-time-buttons" id="staff-time-buttons-lunch">
+            <button type="button" class="staff-time-btn" data-time="12:00">12:00</button>
+            <button type="button" class="staff-time-btn" data-time="12:30">12:30</button>
+            <button type="button" class="staff-time-btn" data-time="13:00">13:00</button>
+            <button type="button" class="staff-time-btn" data-time="13:30">13:30</button>
+            <button type="button" class="staff-time-btn" data-time="14:00">14:00</button>
+          </div>
+          <div class="staff-time-buttons hidden" id="staff-time-buttons-dinner">
+            <button type="button" class="staff-time-btn" data-time="17:00">17:00</button>
+            <button type="button" class="staff-time-btn" data-time="17:30">17:30</button>
+            <button type="button" class="staff-time-btn" data-time="18:00">18:00</button>
+            <button type="button" class="staff-time-btn" data-time="18:30">18:30</button>
+            <button type="button" class="staff-time-btn" data-time="19:00">19:00</button>
+          </div>
         </div>
       </div>
     </div>

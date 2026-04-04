@@ -7,7 +7,6 @@
   const API = '/api/reservations/today';
   const API_TEL = '/api/tel/reservations';
   const API_TEL_ROOMS = '/api/tel/rooms';
-  const TIME_SPIN_STEP_MIN = 15;
   const listEl = document.getElementById('list');
   const addForm = document.getElementById('add-form');
   const toastEl = document.getElementById('toast');
@@ -23,6 +22,10 @@
   const staffRoomClose = document.getElementById('staff-room-dialog-close');
   const staffRoomGroupTabs = document.getElementById('staff-room-group-tabs');
   const staffRoomGrid = document.getElementById('staff-room-grid');
+  const staffTimeDialog = document.getElementById('staff-time-dialog');
+  const staffTimeBackdrop = document.getElementById('staff-time-dialog-backdrop');
+  const staffTimeClose = document.getElementById('staff-time-dialog-close');
+  const staffTimeOpen = document.getElementById('staff-time-open');
 
   let list = [];
   let editingIndex = -1;
@@ -58,39 +61,90 @@
     return /^([01]\d|2[0-3]):[0-5]\d$/.test(t);
   }
 
-  function timeStringToMinutes(str) {
-    var n = normalizeTimeValue(str);
-    if (!n) return null;
-    var p = n.split(':');
-    return parseInt(p[0], 10) * 60 + parseInt(p[1], 10);
+  function staffSlotFromTime(t) {
+    var n = normalizeTimeValue(t);
+    if (!n) return 'lunch';
+    var h = parseInt(n.split(':')[0], 10);
+    if (!isNaN(h) && h >= 17 && h <= 19) return 'dinner';
+    return 'lunch';
   }
 
-  function minutesToTimeString(total) {
-    total = ((total % 1440) + 1440) % 1440;
-    var h = Math.floor(total / 60);
-    var min = total % 60;
-    return String(h).padStart(2, '0') + ':' + String(min).padStart(2, '0');
+  function setStaffTimeTab(slot) {
+    var lunchBox = document.getElementById('staff-time-buttons-lunch');
+    var dinnerBox = document.getElementById('staff-time-buttons-dinner');
+    document.querySelectorAll('.staff-time-tab').forEach(function (t) {
+      t.classList.toggle('active', t.getAttribute('data-slot') === slot);
+    });
+    if (slot === 'dinner') {
+      if (lunchBox) lunchBox.classList.add('hidden');
+      if (dinnerBox) dinnerBox.classList.remove('hidden');
+    } else {
+      if (lunchBox) lunchBox.classList.remove('hidden');
+      if (dinnerBox) dinnerBox.classList.add('hidden');
+    }
   }
 
-  function adjustTimeSpin(deltaMin) {
-    if (!timeInput) return;
-    var cur = timeStringToMinutes(timeInput.value);
-    if (cur == null) cur = 12 * 60;
-    timeInput.value = minutesToTimeString(cur + deltaMin);
+  function syncStaffTimeDialogButtons(selectedTime) {
+    var norm = normalizeTimeValue(selectedTime);
+    document.querySelectorAll('.staff-time-btn').forEach(function (b) {
+      b.classList.toggle('active', Boolean(norm && b.getAttribute('data-time') === norm));
+    });
+  }
+
+  function closeStaffTimeDialog() {
+    if (!staffTimeDialog) return;
+    staffTimeDialog.classList.add('hidden');
+    staffTimeDialog.setAttribute('aria-hidden', 'true');
+  }
+
+  function openStaffTimeDialog() {
+    if (!staffTimeDialog || !timeInput) return;
+    var t = (timeInput.value || '').trim();
+    if (!staffTimeOk(t)) {
+      timeInput.value = '12:00';
+      t = '12:00';
+    } else {
+      t = normalizeTimeValue(t);
+      timeInput.value = t;
+    }
+    setStaffTimeTab(staffSlotFromTime(t));
+    syncStaffTimeDialogButtons(t);
+    staffTimeDialog.classList.remove('hidden');
+    staffTimeDialog.setAttribute('aria-hidden', 'false');
+  }
+
+  function applyStaffTimeChoice(value) {
+    var n = normalizeTimeValue(value);
+    if (!n) return;
+    timeInput.value = n;
     timeInput.dispatchEvent(new Event('input', { bubbles: true }));
     timeInput.dispatchEvent(new Event('change', { bubbles: true }));
     refreshStaffRoomAvailability(false);
+    closeStaffTimeDialog();
   }
 
-  function setupTimeSpin() {
-    var up = document.getElementById('time-spin-up');
-    var down = document.getElementById('time-spin-down');
-    if (!up || !down || !timeInput) return;
-    up.addEventListener('click', function () {
-      adjustTimeSpin(TIME_SPIN_STEP_MIN);
+  function setupStaffTimeDialog() {
+    if (!timeInput) return;
+    if (staffTimeOpen) {
+      staffTimeOpen.addEventListener('click', function (e) {
+        e.preventDefault();
+        openStaffTimeDialog();
+      });
+    }
+    timeInput.addEventListener('click', function () {
+      openStaffTimeDialog();
     });
-    down.addEventListener('click', function () {
-      adjustTimeSpin(-TIME_SPIN_STEP_MIN);
+    if (staffTimeClose) staffTimeClose.addEventListener('click', closeStaffTimeDialog);
+    if (staffTimeBackdrop) staffTimeBackdrop.addEventListener('click', closeStaffTimeDialog);
+    document.querySelectorAll('.staff-time-tab').forEach(function (tab) {
+      tab.addEventListener('click', function () {
+        setStaffTimeTab(tab.getAttribute('data-slot') || 'lunch');
+      });
+    });
+    document.querySelectorAll('.staff-time-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        applyStaffTimeChoice(btn.getAttribute('data-time') || '');
+      });
     });
   }
 
@@ -208,8 +262,8 @@
 
   function openStaffRoomDialog() {
     if (!staffTimeOk()) {
-      showToast('먼저 예약 시간을 입력하세요 (예: 12:00).');
-      if (timeInput) timeInput.focus();
+      showToast('먼저 예약 시간을 선택하세요.');
+      openStaffTimeDialog();
       return;
     }
     if (staffRoomDialog) {
@@ -247,7 +301,13 @@
       });
     }
     document.addEventListener('keydown', function (ev) {
-      if (ev.key !== 'Escape' || !staffRoomDialog || staffRoomDialog.classList.contains('hidden')) return;
+      if (ev.key !== 'Escape') return;
+      if (staffTimeDialog && !staffTimeDialog.classList.contains('hidden')) {
+        ev.preventDefault();
+        closeStaffTimeDialog();
+        return;
+      }
+      if (!staffRoomDialog || staffRoomDialog.classList.contains('hidden')) return;
       ev.preventDefault();
       closeStaffRoomDialog();
     });
@@ -545,8 +605,8 @@
     });
   })();
 
+  setupStaffTimeDialog();
   setupStaffRoomDialog();
-  setupTimeSpin();
   load();
   connectWs();
 })();

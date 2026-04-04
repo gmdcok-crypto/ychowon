@@ -272,74 +272,102 @@ body {
   min-width: 0;
 }
 
-/* 24시간제 HH:MM + 스핀(15분 단위) */
-.time-spin-wrap {
+/* 당일예약 시간: 전화예약과 동일 슬롯 팝업 */
+.staff-time-field-row {
   display: flex;
   align-items: stretch;
-  gap: 0.35rem;
-  max-width: 9rem;
+  gap: 0.5rem;
+  max-width: 16rem;
 }
 
-.add-form .field-time input.input-time-24 {
+.staff-time-field-row .input-time-24 {
   flex: 1;
-  min-width: 5.5rem;
-  max-width: 6.75rem;
+  min-width: 4.5rem;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.03em;
+  cursor: pointer;
 }
 
-.time-spin-btns {
-  display: flex;
-  flex-direction: column;
+.staff-time-open-btn {
   flex-shrink: 0;
-  width: 2rem;
   min-height: var(--touch-min);
+  padding: 0.4rem 0.75rem;
+  border-radius: 8px;
   border: 1px solid var(--border);
-  border-radius: 6px;
-  overflow: hidden;
-  background: rgba(0, 0, 0, 0.25);
-}
-
-.time-spin-btn {
-  flex: 1;
-  min-height: 0;
-  margin: 0;
-  padding: 0;
-  border: none;
-  border-bottom: 1px solid rgba(201, 169, 98, 0.15);
-  background: rgba(0, 0, 0, 0.2);
+  background: rgba(201, 169, 98, 0.22);
   color: var(--gold-light);
-  font-size: 0.65rem;
-  line-height: 1;
+  font-size: 0.88rem;
+  font-weight: 600;
   cursor: pointer;
   font-family: inherit;
 }
 
-.time-spin-btn:last-child {
-  border-bottom: none;
+.staff-time-open-btn:hover {
+  background: rgba(201, 169, 98, 0.32);
 }
 
-.time-spin-btn:hover {
-  background: rgba(201, 169, 98, 0.18);
+.staff-time-dialog {
+  z-index: 3100;
+}
+
+.staff-time-dialog-panel {
+  max-width: 420px;
+}
+
+.staff-time-quick {
+  margin-top: 0.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.staff-time-tabs {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.staff-time-tab {
+  flex: 1;
+  padding: 0.4rem 0.45rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.3);
+  color: var(--cream-dim);
+  font-size: 0.8rem;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.staff-time-tab.active {
+  background: rgba(201, 169, 98, 0.3);
+  color: var(--gold-light);
+  border-color: var(--gold);
+}
+
+.staff-time-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.staff-time-btn {
+  flex: 1 0 30%;
+  min-width: 72px;
+  min-height: var(--touch-min);
+  padding: 0.45rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(0, 0, 0, 0.4);
   color: var(--cream);
+  font-size: 0.9rem;
+  cursor: pointer;
+  font-family: inherit;
 }
 
-.time-spin-btn:active {
-  background: rgba(201, 169, 98, 0.28);
-}
-
-@media (min-width: 520px) {
-  .time-spin-wrap .input-time-24 {
-    height: 2.25rem;
-  }
-  .time-spin-btns {
-    min-height: 2.25rem;
-    height: 2.25rem;
-    align-self: center;
-  }
-  .time-spin-btn {
-    font-size: 0.6rem;
-  }
+.staff-time-btn.active {
+  background: var(--gold);
+  color: var(--bg);
+  border-color: var(--gold);
 }
 
 .add-form .field-name input {
