@@ -6,11 +6,12 @@
   <meta name="theme-color" content="#1a1510" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="예약접수" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <title>전화 예약 접수 · 초원농원</title>
   <link rel="manifest" href="manifest.json" />
   <link rel="apple-touch-icon" href="/display/icon-192.png" />
-  <link rel="stylesheet" href="tel.css?v=8" />
+  <link rel="stylesheet" href="tel.css?v=9" />
 </head>
 <body>
   <div class="tel-root">
@@ -159,7 +160,7 @@
     </div>
   </div>
 
-  <script src="tel.js?v=8"></script>
+  <script src="tel.js?v=9"></script>
   <script>
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/tel/sw.js', { scope: '/tel/' }).catch(function () {});

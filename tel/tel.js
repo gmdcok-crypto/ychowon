@@ -446,6 +446,7 @@
       return false;
     }
 
+    /** 브라우저 UI가 거의 없는 모드(설치 앱·아이콘 실행). minimal-ui는 주소줄이 남을 수 있어 제외 → 전체화면 API로 보완 */
     function isStandalonePwa() {
       return (
         (window.matchMedia && window.matchMedia('(display-mode: fullscreen)').matches) ||
