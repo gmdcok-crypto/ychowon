@@ -409,36 +409,117 @@
     document.getElementById('room-dialog-backdrop').addEventListener('click', closeRoomDialog);
   }
 
-  function requestFullscreenBest(el) {
-    el = el || document.documentElement;
-    if (el.requestFullscreen) return el.requestFullscreen();
-    if (el.webkitRequestFullscreen) return el.webkitRequestFullscreen();
-    if (el.msRequestFullscreen) return el.msRequestFullscreen();
+  function requestFullscreenOn(el) {
+    if (!el) return Promise.reject(new Error('no element'));
+    var req =
+      el.requestFullscreen ||
+      el.webkitRequestFullscreen ||
+      el.mozRequestFullScreen ||
+      el.msRequestFullscreen;
+    if (req) return req.call(el);
     return Promise.reject(new Error('no fullscreen'));
   }
 
-  /** HTTPS에서 접속 시 전체화면 시도. 일부 브라우저는 사용자 제스처가 필요해 첫 터치에서 한 번 더 시도. */
+  /** document → body 순으로 시도 (브라우저마다 동작이 다름). */
+  function tryEnterFullscreen() {
+    if (document.fullscreenElement) return Promise.resolve();
+    return requestFullscreenOn(document.documentElement).catch(function () {
+      return requestFullscreenOn(document.body);
+    });
+  }
+
+  /**
+   * HTTPS + 크롬/파이어폭스: 전체화면 API.
+   * iOS Safari 일반 탭: 문서 전체 전체화면 미지원 → 주소창 유지. 홈 화면 추가 후 아이콘 실행이 가장 확실.
+   * PC(마우스): 재시도 스케줄 생략 — 태블릿·터치 기기에서만 키오스크식 재시도.
+   */
   function setupFullscreen() {
-    function tryFs() {
-      if (document.fullscreenElement) return Promise.resolve();
-      return requestFullscreenBest(document.documentElement).catch(function () {});
+    var gestureEvents = ['pointerdown', 'touchstart', 'touchend', 'click'];
+    var iosHintShown = false;
+
+    /** 태블릿/폰 위주로 공격적 전체화면 시도 (PC는 사용자가 클릭할 때만) */
+    function preferKioskFullscreen() {
+      if (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) return true;
+      if (typeof window.orientation !== 'undefined') return true;
+      if ('ontouchstart' in window) return true;
+      if (window.innerWidth < 900) return true;
+      return false;
     }
 
-    tryFs();
+    function isStandalonePwa() {
+      return (
+        (window.matchMedia && window.matchMedia('(display-mode: fullscreen)').matches) ||
+        (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) ||
+        window.navigator.standalone === true
+      );
+    }
 
-    function onFirstGesture() {
-      if (document.fullscreenElement) {
-        document.removeEventListener('pointerdown', onFirstGesture, true);
-        document.removeEventListener('touchstart', onFirstGesture, true);
-        return;
-      }
-      tryFs().then(function () {
-        document.removeEventListener('pointerdown', onFirstGesture, true);
-        document.removeEventListener('touchstart', onFirstGesture, true);
+    function maybeShowIosHint() {
+      if (iosHintShown || isStandalonePwa()) return;
+      var iOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+        (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+      if (!iOS || document.fullscreenElement) return;
+      try {
+        if (sessionStorage.getItem('tel-fs-hint')) return;
+        sessionStorage.setItem('tel-fs-hint', '1');
+      } catch (e) {}
+      iosHintShown = true;
+      showToast('Safari에서는 주소창이 남을 수 있습니다. 홈 화면에 추가 후 아이콘으로 열면 전체처럼 쓸 수 있습니다.');
+    }
+
+    function detachGesture() {
+      gestureEvents.forEach(function (ev) {
+        window.removeEventListener(ev, onGesture, true);
       });
     }
-    document.addEventListener('pointerdown', onFirstGesture, true);
-    document.addEventListener('touchstart', onFirstGesture, true);
+
+    function onGesture() {
+      if (document.fullscreenElement) {
+        detachGesture();
+        return;
+      }
+      tryEnterFullscreen()
+        .then(function () {
+          detachGesture();
+        })
+        .catch(function () {});
+    }
+
+    function scheduleRetries() {
+      [0, 80, 250, 600].forEach(function (ms) {
+        setTimeout(function () {
+          if (!document.fullscreenElement) tryEnterFullscreen().catch(function () {});
+        }, ms);
+      });
+    }
+
+    if (!isStandalonePwa()) {
+      var kiosk = preferKioskFullscreen();
+      tryEnterFullscreen().catch(function () {});
+      if (kiosk) {
+        scheduleRetries();
+        window.addEventListener('load', function () {
+          setTimeout(function () {
+            tryEnterFullscreen().catch(function () {});
+          }, 0);
+        });
+      }
+    }
+
+    gestureEvents.forEach(function (ev) {
+      window.addEventListener(ev, onGesture, true);
+    });
+
+    setTimeout(function () {
+      if (!document.fullscreenElement) maybeShowIosHint();
+    }, 1200);
+
+    // iOS 인앱 브라우저 등: 스크롤로 주소창 최소화 시도(완전 제거는 불가한 경우 많음)
+    if (/iPad|iPhone|iPod/.test(navigator.userAgent)) {
+      setTimeout(function () {
+        window.scrollTo(0, 1);
+      }, 350);
+    }
   }
 
   formEl.addEventListener('submit', function (e) {
