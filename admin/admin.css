@@ -370,21 +370,12 @@ body {
   overflow: hidden;
 }
 
-.add-form .field-room .room-picker {
-  min-width: 0;
-  width: 100%;
-  max-width: 100%;
-}
-
-.add-form .field-room .room-picker-single {
-  display: block;
-}
-
 .add-form .field input#room {
   cursor: pointer;
   min-width: 0;
   width: 100%;
   max-width: var(--add-form-room-input-width);
+  min-height: var(--touch-min);
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -619,29 +610,6 @@ body {
 
 .toast.show {
   opacity: 1;
-}
-
-/* tel 전화예약과 동일: 호실 선택 팝업 (당일예약 및 현황) */
-.room-picker {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 0.5rem;
-}
-
-.picker-btn {
-  min-height: var(--touch-min);
-  padding: 0.5rem 0.85rem;
-  border-radius: 8px;
-  border: 1px solid var(--border);
-  background: rgba(201, 169, 98, 0.18);
-  color: var(--gold-light);
-  font-size: 0.9rem;
-  cursor: pointer;
-  font-family: inherit;
-}
-
-.picker-btn:hover {
-  background: rgba(201, 169, 98, 0.28);
 }
 
 .room-dialog {

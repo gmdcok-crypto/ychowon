@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="admin.css?v=4" />
+  <link rel="stylesheet" href="admin.css?v=5" />
 </head>
 <body>
   <div class="admin admin-with-tabs">
@@ -54,10 +54,16 @@
             </div>
             <div class="field field-room">
               <label for="room">호실</label>
-              <div class="room-picker room-picker-single">
-                <input type="text" id="room" name="room" placeholder="호실 선택" required readonly autocomplete="off" size="1" />
-                <button type="button" class="picker-btn" id="staff-room-open">선택</button>
-              </div>
+              <input
+                type="text"
+                id="room"
+                name="room"
+                placeholder="탭하여 선택"
+                title="탭하면 룸·테이블을 고를 수 있습니다"
+                required
+                readonly
+                autocomplete="off"
+              />
             </div>
             <div class="form-actions form-actions-inline">
               <button type="submit" class="btn btn-add" id="submit-btn">추가</button>
@@ -196,7 +202,7 @@
     </div>
   </div>
 
-  <script src="admin.js?v=4"></script>
+  <script src="admin.js?v=5"></script>
   <script src="accounts.js"></script>
 </body>
 </html>

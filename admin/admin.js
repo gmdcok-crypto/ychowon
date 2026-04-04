@@ -24,7 +24,6 @@
   const staffRoomGrid = document.getElementById('staff-room-grid');
   const staffTimeBackdrop = document.getElementById('staff-time-dialog-backdrop');
   const staffTimeClose = document.getElementById('staff-time-dialog-close');
-  const staffRoomOpenBtn = document.getElementById('staff-room-open');
 
   function staffTimeDialogEl() {
     return document.getElementById('staff-time-dialog');
@@ -327,7 +326,6 @@
   }
 
   function setupStaffRoomDialog() {
-    bindTapOpen(staffRoomOpenBtn, openStaffRoomDialogGuarded);
     if (roomInput) {
       bindTapOpen(roomInput, openStaffRoomDialogGuarded);
     }
