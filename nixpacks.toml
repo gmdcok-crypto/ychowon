@@ -3,4 +3,8 @@
 NIXPACKS_PYTHON_VERSION = "3.11"
 
 [phases.install]
-cmds = ["pip install --no-cache-dir -r requirements.txt"]
+# Nixpacks 이미지에서 pip 단독 명령이 PATH에 없을 수 있음 → python -m pip 사용
+cmds = [
+  "python -m pip install --upgrade pip",
+  "python -m pip install --no-cache-dir -r requirements.txt",
+]
