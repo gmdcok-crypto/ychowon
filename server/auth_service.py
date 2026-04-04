@@ -32,6 +32,14 @@ DEFAULT_NAMES = {
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
+# bcrypt / passlib: UTF-8 인코딩 후 앞 72바이트만 사용. 미리 잘라 경고를 피하고 동일 규칙으로 검증한다.
+BCRYPT_PASSWORD_MAX_BYTES = 72
+
+
+def _password_bytes_for_bcrypt(password: str) -> bytes:
+    return password.encode("utf-8")[:BCRYPT_PASSWORD_MAX_BYTES]
+
+
 _data_dir: Optional[Path] = None
 _auth_file: Optional[Path] = None
 _secret_file: Optional[Path] = None
@@ -169,7 +177,7 @@ def set_password_first_time(account_id: str, password: str) -> dict[str, str]:
     out = None
     for row in accs:
         if str(row.get("id")) == account_id:
-            row["password_hash"] = pwd_context.hash(password)
+            row["password_hash"] = pwd_context.hash(_password_bytes_for_bcrypt(password))
             out = row
             break
     if not out:
@@ -210,7 +218,7 @@ def verify_login_account(account_id: str, password: str) -> Optional[dict[str, A
     h = a.get("password_hash")
     if not h:
         return None
-    if not pwd_context.verify(password, h):
+    if not pwd_context.verify(_password_bytes_for_bcrypt(password), h):
         return None
     return {"id": str(a["id"]), "role": str(a["role"]), "name": str(a.get("name") or a["id"])}
 
@@ -397,7 +405,14 @@ def account_create(aid: str, name: str, role: str, password: str) -> dict[str, A
         raise ValueError("이미 있는 계정 ID입니다.")
     store = _load_store()
     accs = _accounts_list(store)
-    accs.append({"id": aid, "name": name.strip() or aid, "role": role, "password_hash": pwd_context.hash(password)})
+    accs.append(
+        {
+            "id": aid,
+            "name": name.strip() or aid,
+            "role": role,
+            "password_hash": pwd_context.hash(_password_bytes_for_bcrypt(password)),
+        }
+    )
     store["accounts"] = accs
     _save_store(store)
     return {"id": aid, "name": name, "role": role}
@@ -411,7 +426,7 @@ def account_update(aid: str, name: Optional[str] = None, password: Optional[str]
             if name is not None:
                 row["name"] = name.strip() or row.get("id")
             if password is not None:
-                row["password_hash"] = pwd_context.hash(password)
+                row["password_hash"] = pwd_context.hash(_password_bytes_for_bcrypt(password))
             store["accounts"] = accs
             _save_store(store)
             return
