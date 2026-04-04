@@ -1,0 +1,43 @@
+{
+  "reservations": [
+    {
+      "id": 1,
+      "date": "2026-03-17",
+      "time": "13:30",
+      "slot": "lunch",
+      "phone": "07042335880",
+      "name": "걶혁균헣",
+      "count": 7,
+      "room": "4F룸 룸7",
+      "adult": 4,
+      "child": 3,
+      "infant": 0
+    },
+    {
+      "id": 2,
+      "date": "2026-03-19",
+      "time": "12:30",
+      "slot": "lunch",
+      "phone": "0787524",
+      "name": "Gfdsd",
+      "count": 4,
+      "room": "B홀 B2",
+      "adult": 3,
+      "child": 1,
+      "infant": 0
+    },
+    {
+      "id": 3,
+      "date": "2026-04-04",
+      "time": "12:30",
+      "slot": "lunch",
+      "phone": "01033539119",
+      "name": "권혁균",
+      "count": 4,
+      "room": "4F룸 룸1",
+      "adult": 3,
+      "child": 1,
+      "infant": 0
+    }
+  ]
+}

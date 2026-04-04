@@ -1,0 +1,369 @@
+/* 현황판 하단 컨텐츠 설정 */
+html.embed,
+body.embed {
+  min-height: 0;
+}
+
+body.embed {
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+}
+
+body.embed .admin-header {
+  display: none;
+}
+
+body.embed .display-content-page {
+  max-width: none;
+  margin: 0;
+}
+
+.display-content-page .dc-hint {
+  font-size: 0.85rem;
+  color: var(--cream-dim);
+  margin-bottom: 1rem;
+  line-height: 1.5;
+}
+
+.dc-default {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.dc-default label {
+  font-size: 0.88rem;
+  color: var(--cream-dim);
+}
+
+.dc-default input[type="number"] {
+  width: 5rem;
+  min-height: var(--touch-min);
+  padding: 0.35rem 0.5rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.35);
+  color: var(--cream);
+  font-family: var(--font);
+}
+
+.dc-toolbar {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.dc-add-panel {
+  margin-bottom: 1.25rem;
+  padding: 1rem 1rem 1.1rem;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.28);
+}
+
+.dc-add-panel-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.dc-add-panel-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--gold-light);
+}
+
+.dc-add-panel-hint {
+  margin: 0 0 0.85rem;
+  font-size: 0.82rem;
+  color: var(--cream-dim);
+  line-height: 1.45;
+}
+
+.dc-add-grid {
+  margin-bottom: 0.85rem;
+}
+
+.dc-add-panel input[type="text"],
+.dc-add-panel input[type="number"] {
+  width: 100%;
+  min-height: 40px;
+  padding: 0.35rem 0.5rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.35);
+  color: var(--cream);
+  font-family: var(--font);
+  font-size: 0.9rem;
+}
+
+.dc-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.dc-row {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.75rem;
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.dc-row-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.5rem;
+}
+
+@media (min-width: 640px) {
+  .dc-row-grid {
+    grid-template-columns: 6rem 1fr;
+    align-items: center;
+  }
+  .dc-row-grid .dc-label {
+    font-size: 0.8rem;
+    color: var(--cream-dim);
+  }
+}
+
+.dc-row-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.dc-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.dc-move {
+  min-width: 40px;
+  min-height: 36px;
+  padding: 0.2rem 0.45rem;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.dc-move:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.dc-row-title {
+  font-size: 0.8rem;
+  color: var(--gold);
+  font-weight: 600;
+}
+
+.dc-type {
+  min-height: var(--touch-min);
+  padding: 0.35rem 0.5rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.35);
+  color: var(--cream);
+  font-family: var(--font);
+  max-width: 8rem;
+}
+
+.dc-url-row {
+  display: flex;
+  align-items: stretch;
+  gap: 0.35rem;
+  min-width: 0;
+  width: 100%;
+  position: relative;
+}
+
+/* 기본 파일 입력 UI(파일 선택·선택된 파일 없음) 숨김 — 폴더 아이콘(label)만 표시 */
+.dc-file {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+  opacity: 0;
+}
+
+.dc-url-row .dc-url {
+  flex: 1;
+  min-width: 0;
+  width: auto;
+}
+
+.dc-file-btn {
+  flex-shrink: 0;
+  min-width: var(--touch-min);
+  min-height: 40px;
+  padding: 0.35rem 0.5rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: rgba(201, 169, 98, 0.15);
+  color: var(--gold-light);
+  cursor: pointer;
+  margin: 0;
+}
+
+.dc-file-btn:hover {
+  border-color: var(--gold);
+  background: rgba(201, 169, 98, 0.25);
+}
+
+.dc-file-btn svg {
+  display: block;
+}
+
+.dc-save-inline {
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  padding: 0.35rem 0.4rem;
+  color: var(--cream);
+}
+
+.dc-row input[type="text"],
+.dc-row input[type="url"],
+.dc-row input[type="number"] {
+  width: 100%;
+  min-height: 40px;
+  padding: 0.35rem 0.5rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.35);
+  color: var(--cream);
+  font-family: var(--font);
+  font-size: 0.9rem;
+}
+
+.dc-row .btn-del {
+  min-height: 36px;
+  padding: 0.25rem 0.6rem;
+  font-size: 0.85rem;
+}
+
+/* 저장 후 요약 목록 */
+.dc-summary-section {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.dc-summary-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.dc-summary-toolbar .dc-summary-clear {
+  min-height: 36px;
+  font-size: 0.85rem;
+}
+
+.dc-summary-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.dc-summary-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+
+.dc-summary-table th,
+.dc-summary-table td {
+  padding: 0.55rem 0.65rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+.dc-summary-table th {
+  color: var(--cream-dim);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.dc-summary-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.dc-summary-table tbody tr:hover td {
+  background: rgba(201, 169, 98, 0.06);
+}
+
+.dc-summary-table .col-order {
+  width: 3rem;
+  text-align: center;
+  color: var(--gold);
+  font-weight: 600;
+}
+
+.dc-summary-table .col-type {
+  white-space: nowrap;
+}
+
+.dc-summary-table .col-name {
+  word-break: break-all;
+  color: var(--cream);
+  max-width: 12rem;
+}
+
+.dc-summary-table .col-move {
+  width: 5.5rem;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.dc-summary-table .col-move .dc-move {
+  margin: 0 0.15rem;
+}
+
+.dc-summary-table .col-del {
+  width: 4.5rem;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.dc-summary-table .col-del .btn-del {
+  min-height: 32px;
+  padding: 0.2rem 0.45rem;
+  font-size: 0.8rem;
+}
+
+@media (min-width: 640px) {
+  .dc-summary-table .col-name {
+    max-width: none;
+  }
+}
+
+.dc-summary-empty {
+  font-size: 0.88rem;
+  color: var(--cream-dim);
+  padding: 0.75rem 0;
+}

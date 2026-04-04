@@ -1,0 +1,25 @@
+{
+  "name": "초원농원 예약 현황판",
+  "short_name": "예약현황",
+  "description": "초원농원 예약 현황 DID",
+  "start_url": "/display/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0f0c09",
+  "theme_color": "#1a1510",
+  "lang": "ko",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

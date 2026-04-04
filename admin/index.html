@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5, user-scalable=yes, viewport-fit=cover" />
+  <meta name="theme-color" content="#1a1510" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <title>예약 입력 - 초원농원</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="admin.css" />
+</head>
+<body>
+  <div class="admin admin-with-tabs">
+    <header class="admin-header">
+      <h1>초원농원 예약 입력</h1>
+    </header>
+
+    <div class="admin-tab-bar" role="tablist" aria-label="예약 종류">
+      <button type="button" class="admin-tab active" data-tab="staff" role="tab" id="tab-btn-staff" aria-controls="panel-staff" aria-selected="true">당일예약 및 현황</button>
+      <button type="button" class="admin-tab" data-tab="tel" role="tab" id="tab-btn-tel" aria-controls="panel-tel" aria-selected="false">전화 예약</button>
+      <button type="button" class="admin-tab" data-tab="all" role="tab" id="tab-btn-all" aria-controls="panel-all" aria-selected="false">예약조회</button>
+      <button type="button" class="admin-tab" data-tab="display" role="tab" id="tab-btn-display" aria-controls="panel-display" aria-selected="false">현황판 하단</button>
+      <button type="button" class="admin-fullscreen-btn" id="admin-fullscreen" title="브라우저 UI 숨기기">전체화면</button>
+    </div>
+
+    <section class="main-section admin-tab-panel" id="panel-staff" role="tabpanel" aria-labelledby="tab-btn-staff">
+      <div class="form-block">
+        <h2 id="form-title">예약 추가</h2>
+        <form id="add-form" class="add-form">
+          <div class="field field-time">
+            <label for="time">시간</label>
+            <div class="time-spin-wrap">
+              <input
+                type="text"
+                id="time"
+                name="time"
+                class="input-time-24"
+                inputmode="numeric"
+                placeholder="14:00"
+                maxlength="5"
+                title="24시간 형식 HH:MM (예: 09:30, 17:00)"
+                autocomplete="off"
+                spellcheck="false"
+                required
+              />
+              <div class="time-spin-btns" role="group" aria-label="15분 단위로 시간 조절">
+                <button type="button" class="time-spin-btn" id="time-spin-up" title="15분 뒤" aria-label="15분 뒤">▲</button>
+                <button type="button" class="time-spin-btn" id="time-spin-down" title="15분 앞" aria-label="15분 앞">▼</button>
+              </div>
+            </div>
+          </div>
+          <div class="add-form-name-room">
+            <div class="field field-name">
+              <label for="name">이름</label>
+              <input type="text" id="name" name="name" placeholder="홍길동" required />
+            </div>
+            <div class="field field-room">
+              <label for="room">호실</label>
+              <div class="room-picker room-picker-single">
+                <input type="text" id="room" name="room" placeholder="호실 선택" required readonly autocomplete="off" size="1" />
+              </div>
+            </div>
+            <div class="form-actions form-actions-inline">
+              <button type="submit" class="btn btn-add" id="submit-btn">추가</button>
+              <button type="button" class="btn btn-cancel" id="cancel-edit-btn" style="display:none;">취소</button>
+            </div>
+          </div>
+          <div class="form-actions form-actions-refresh">
+            <button type="button" class="btn btn-refresh" id="btn-refresh-list" title="서버에서 목록 다시 불오기">목록 새로고침</button>
+          </div>
+        </form>
+      </div>
+      <div class="list-block">
+        <div class="reservation-table">
+          <div class="list-table-header" role="row" aria-label="예약 목록 열 제목">
+            <span class="list-h-col list-h-no">No</span>
+            <span class="list-h-col list-h-time">예약시간</span>
+            <span class="list-h-col list-h-name">예약자</span>
+            <span class="list-h-col list-h-room">예약실</span>
+            <span class="list-h-col list-h-party">인원</span>
+            <span class="list-h-actions" aria-hidden="true"></span>
+          </div>
+          <div id="list" class="reservation-list"></div>
+        </div>
+      </div>
+    </section>
+
+    <div class="admin-tab-panel admin-tab-panel-tel hidden" id="panel-tel" role="tabpanel" aria-labelledby="tab-btn-tel">
+      <div class="admin-tel-frame">
+        <iframe class="admin-tel-iframe" title="전화 예약 접수" src="/tel/"></iframe>
+      </div>
+    </div>
+
+    <div class="admin-tab-panel admin-tab-panel-all hidden" id="panel-all" role="tabpanel" aria-labelledby="tab-btn-all">
+      <div class="admin-tel-frame admin-all-frame">
+        <iframe class="admin-tel-iframe" title="예약조회" src="/admin/all.html?embed=1"></iframe>
+      </div>
+    </div>
+
+    <div class="admin-tab-panel admin-tab-panel-display hidden" id="panel-display" role="tabpanel" aria-labelledby="tab-btn-display">
+      <div class="admin-tel-frame admin-all-frame">
+        <iframe class="admin-tel-iframe" title="현황판 하단 컨텐츠" src="/admin/display-content.html?embed=1"></iframe>
+      </div>
+    </div>
+
+    <div class="room-dialog hidden" id="staff-room-dialog" aria-hidden="true">
+      <div class="room-dialog-backdrop" id="staff-room-dialog-backdrop"></div>
+      <div class="room-dialog-panel" role="dialog" aria-modal="true" aria-labelledby="staff-room-dialog-title">
+        <div class="room-dialog-head">
+          <div>
+            <h2 id="staff-room-dialog-title">룸 / 테이블 선택</h2>
+            <p class="room-dialog-meta" id="staff-room-dialog-meta">시간을 먼저 입력하세요.</p>
+          </div>
+          <button type="button" class="room-dialog-close" id="staff-room-dialog-close">닫기</button>
+        </div>
+        <div class="room-dialog-legend">
+          <span class="legend available">선택 가능</span>
+          <span class="legend reserved">예약 완료</span>
+          <span class="legend selected">현재 선택</span>
+        </div>
+        <div class="room-group-tabs" id="staff-room-group-tabs"></div>
+        <div class="room-grid" id="staff-room-grid"></div>
+      </div>
+    </div>
+
+    <div id="toast" class="toast" aria-live="polite"></div>
+  </div>
+  <script src="admin.js"></script>
+</body>
+</html>

@@ -1,0 +1,19 @@
+{
+  "items": [
+    {
+      "type": "image",
+      "url": "/display/uploads/d7ed0750af86492ca949ac89bb5fc4bc.png",
+      "name": "1.png",
+      "id": "1",
+      "order": 0
+    },
+    {
+      "type": "image",
+      "url": "/display/uploads/7e1c553994b9407287bbe8ae507012db.png",
+      "name": "2.png",
+      "id": "2",
+      "order": 1
+    }
+  ],
+  "default_interval_sec": 8
+}

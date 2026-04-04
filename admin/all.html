@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5, user-scalable=yes, viewport-fit=cover" />
+  <meta name="theme-color" content="#1a1510" />
+  <title>예약조회 - 초원농원</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="admin.css" />
+  <link rel="stylesheet" href="all.css" />
+</head>
+<body>
+  <script>
+    (function () {
+      try {
+        if (new URLSearchParams(window.location.search).get('embed') === '1') {
+          document.body.classList.add('embed');
+          document.documentElement.classList.add('embed');
+        }
+      } catch (e) {}
+    })();
+  </script>
+  <div class="admin admin-wide">
+    <header class="admin-header">
+      <h1>예약조회</h1>
+    </header>
+
+    <section class="main-section all-filters">
+      <h2 class="section-title">날짜 선택</h2>
+      <div class="filter-row">
+        <label class="all-date-field">
+          <span class="all-date-label">시작일</span>
+          <div class="all-date-wrap">
+            <input type="text" class="all-date-input" id="filter-from" readonly autocomplete="off" inputmode="none" />
+            <button type="button" class="all-cal-trigger" id="btn-cal-from" title="달력" aria-label="시작일 달력 열기">
+              <svg class="all-cal-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+            </button>
+          </div>
+        </label>
+        <label class="all-date-field">
+          <span class="all-date-label">종료일</span>
+          <div class="all-date-wrap">
+            <input type="text" class="all-date-input" id="filter-to" readonly autocomplete="off" inputmode="none" />
+            <button type="button" class="all-cal-trigger" id="btn-cal-to" title="달력" aria-label="종료일 달력 열기">
+              <svg class="all-cal-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+            </button>
+          </div>
+        </label>
+        <button type="button" class="btn btn-refresh" id="btn-search">조회</button>
+      </div>
+      <p class="list-hint" id="result-count"></p>
+    </section>
+
+    <section class="main-section all-table-wrap">
+      <div class="table-scroll">
+        <table class="all-table" id="all-table">
+          <thead>
+            <tr>
+              <th>날짜</th>
+              <th>시간</th>
+              <th>이름</th>
+              <th>전화</th>
+              <th>룸/테이블</th>
+              <th>인원</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="all-tbody">
+          </tbody>
+        </table>
+      </div>
+      <p class="empty-msg" id="empty-msg" hidden>해당 조건의 예약이 없습니다.</p>
+    </section>
+
+    <div id="all-cal-backdrop" class="all-cal-backdrop" hidden></div>
+    <div id="all-cal-pop" class="all-cal-pop" role="dialog" aria-modal="true" aria-labelledby="all-cal-month-label" hidden>
+      <div class="all-cal-panel">
+        <div class="all-cal-head">
+          <button type="button" class="all-cal-nav" id="all-cal-prev" aria-label="이전 달">&lt;</button>
+          <div class="all-cal-month" id="all-cal-month-label"></div>
+          <button type="button" class="all-cal-nav" id="all-cal-next" aria-label="다음 달">&gt;</button>
+        </div>
+        <div class="all-cal-weekdays">
+          <span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span>
+        </div>
+        <div class="all-cal-grid" id="all-cal-grid"></div>
+      </div>
+    </div>
+
+    <div id="toast" class="toast" aria-live="polite"></div>
+  </div>
+  <script src="all.js"></script>
+</body>
+</html>

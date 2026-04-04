@@ -1,0 +1,27 @@
+{
+  "name": "초원농원 예약 접수",
+  "short_name": "예약접수",
+  "description": "전화 예약 접수 (태블릿)",
+  "start_url": "/tel/",
+  "scope": "/tel/",
+  "display": "standalone",
+  "display_override": ["fullscreen", "standalone"],
+  "orientation": "any",
+  "background_color": "#0f0c09",
+  "theme_color": "#1a1510",
+  "lang": "ko",
+  "icons": [
+    {
+      "src": "/display/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/display/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

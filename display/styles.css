@@ -1,0 +1,286 @@
+/* 초원농원 예약 현황판 - 세로형 DID, 고급스러운 테마 */
+
+:root {
+  /* 초원농원 톤 */
+  --bg-deep: #0f0c09;
+  --bg-board: #1a1510;
+  --bg-card: #221c16;
+  --bg-header: #2a221a;
+  --gold: #c9a962;
+  --gold-light: #e5d4a1;
+  --gold-dim: #8b7340;
+  --cream: #f5efe6;
+  --cream-dim: #b8a990;
+  --border: rgba(201, 169, 98, 0.25);
+  --shadow: rgba(0, 0, 0, 0.4);
+  --font-serif: "Noto Serif KR", serif;
+  --font-sans: "Noto Sans KR", sans-serif;
+  --rows-per-block: 15;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: clamp(14px, 1.8vh, 28px);
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  font-family: var(--font-sans);
+  background: var(--bg-deep);
+  color: var(--cream);
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem;
+  overflow: hidden;
+}
+
+/* 46인치 풀스크린 보드, 15줄/블록 */
+.board {
+  width: 100%;
+  max-width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  max-height: 100vh;
+  max-height: 100dvh;
+  background: linear-gradient(180deg, var(--bg-board) 0%, #15110c 100%);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* 상단 헤더 */
+.header {
+  padding: 1rem 1.25rem 0.75rem;
+  text-align: center;
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(180deg, var(--bg-header) 0%, transparent 100%);
+}
+
+.logo-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15em;
+}
+
+.logo-sub {
+  font-family: var(--font-sans);
+  font-size: 0.5rem;
+  font-weight: 500;
+  letter-spacing: 0.35em;
+  color: var(--gold-dim);
+  text-transform: uppercase;
+}
+
+.logo {
+  font-family: var(--font-serif);
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--gold);
+  letter-spacing: 0.02em;
+}
+
+.datetime {
+  margin-top: 0.5rem;
+  display: flex;
+  justify-content: center;
+  gap: 0.75rem;
+  font-size: 0.7rem;
+  font-weight: 400;
+  color: var(--cream-dim);
+}
+
+.datetime .date { font-variant-numeric: tabular-nums; }
+.datetime .time { font-variant-numeric: tabular-nums; font-weight: 500; color: var(--gold-light); }
+
+/* 테이블 헤더 - 시간 | 이름 | 호실 (블록마다) */
+.table-header {
+  display: grid;
+  grid-template-columns: 1fr 2fr 0.9fr;
+  padding: 0.4em 0.6em;
+  background: rgba(201, 169, 98, 0.12);
+  border-bottom: 1px solid var(--border);
+  font-size: 0.75em;
+  font-weight: 600;
+  color: var(--gold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+.table-header .col {
+  text-align: center;
+}
+
+/* 블록 컨테이너: 15줄 초과 시 옆에 블록 추가 */
+.blocks {
+  flex: 1;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  gap: 1rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  align-items: stretch;
+  padding: 0.25rem 0;
+}
+
+.block {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0;
+  min-width: 12rem;
+  max-width: 20rem;
+  background: rgba(0, 0, 0, 0.15);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.block .table-body {
+  display: grid;
+  grid-template-rows: repeat(var(--rows-per-block), 1fr);
+  flex: 1;
+  min-height: 0;
+}
+
+.block .table-body .row {
+  display: grid;
+  grid-template-columns: 1fr 2fr 0.9fr;
+  padding: 0.35em 0.6em;
+  border-bottom: 1px solid rgba(201, 169, 98, 0.1);
+  font-size: 0.85em;
+  font-weight: 400;
+  color: var(--cream);
+  align-items: center;
+  min-height: 0;
+}
+
+.block .table-body .row:last-child {
+  border-bottom: none;
+}
+
+.block .table-body .row:nth-child(odd) {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.row .col {
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.row .col-time {
+  color: var(--gold-light);
+  font-weight: 500;
+}
+
+.row .col-name {
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  white-space: normal;
+  overflow: visible;
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+
+.row .col-room {
+  color: var(--gold);
+  font-weight: 600;
+}
+
+.row .col-room.vip {
+  color: var(--gold-light);
+  font-weight: 700;
+}
+
+.row.empty-row .col {
+  color: var(--cream-dim);
+  opacity: 0.4;
+  font-weight: 400;
+}
+
+/* 하단 광고 영역: 동영상 또는 이미지 */
+.ad-area {
+  flex-shrink: 0;
+  height: 22vh;
+  min-height: 140px;
+  max-height: 280px;
+  border-top: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.ad-media {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ad-media .ad-slide {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  display: none;
+}
+
+.ad-media .ad-slide.active {
+  display: block;
+}
+
+.ad-media .ad-slide.active video {
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+}
+
+/* 하단 푸터 */
+.footer {
+  padding: 0.5rem 1rem;
+  text-align: center;
+  border-top: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.footer-text {
+  font-size: 0.5rem;
+  letter-spacing: 0.2em;
+  color: var(--gold-dim);
+  text-transform: uppercase;
+}
+
+/* 세로형 DID 전용 - 더 큰 화면(태블릿/전용 디스플레이) */
+@media (min-width: 480px) and (min-height: 800px) {
+  .logo { font-size: 1.5em; }
+}
+
+/* 46인치 가로 DID */
+@media (min-width: 1920px) {
+  .block {
+    min-width: 14rem;
+    max-width: 22rem;
+  }
+  .block .table-body .row {
+    font-size: 0.9em;
+  }
+}
