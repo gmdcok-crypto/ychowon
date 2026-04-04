@@ -1,5 +1,5 @@
 """
-JWT + bcrypt. 계정은 accounts[] (id, name, role, password_hash).
+JWT + bcrypt(직접 사용). 계정은 accounts[] (id, name, role, password_hash).
 역할(role): admin / display / tel — 권한 판별에 사용.
 """
 from __future__ import annotations
@@ -11,8 +11,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Optional
 
+import bcrypt
 import jwt
-from passlib.context import CryptContext
 from starlette.requests import Request
 from starlette.responses import JSONResponse, RedirectResponse, Response
 
@@ -30,14 +30,30 @@ DEFAULT_NAMES = {
     "tel": "전화예약",
 }
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
-# bcrypt / passlib: UTF-8 인코딩 후 앞 72바이트만 사용. 미리 잘라 경고를 피하고 동일 규칙으로 검증한다.
+# bcrypt: UTF-8로 인코딩한 뒤 최대 72바이트만 사용(알고리즘 한계). 글자 수가 아니라 바이트 기준.
+# 특수문자·한글·이모지 제한은 없음. 다만 한 글자가 여러 바이트면 같은 글자 수라도 더 빨리 72바이트에 도달함.
+# passlib은 bcrypt 4.x와 조합 시 내부에서 동일 오류가 나는 경우가 있어, bcrypt를 직접 사용한다.
 BCRYPT_PASSWORD_MAX_BYTES = 72
+BCRYPT_ROUNDS = 12
 
 
 def _password_bytes_for_bcrypt(password: str) -> bytes:
     return password.encode("utf-8")[:BCRYPT_PASSWORD_MAX_BYTES]
+
+
+def _hash_password(password: str) -> str:
+    b = _password_bytes_for_bcrypt(password)
+    return bcrypt.hashpw(b, bcrypt.gensalt(rounds=BCRYPT_ROUNDS)).decode("ascii")
+
+
+def _verify_password(password: str, stored_hash: Any) -> bool:
+    if not stored_hash or not isinstance(stored_hash, str):
+        return False
+    b = _password_bytes_for_bcrypt(password)
+    try:
+        return bcrypt.checkpw(b, stored_hash.encode("utf-8"))
+    except (ValueError, TypeError):
+        return False
 
 
 _data_dir: Optional[Path] = None
@@ -177,7 +193,7 @@ def set_password_first_time(account_id: str, password: str) -> dict[str, str]:
     out = None
     for row in accs:
         if str(row.get("id")) == account_id:
-            row["password_hash"] = pwd_context.hash(_password_bytes_for_bcrypt(password))
+            row["password_hash"] = _hash_password(password)
             out = row
             break
     if not out:
@@ -218,7 +234,7 @@ def verify_login_account(account_id: str, password: str) -> Optional[dict[str, A
     h = a.get("password_hash")
     if not h:
         return None
-    if not pwd_context.verify(_password_bytes_for_bcrypt(password), h):
+    if not _verify_password(password, h):
         return None
     return {"id": str(a["id"]), "role": str(a["role"]), "name": str(a.get("name") or a["id"])}
 
@@ -410,7 +426,7 @@ def account_create(aid: str, name: str, role: str, password: str) -> dict[str, A
             "id": aid,
             "name": name.strip() or aid,
             "role": role,
-            "password_hash": pwd_context.hash(_password_bytes_for_bcrypt(password)),
+            "password_hash": _hash_password(password),
         }
     )
     store["accounts"] = accs
@@ -426,7 +442,7 @@ def account_update(aid: str, name: Optional[str] = None, password: Optional[str]
             if name is not None:
                 row["name"] = name.strip() or row.get("id")
             if password is not None:
-                row["password_hash"] = pwd_context.hash(_password_bytes_for_bcrypt(password))
+                row["password_hash"] = _hash_password(password)
             store["accounts"] = accs
             _save_store(store)
             return
