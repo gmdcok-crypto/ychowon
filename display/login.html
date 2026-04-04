@@ -55,40 +55,59 @@
   function escapeAttr(s) {
     return escapeHtml(s).replace(/'/g, '&#39;');
   }
-  fetch('/api/auth/status?role=' + encodeURIComponent(ROLE), { credentials: 'same-origin' })
-    .then(function (r) { return r.json(); })
-    .then(function (data) {
-      if (data.needs_setup) {
-        var list = data.accounts_needing_setup || [];
-        var sel = document.getElementById('accountSetup');
-        if (!list.length) {
-          showError('설정할 계정 정보를 불러오지 못했습니다.');
-          return;
-        }
-        sel.innerHTML = list.map(function (a) {
-          return '<option value="' + escapeAttr(a.id) + '">' + escapeHtml(a.name) + ' (' + escapeHtml(a.id) + ')</option>';
-        }).join('');
-        var def = data.default_account_id;
-        if (def) sel.value = def;
-        document.getElementById('setupBlock').hidden = false;
+  var HOME_BY_ROLE = { admin: '/admin/', display: '/display/', tel: '/tel/' };
+  fetch('/api/auth/session', { credentials: 'same-origin' })
+    .then(function (r) {
+      if (r.status === 401) return null;
+      if (!r.ok) return null;
+      return r.json();
+    })
+    .then(function (sess) {
+      if (sess && sess.ok && sess.role) {
+        var dest = sess.role === ROLE ? HOME : (HOME_BY_ROLE[sess.role] || HOME);
+        window.location.replace(dest);
         return;
       }
-      return fetch('/api/auth/login-options?role=' + encodeURIComponent(ROLE), { credentials: 'same-origin' })
-        .then(function (r) { return r.json(); })
-        .then(function (lo) {
-          var accounts = lo.accounts || [];
-          var sel = document.getElementById('accountLogin');
-          if (!accounts.length) {
-            showError('로그인 가능한 계정이 없습니다. 관리자에게 문의하세요.');
+      startLoginFlow();
+    })
+    .catch(function () { startLoginFlow(); });
+
+  function startLoginFlow() {
+    fetch('/api/auth/status?role=' + encodeURIComponent(ROLE), { credentials: 'same-origin' })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (data.needs_setup) {
+          var list = data.accounts_needing_setup || [];
+          var sel = document.getElementById('accountSetup');
+          if (!list.length) {
+            showError('설정할 계정 정보를 불러오지 못했습니다.');
             return;
           }
-          sel.innerHTML = accounts.map(function (a) {
+          sel.innerHTML = list.map(function (a) {
             return '<option value="' + escapeAttr(a.id) + '">' + escapeHtml(a.name) + ' (' + escapeHtml(a.id) + ')</option>';
           }).join('');
-          document.getElementById('loginBlock').hidden = false;
-        });
-    })
-    .catch(function () { showError('상태를 불러오지 못했습니다.'); });
+          var def = data.default_account_id;
+          if (def) sel.value = def;
+          document.getElementById('setupBlock').hidden = false;
+          return;
+        }
+        return fetch('/api/auth/login-options?role=' + encodeURIComponent(ROLE), { credentials: 'same-origin' })
+          .then(function (r) { return r.json(); })
+          .then(function (lo) {
+            var accounts = lo.accounts || [];
+            var sel = document.getElementById('accountLogin');
+            if (!accounts.length) {
+              showError('로그인 가능한 계정이 없습니다. 관리자에게 문의하세요.');
+              return;
+            }
+            sel.innerHTML = accounts.map(function (a) {
+              return '<option value="' + escapeAttr(a.id) + '">' + escapeHtml(a.name) + ' (' + escapeHtml(a.id) + ')</option>';
+            }).join('');
+            document.getElementById('loginBlock').hidden = false;
+          });
+      })
+      .catch(function () { showError('상태를 불러오지 못했습니다.'); });
+  }
   document.getElementById('btnSetup').addEventListener('click', function () {
     var a = document.getElementById('pw1').value;
     var b = document.getElementById('pw2').value;

@@ -128,6 +128,8 @@ from auth_service import (
     auth_middleware,
     configure as auth_configure,
     create_token,
+    decode_token,
+    extract_token,
     first_account_needing_setup,
     list_accounts_needing_setup,
     list_accounts_public,
@@ -851,6 +853,23 @@ def api_auth_login_options(role: str):
     if role not in ROLES:
         raise HTTPException(status_code=400, detail="잘못된 역할입니다.")
     return {"accounts": list_login_options(role)}
+
+
+@app.get("/api/auth/session")
+def api_auth_session(request: Request):
+    """유효한 access_token 쿠키가 있으면 역할·계정 정보 반환. 로그인 페이지에서 이미 로그인된 경우 바로 이동할 때 사용."""
+    payload = decode_token(extract_token(request))
+    if not payload:
+        raise HTTPException(status_code=401, detail="인증되지 않았습니다.")
+    role = payload.get("role")
+    if role not in ROLES:
+        raise HTTPException(status_code=401, detail="인증되지 않았습니다.")
+    return {
+        "ok": True,
+        "role": role,
+        "account_id": payload.get("sub"),
+        "name": payload.get("name"),
+    }
 
 
 @app.post("/api/auth/setup")

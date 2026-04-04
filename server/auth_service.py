@@ -291,7 +291,7 @@ def login_redirect_for(path: str) -> str:
 
 
 def is_public_auth_api_path(path: str) -> bool:
-    if path in ("/api/auth/status", "/api/auth/setup", "/api/auth/login", "/api/auth/logout"):
+    if path in ("/api/auth/status", "/api/auth/setup", "/api/auth/login", "/api/auth/logout", "/api/auth/session"):
         return True
     if path.startswith("/api/auth/login-options"):
         return True
