@@ -55,7 +55,6 @@
   function escapeAttr(s) {
     return escapeHtml(s).replace(/'/g, '&#39;');
   }
-  var HOME_BY_ROLE = { admin: '/admin/', display: '/display/', tel: '/tel/' };
   fetch('/api/auth/session', { credentials: 'same-origin' })
     .then(function (r) {
       if (r.status === 401) return null;
@@ -63,9 +62,8 @@
       return r.json();
     })
     .then(function (sess) {
-      if (sess && sess.ok && sess.role) {
-        var dest = sess.role === ROLE ? HOME : (HOME_BY_ROLE[sess.role] || HOME);
-        window.location.replace(dest);
+      if (sess && sess.ok && sess.role === ROLE) {
+        window.location.replace(HOME);
         return;
       }
       startLoginFlow();

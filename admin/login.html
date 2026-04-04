@@ -56,7 +56,6 @@
   function escapeAttr(s) {
     return escapeHtml(s).replace(/'/g, '&#39;');
   }
-  var HOME_BY_ROLE = { admin: '/admin/', display: '/display/', tel: '/tel/' };
   fetch('/api/auth/session', { credentials: 'same-origin' })
     .then(function (r) {
       if (r.status === 401) return null;
@@ -64,9 +63,9 @@
       return r.json();
     })
     .then(function (sess) {
-      if (sess && sess.ok && sess.role) {
-        var dest = sess.role === ROLE ? HOME : (HOME_BY_ROLE[sess.role] || HOME);
-        window.location.replace(dest);
+      /* 이 로그인 화면과 같은 역할만 자동 이동. 다른 역할(tel 등)로 로그인된 채 display URL을 연 경우 tel로 보내지 않음 */
+      if (sess && sess.ok && sess.role === ROLE) {
+        window.location.replace(HOME);
         return;
       }
       startLoginFlow();
