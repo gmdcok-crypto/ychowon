@@ -509,34 +509,6 @@
     });
   }
 
-  function setupFullscreen() {
-    var btn = document.getElementById('admin-fullscreen');
-    if (!btn) return;
-    var doc = document.documentElement;
-    function updateLabel() {
-      btn.textContent = document.fullscreenElement ? '전체화면 해제' : '전체화면';
-    }
-    document.addEventListener('fullscreenchange', updateLabel);
-    btn.addEventListener('click', function () {
-      if (document.fullscreenElement) {
-        var exit = document.exitFullscreen || document.webkitExitFullscreen;
-        if (exit) exit.call(document);
-      } else {
-        var req = doc.requestFullscreen || doc.webkitRequestFullscreen;
-        if (!req) {
-          showToast('이 브라우저에서는 전체화면을 사용할 수 없습니다.');
-          return;
-        }
-        req.call(doc).then(function () {
-          showToast('전체화면입니다. 해제는 같은 버튼을 누르세요.');
-        }).catch(function () {
-          showToast('전체화면을 사용할 수 없습니다.');
-        });
-      }
-    });
-    updateLabel();
-  }
-
   (function setupTabs() {
     var tabs = document.querySelectorAll('.admin-tab');
     var panelStaff = document.getElementById('panel-staff');
@@ -567,7 +539,6 @@
 
   setupStaffRoomDialog();
   setupTimeSpin();
-  setupFullscreen();
   load();
   connectWs();
 })();

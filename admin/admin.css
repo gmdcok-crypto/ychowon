@@ -56,25 +56,6 @@ body {
   align-items: center;
 }
 
-.admin-fullscreen-btn {
-  flex-shrink: 0;
-  margin-left: auto;
-  min-height: var(--touch-min);
-  padding: 0.35rem 0.75rem;
-  border-radius: 10px;
-  border: 1px solid var(--border);
-  background: rgba(0, 0, 0, 0.35);
-  color: var(--gold-light);
-  font-size: 0.85rem;
-  font-family: var(--font);
-  cursor: pointer;
-}
-
-.admin-fullscreen-btn:hover {
-  border-color: var(--gold);
-  background: rgba(201, 169, 98, 0.2);
-}
-
 .admin-tab {
   flex: 1;
   min-width: 140px;
