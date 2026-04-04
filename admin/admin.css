@@ -288,27 +288,11 @@ body {
 .staff-time-field-row .input-time-24 {
   flex: 1;
   min-width: 4.5rem;
+  width: 100%;
+  min-height: var(--touch-min);
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.03em;
   cursor: pointer;
-}
-
-.staff-time-open-btn {
-  flex-shrink: 0;
-  min-height: var(--touch-min);
-  padding: 0.4rem 0.75rem;
-  border-radius: 8px;
-  border: 1px solid var(--border);
-  background: rgba(201, 169, 98, 0.22);
-  color: var(--gold-light);
-  font-size: 0.88rem;
-  font-weight: 600;
-  cursor: pointer;
-  font-family: inherit;
-}
-
-.staff-time-open-btn:hover {
-  background: rgba(201, 169, 98, 0.32);
 }
 
 .staff-time-dialog {

@@ -24,7 +24,6 @@
   const staffRoomGrid = document.getElementById('staff-room-grid');
   const staffTimeBackdrop = document.getElementById('staff-time-dialog-backdrop');
   const staffTimeClose = document.getElementById('staff-time-dialog-close');
-  const staffTimeOpen = document.getElementById('staff-time-open');
   const staffRoomOpenBtn = document.getElementById('staff-room-open');
 
   function staffTimeDialogEl() {
@@ -165,7 +164,7 @@
 
   function setupStaffTimeDialog() {
     if (!timeInput) return;
-    bindTapOpen(staffTimeOpen, openStaffTimeDialogGuarded);
+    /* readonly 입력·라벨 탭으로만 팝업 (별도 버튼 없음) */
     /* readonly + label(for): 라벨 탭은 input으로 이벤트가 안 올 수 있음 */
     var timeLabel = document.querySelector('label[for="time"]');
     if (timeLabel) {
