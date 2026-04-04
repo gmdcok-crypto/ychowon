@@ -1,0 +1,6 @@
+# Docker 미사용 — Nixpacks 빌드
+[build]
+builder = "nixpacks"
+
+[deploy]
+startCommand = "cd server && uvicorn main:app --host 0.0.0.0 --port $PORT"
