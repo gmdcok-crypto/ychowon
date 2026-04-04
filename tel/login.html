@@ -9,7 +9,7 @@
     .box { background: #221c16; border: 1px solid rgba(201,169,98,.3); border-radius: 12px; padding: 1.5rem; width: 100%; max-width: 380px; box-sizing: border-box; }
     h1 { font-size: 1.15rem; color: #e5d4a1; margin: 0 0 1rem; font-weight: 600; }
     label { display: block; font-size: 0.85rem; color: #b8a990; margin-bottom: 0.35rem; }
-    input { width: 100%; box-sizing: border-box; padding: 0.55rem 0.65rem; border-radius: 8px; border: 1px solid rgba(201,169,98,.3); background: rgba(0,0,0,.35); color: #f5efe6; margin-bottom: 0.75rem; font-size: 16px; }
+    input, select { width: 100%; box-sizing: border-box; padding: 0.55rem 0.65rem; border-radius: 8px; border: 1px solid rgba(201,169,98,.3); background: rgba(0,0,0,.35); color: #f5efe6; margin-bottom: 0.75rem; font-size: 16px; }
     button { width: 100%; padding: 0.65rem; border-radius: 8px; border: none; background: #c9a962; color: #1a1510; font-weight: 600; cursor: pointer; margin-top: 0.25rem; font-size: 0.95rem; min-height: 44px; }
     .err { color: #f0a0a0; font-size: 0.85rem; margin-top: 0.5rem; min-height: 1.2em; }
     .hint { font-size: 0.8rem; color: #b8a990; margin-bottom: 0.75rem; line-height: 1.4; }
@@ -20,6 +20,8 @@
     <h1>전화 예약 (tel)</h1>
     <div id="setupBlock" hidden>
       <p class="hint">최초 1회 비밀번호를 설정하세요. (4자 이상)</p>
+      <label for="accountSetup">계정</label>
+      <select id="accountSetup"></select>
       <label for="pw1">비밀번호</label>
       <input type="password" id="pw1" autocomplete="new-password" />
       <label for="pw2">비밀번호 확인</label>
@@ -27,6 +29,8 @@
       <button type="button" id="btnSetup">설정하고 들어가기</button>
     </div>
     <div id="loginBlock" hidden>
+      <label for="accountLogin">계정</label>
+      <select id="accountLogin"></select>
       <label for="pw">비밀번호</label>
       <input type="password" id="pw" autocomplete="current-password" />
       <button type="button" id="btnLogin">로그인</button>
@@ -45,16 +49,50 @@
     if (Array.isArray(d) && d[0] && d[0].msg) return d[0].msg;
     return '요청을 처리하지 못했습니다.';
   }
+  function escapeHtml(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+  function escapeAttr(s) {
+    return escapeHtml(s).replace(/'/g, '&#39;');
+  }
   fetch('/api/auth/status?role=' + encodeURIComponent(ROLE), { credentials: 'same-origin' })
     .then(function (r) { return r.json(); })
     .then(function (data) {
-      if (data.needs_setup) document.getElementById('setupBlock').hidden = false;
-      else document.getElementById('loginBlock').hidden = false;
+      if (data.needs_setup) {
+        var list = data.accounts_needing_setup || [];
+        var sel = document.getElementById('accountSetup');
+        if (!list.length) {
+          showError('설정할 계정 정보를 불러오지 못했습니다.');
+          return;
+        }
+        sel.innerHTML = list.map(function (a) {
+          return '<option value="' + escapeAttr(a.id) + '">' + escapeHtml(a.name) + ' (' + escapeHtml(a.id) + ')</option>';
+        }).join('');
+        var def = data.default_account_id;
+        if (def) sel.value = def;
+        document.getElementById('setupBlock').hidden = false;
+        return;
+      }
+      return fetch('/api/auth/login-options?role=' + encodeURIComponent(ROLE), { credentials: 'same-origin' })
+        .then(function (r) { return r.json(); })
+        .then(function (lo) {
+          var accounts = lo.accounts || [];
+          var sel = document.getElementById('accountLogin');
+          if (!accounts.length) {
+            showError('로그인 가능한 계정이 없습니다. 관리자에게 문의하세요.');
+            return;
+          }
+          sel.innerHTML = accounts.map(function (a) {
+            return '<option value="' + escapeAttr(a.id) + '">' + escapeHtml(a.name) + ' (' + escapeHtml(a.id) + ')</option>';
+          }).join('');
+          document.getElementById('loginBlock').hidden = false;
+        });
     })
     .catch(function () { showError('상태를 불러오지 못했습니다.'); });
   document.getElementById('btnSetup').addEventListener('click', function () {
     var a = document.getElementById('pw1').value;
     var b = document.getElementById('pw2').value;
+    var accountId = document.getElementById('accountSetup').value;
     if (a.length < 4) { showError('비밀번호는 4자 이상이어야 합니다.'); return; }
     if (a !== b) { showError('비밀번호가 일치하지 않습니다.'); return; }
     showError('');
@@ -62,7 +100,7 @@
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'same-origin',
-      body: JSON.stringify({ role: ROLE, password: a })
+      body: JSON.stringify({ account_id: accountId, password: a })
     })
       .then(function (r) {
         if (!r.ok) return r.json().then(function (j) { throw new Error(parseDetail(j)); });
@@ -73,12 +111,13 @@
   });
   document.getElementById('btnLogin').addEventListener('click', function () {
     var p = document.getElementById('pw').value;
+    var accountId = document.getElementById('accountLogin').value;
     showError('');
     fetch('/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'same-origin',
-      body: JSON.stringify({ role: ROLE, password: p })
+      body: JSON.stringify({ account_id: accountId, password: p })
     })
       .then(function (r) {
         if (!r.ok) return r.json().then(function (j) { throw new Error(parseDetail(j)); });

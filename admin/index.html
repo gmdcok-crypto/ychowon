@@ -22,6 +22,7 @@
       <button type="button" class="admin-tab" data-tab="tel" role="tab" id="tab-btn-tel" aria-controls="panel-tel" aria-selected="false">전화 예약</button>
       <button type="button" class="admin-tab" data-tab="all" role="tab" id="tab-btn-all" aria-controls="panel-all" aria-selected="false">예약조회</button>
       <button type="button" class="admin-tab" data-tab="display" role="tab" id="tab-btn-display" aria-controls="panel-display" aria-selected="false">현황판 하단</button>
+      <button type="button" class="admin-tab" data-tab="accounts" role="tab" id="tab-btn-accounts" aria-controls="panel-accounts" aria-selected="false">계정 관리</button>
     </div>
 
     <section class="main-section admin-tab-panel" id="panel-staff" role="tabpanel" aria-labelledby="tab-btn-staff">
@@ -104,6 +105,43 @@
       </div>
     </div>
 
+    <section class="admin-tab-panel admin-tab-panel-accounts hidden" id="panel-accounts" role="tabpanel" aria-labelledby="tab-btn-accounts">
+      <div class="accounts-panel">
+        <p class="accounts-hint">비밀번호는 서버에 해시(bcrypt)로만 저장됩니다. 인증 취소 시 해당 계정은 비밀번호를 다시 설정해야 로그인할 수 있습니다.</p>
+        <div class="accounts-toolbar">
+          <button type="button" class="btn btn-add" id="accounts-btn-add">추가</button>
+          <button type="button" class="btn btn-edit" id="accounts-btn-edit">수정</button>
+          <button type="button" class="btn btn-del" id="accounts-btn-delete">삭제</button>
+          <button type="button" class="btn btn-cancel" id="accounts-btn-revoke">인증 취소</button>
+        </div>
+        <div class="accounts-table-wrap">
+          <table class="accounts-table">
+            <thead>
+              <tr>
+                <th scope="col">No</th>
+                <th scope="col">계정이름</th>
+                <th scope="col">인증</th>
+              </tr>
+            </thead>
+            <tbody id="accounts-table-body"></tbody>
+          </table>
+        </div>
+        <div id="accounts-toast" class="accounts-toast" aria-live="polite"></div>
+      </div>
+    </section>
+
+    <div class="accounts-modal hidden" id="accounts-modal" aria-hidden="true">
+      <div class="accounts-modal-backdrop" id="accounts-modal-backdrop"></div>
+      <div class="accounts-modal-panel" role="dialog" aria-labelledby="accounts-modal-title">
+        <h2 id="accounts-modal-title">계정</h2>
+        <div class="accounts-modal-fields" id="accounts-modal-fields"></div>
+        <div class="accounts-modal-actions">
+          <button type="button" class="btn btn-cancel" id="accounts-modal-cancel">취소</button>
+          <button type="button" class="btn btn-add" id="accounts-modal-save">저장</button>
+        </div>
+      </div>
+    </div>
+
     <div class="room-dialog hidden" id="staff-room-dialog" aria-hidden="true">
       <div class="room-dialog-backdrop" id="staff-room-dialog-backdrop"></div>
       <div class="room-dialog-panel" role="dialog" aria-modal="true" aria-labelledby="staff-room-dialog-title">
@@ -127,5 +165,6 @@
     <div id="toast" class="toast" aria-live="polite"></div>
   </div>
   <script src="admin.js"></script>
+  <script src="accounts.js"></script>
 </body>
 </html>

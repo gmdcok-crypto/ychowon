@@ -846,3 +846,156 @@ body {
 .toast {
   bottom: max(1.5rem, env(safe-area-inset-bottom));
 }
+
+/* 계정 관리 탭 */
+.accounts-panel {
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.accounts-hint {
+  font-size: 0.82rem;
+  color: var(--cream-dim);
+  line-height: 1.45;
+  margin-bottom: 1rem;
+}
+
+.accounts-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.accounts-toolbar .btn {
+  min-height: var(--touch-min);
+  padding: 0.45rem 0.85rem;
+}
+
+.accounts-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.accounts-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.accounts-table th,
+.accounts-table td {
+  padding: 0.65rem 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+
+.accounts-table th {
+  color: var(--gold-light);
+  font-weight: 600;
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.accounts-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.accounts-row {
+  cursor: pointer;
+}
+
+.accounts-row:hover {
+  background: rgba(201, 169, 98, 0.08);
+}
+
+.accounts-row-selected {
+  background: rgba(201, 169, 98, 0.18);
+}
+
+.accounts-toast {
+  margin-top: 0.75rem;
+  font-size: 0.85rem;
+  color: #f0a0a0;
+  min-height: 1.25em;
+}
+
+.accounts-modal.hidden {
+  display: none;
+}
+
+.accounts-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.accounts-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.accounts-modal-panel {
+  position: relative;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.25rem;
+  width: 100%;
+  max-width: 400px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+}
+
+.accounts-modal-panel h2 {
+  font-size: 1.1rem;
+  color: var(--gold-light);
+  margin: 0 0 1rem;
+  font-weight: 600;
+}
+
+.accounts-modal-fields .accounts-field {
+  margin-bottom: 0.85rem;
+}
+
+.accounts-modal-fields label {
+  display: block;
+  font-size: 0.82rem;
+  color: var(--cream-dim);
+  margin-bottom: 0.35rem;
+}
+
+.accounts-modal-fields input,
+.accounts-modal-fields select {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.55rem 0.65rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.35);
+  color: var(--cream);
+  font-size: 16px;
+}
+
+.accounts-edit-id {
+  font-size: 0.88rem;
+  color: var(--cream-dim);
+  margin-bottom: 0.75rem;
+}
+
+.accounts-modal-actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+  margin-top: 1rem;
+}
+
+.accounts-modal-actions .btn {
+  min-width: 5rem;
+  min-height: 44px;
+}

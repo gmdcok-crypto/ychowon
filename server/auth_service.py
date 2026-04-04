@@ -1,11 +1,12 @@
 """
-역할별 JWT + bcrypt 비밀번호 (admin / display / tel).
-최초 접속 시 비밀번호 미설정이면 /api/auth/setup 으로 1회 설정.
+JWT + bcrypt. 계정은 accounts[] (id, name, role, password_hash).
+역할(role): admin / display / tel — 권한 판별에 사용.
 """
 from __future__ import annotations
 
 import json
 import os
+import re
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Optional
@@ -16,9 +17,18 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, RedirectResponse, Response
 
 ROLES = ("admin", "display", "tel")
+SYSTEM_IDS = frozenset({"admin", "display", "tel"})
+ID_RE = re.compile(r"^[a-zA-Z][a-zA-Z0-9_-]{1,63}$")
+
 COOKIE_NAME = "access_token"
 JWT_ALG = "HS256"
 JWT_EXPIRE_DAYS = 30
+
+DEFAULT_NAMES = {
+    "admin": "관리자",
+    "display": "현황판",
+    "tel": "전화예약",
+}
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -38,24 +48,62 @@ def configure(data_dir: Path) -> None:
 def _ensure_auth_file() -> None:
     assert _auth_file is not None
     if not _auth_file.is_file():
-        _auth_file.write_text(
-            json.dumps({"passwords": {r: None for r in ROLES}}, ensure_ascii=False, indent=2),
-            encoding="utf-8",
+        accs = [
+            {"id": "admin", "name": DEFAULT_NAMES["admin"], "role": "admin", "password_hash": None},
+            {"id": "display", "name": DEFAULT_NAMES["display"], "role": "display", "password_hash": None},
+            {"id": "tel", "name": DEFAULT_NAMES["tel"], "role": "tel", "password_hash": None},
+        ]
+        _auth_file.write_text(json.dumps({"accounts": accs}, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def _migrate_passwords_to_accounts(raw: dict[str, Any]) -> dict[str, Any]:
+    if isinstance(raw.get("accounts"), list) and raw["accounts"]:
+        return raw
+    passwords = raw.get("passwords") or {}
+    accounts = []
+    for rid in ROLES:
+        accounts.append(
+            {
+                "id": rid,
+                "name": DEFAULT_NAMES.get(rid, rid),
+                "role": rid,
+                "password_hash": passwords.get(rid),
+            }
         )
+    return {"accounts": accounts}
 
 
 def _load_store() -> dict[str, Any]:
     assert _auth_file is not None
     _ensure_auth_file()
     try:
-        return json.loads(_auth_file.read_text(encoding="utf-8"))
+        raw = json.loads(_auth_file.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
-        return {"passwords": {r: None for r in ROLES}}
+        raw = {}
+    merged = _migrate_passwords_to_accounts(raw)
+    if merged != raw and _auth_file.is_file():
+        _save_store(merged)
+    return merged
 
 
 def _save_store(data: dict[str, Any]) -> None:
     assert _auth_file is not None
     _auth_file.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def _accounts_list(store: Optional[dict[str, Any]] = None) -> list[dict[str, Any]]:
+    s = store if store is not None else _load_store()
+    accs = s.get("accounts")
+    if not isinstance(accs, list):
+        return []
+    return accs
+
+
+def _find_account_by_id(aid: str) -> Optional[dict[str, Any]]:
+    for a in _accounts_list():
+        if str(a.get("id")) == aid:
+            return a
+    return None
 
 
 def _jwt_secret() -> str:
@@ -73,51 +121,108 @@ def _jwt_secret() -> str:
 
 
 def needs_setup(role: str) -> bool:
+    """해당 역할로 로그인 가능한 계정이 하나도 없으면 True (비밀번호 설정 전)."""
     if role not in ROLES:
         return False
-    pw = (_load_store().get("passwords") or {}).get(role)
-    return pw is None or pw == ""
+    for a in _accounts_list():
+        if a.get("role") == role and a.get("password_hash"):
+            return False
+    return True
 
 
-def set_password(role: str, password: str) -> None:
+def list_accounts_public() -> list[dict[str, Any]]:
+    """관리 화면용: 해시 제외."""
+    out = []
+    for i, a in enumerate(_accounts_list()):
+        h = a.get("password_hash")
+        out.append(
+            {
+                "no": i + 1,
+                "id": a.get("id"),
+                "name": a.get("name") or "",
+                "role": a.get("role"),
+                "authenticated": bool(h),
+            }
+        )
+    return out
+
+
+def list_login_options(role: str) -> list[dict[str, str]]:
+    """로그인 선택용: 비밀번호가 있는 계정만."""
     if role not in ROLES:
-        raise ValueError("invalid role")
+        return []
+    return [
+        {"id": str(a.get("id")), "name": str(a.get("name") or a.get("id"))}
+        for a in _accounts_list()
+        if a.get("role") == role and a.get("password_hash")
+    ]
+
+
+def set_password_first_time(account_id: str, password: str) -> dict[str, str]:
     if len(password) < 4:
-        raise ValueError("password too short")
+        raise ValueError("비밀번호는 4자 이상이어야 합니다.")
+    a = _find_account_by_id(account_id)
+    if not a:
+        raise ValueError("계정을 찾을 수 없습니다.")
+    if a.get("password_hash"):
+        raise ValueError("이미 비밀번호가 설정되었습니다.")
     store = _load_store()
-    passwords = dict(store.get("passwords") or {})
-    if passwords.get(role):
-        raise ValueError("already set")
-    passwords[role] = pwd_context.hash(password)
-    store["passwords"] = passwords
+    accs = _accounts_list(store)
+    out = None
+    for row in accs:
+        if str(row.get("id")) == account_id:
+            row["password_hash"] = pwd_context.hash(password)
+            out = row
+            break
+    if not out:
+        raise ValueError("계정을 찾을 수 없습니다.")
+    store["accounts"] = accs
     _save_store(store)
+    return {
+        "id": str(out["id"]),
+        "role": str(out["role"]),
+        "name": str(out.get("name") or out["id"]),
+    }
 
 
-def change_password(role: str, old: str, new: str) -> None:
+def first_account_needing_setup(role: str) -> Optional[str]:
+    """해당 역할에서 비밀번호가 없는 첫 계정 id (로그인 화면 기본 선택)."""
+    for a in _accounts_list():
+        if a.get("role") == role and not a.get("password_hash"):
+            return str(a.get("id"))
+    return None
+
+
+def list_accounts_needing_setup(role: str) -> list[dict[str, str]]:
+    """해당 역할에서 비밀번호 미설정 계정 (최초 설정 화면 드롭다운용)."""
     if role not in ROLES:
-        raise ValueError("invalid role")
-    store = _load_store()
-    h = (store.get("passwords") or {}).get(role)
-    if not h or not pwd_context.verify(old, h):
-        raise ValueError("wrong password")
-    store.setdefault("passwords", {})[role] = pwd_context.hash(new)
-    _save_store(store)
+        return []
+    out = []
+    for a in _accounts_list():
+        if a.get("role") == role and not a.get("password_hash"):
+            aid = str(a.get("id"))
+            out.append({"id": aid, "name": str(a.get("name") or aid)})
+    return out
 
 
-def verify_login(role: str, password: str) -> bool:
-    if role not in ROLES:
-        return False
-    h = (_load_store().get("passwords") or {}).get(role)
+def verify_login_account(account_id: str, password: str) -> Optional[dict[str, Any]]:
+    a = _find_account_by_id(account_id)
+    if not a:
+        return None
+    h = a.get("password_hash")
     if not h:
-        return False
-    return pwd_context.verify(password, h)
+        return None
+    if not pwd_context.verify(password, h):
+        return None
+    return {"id": str(a["id"]), "role": str(a["role"]), "name": str(a.get("name") or a["id"])}
 
 
-def create_token(role: str) -> str:
+def create_token(account_id: str, role: str, name: str) -> str:
     now = datetime.now(timezone.utc)
     payload = {
-        "sub": role,
+        "sub": account_id,
         "role": role,
+        "name": name,
         "iat": now,
         "exp": now + timedelta(days=JWT_EXPIRE_DAYS),
     }
@@ -147,7 +252,7 @@ def role_from_request(request: Request) -> Optional[str]:
     payload = decode_token(extract_token(request))
     if not payload:
         return None
-    r = payload.get("role") or payload.get("sub")
+    r = payload.get("role")
     if r in ROLES:
         return str(r)
     return None
@@ -163,14 +268,21 @@ def login_redirect_for(path: str) -> str:
     return "/display/login.html"
 
 
+def is_public_auth_api_path(path: str) -> bool:
+    if path in ("/api/auth/status", "/api/auth/setup", "/api/auth/login", "/api/auth/logout"):
+        return True
+    if path.startswith("/api/auth/login-options"):
+        return True
+    return False
+
+
 def is_public_path(path: str) -> bool:
-    if path.startswith("/api/auth/"):
+    if is_public_auth_api_path(path):
         return True
     if path in ("/api/health", "/favicon.ico", "/sw.js"):
         return True
     if path in ("/admin/login.html", "/display/login.html", "/tel/login.html"):
         return True
-    # PWA (비로그인 설치·SW — 본 화면은 여전히 로그인 필요)
     if path in ("/tel/manifest.json", "/tel/sw.js", "/display/manifest.json", "/display/sw.js"):
         return True
     if path.startswith("/display/icon-") or path == "/display/manifest.json":
@@ -193,8 +305,10 @@ def static_allows(path: str, role: Optional[str]) -> bool:
 
 
 def api_allows(path: str, method: str, role: Optional[str]) -> bool:
-    if path.startswith("/api/auth/") or path == "/api/health":
+    if is_public_auth_api_path(path) or path == "/api/health":
         return True
+    if path.startswith("/api/auth/accounts"):
+        return role == "admin"
     if not role:
         return False
     if role == "admin":
@@ -245,12 +359,11 @@ async def auth_middleware(request: Request, call_next) -> Response:
 
 
 def ws_role_allowed(websocket) -> bool:
-    """WebSocket: admin·display 만 (현황판·관리 실시간)."""
     token = websocket.cookies.get(COOKIE_NAME)
     payload = decode_token(token)
     if not payload:
         return False
-    role = payload.get("role") or payload.get("sub")
+    role = payload.get("role")
     return role in ("admin", "display")
 
 
@@ -272,3 +385,64 @@ def logout_response(request: Request) -> JSONResponse:
     r = JSONResponse({"ok": True})
     r.delete_cookie(COOKIE_NAME, path="/", secure=secure, httponly=True, samesite="lax")
     return r
+
+
+# --- 계정 CRUD (관리자 전용, main에서 호출) ---
+
+
+def account_create(aid: str, name: str, role: str, password: str) -> dict[str, Any]:
+    if not ID_RE.match(aid):
+        raise ValueError("계정 ID는 영문 시작, 영숫자·_- 만 2~64자")
+    if role not in ROLES:
+        raise ValueError("잘못된 역할")
+    if len(password) < 4:
+        raise ValueError("비밀번호는 4자 이상")
+    if _find_account_by_id(aid):
+        raise ValueError("이미 있는 계정 ID입니다.")
+    store = _load_store()
+    accs = _accounts_list(store)
+    accs.append({"id": aid, "name": name.strip() or aid, "role": role, "password_hash": pwd_context.hash(password)})
+    store["accounts"] = accs
+    _save_store(store)
+    return {"id": aid, "name": name, "role": role}
+
+
+def account_update(aid: str, name: Optional[str] = None, password: Optional[str] = None) -> None:
+    if password is not None and len(password) < 4:
+        raise ValueError("비밀번호는 4자 이상")
+    store = _load_store()
+    accs = _accounts_list(store)
+    for row in accs:
+        if str(row.get("id")) == aid:
+            if name is not None:
+                row["name"] = name.strip() or row.get("id")
+            if password is not None:
+                row["password_hash"] = pwd_context.hash(password)
+            store["accounts"] = accs
+            _save_store(store)
+            return
+    raise ValueError("계정을 찾을 수 없습니다.")
+
+
+def account_delete(aid: str) -> None:
+    if aid in SYSTEM_IDS:
+        raise ValueError("기본 계정(admin, display, tel)은 삭제할 수 없습니다. 인증 취소만 가능합니다.")
+    store = _load_store()
+    accs = [a for a in _accounts_list(store) if str(a.get("id")) != aid]
+    if len(accs) == len(_accounts_list(store)):
+        raise ValueError("계정을 찾을 수 없습니다.")
+    store["accounts"] = accs
+    _save_store(store)
+
+
+def account_revoke(aid: str) -> None:
+    """비밀번호 제거 → 다음 로그인 시 재설정(또는 관리자가 비번 재설정)."""
+    store = _load_store()
+    accs = _accounts_list(store)
+    for row in accs:
+        if str(row.get("id")) == aid:
+            row["password_hash"] = None
+            store["accounts"] = accs
+            _save_store(store)
+            return
+    raise ValueError("계정을 찾을 수 없습니다.")

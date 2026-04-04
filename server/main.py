@@ -120,14 +120,22 @@ DATA_DIR.mkdir(exist_ok=True)
 
 from auth_service import (
     ROLES,
+    account_create,
+    account_delete,
+    account_revoke,
+    account_update,
     auth_cookie_response,
     auth_middleware,
     configure as auth_configure,
     create_token,
+    first_account_needing_setup,
+    list_accounts_needing_setup,
+    list_accounts_public,
+    list_login_options,
     logout_response,
     needs_setup,
-    set_password,
-    verify_login,
+    set_password_first_time,
+    verify_login_account,
     ws_role_allowed,
 )
 
@@ -802,48 +810,68 @@ async def delete_tel_reservation(reservation_id: int):
 
 
 class AuthSetupBody(BaseModel):
-    role: str
+    account_id: str
     password: str
 
 
 class AuthLoginBody(BaseModel):
+    account_id: str
+    password: str
+
+
+class AccountCreateIn(BaseModel):
+    id: str
+    name: str
     role: str
     password: str
+
+
+class AccountPatchIn(BaseModel):
+    name: Optional[str] = None
+    password: Optional[str] = None
 
 
 @app.get("/api/auth/status")
 def api_auth_status(role: str):
     if role not in ROLES:
         raise HTTPException(status_code=400, detail="잘못된 역할입니다.")
-    return {"needs_setup": needs_setup(role), "role": role}
+    ns = needs_setup(role)
+    needing = list_accounts_needing_setup(role) if ns else []
+    fac = first_account_needing_setup(role) if ns else None
+    return {
+        "needs_setup": ns,
+        "role": role,
+        "default_account_id": fac,
+        "accounts_needing_setup": needing,
+    }
+
+
+@app.get("/api/auth/login-options")
+def api_auth_login_options(role: str):
+    if role not in ROLES:
+        raise HTTPException(status_code=400, detail="잘못된 역할입니다.")
+    return {"accounts": list_login_options(role)}
 
 
 @app.post("/api/auth/setup")
 def api_auth_setup(body: AuthSetupBody, request: Request):
-    if body.role not in ROLES:
-        raise HTTPException(status_code=400, detail="잘못된 역할입니다.")
-    if not needs_setup(body.role):
-        raise HTTPException(status_code=400, detail="이미 비밀번호가 설정되었습니다.")
     try:
-        set_password(body.role, body.password)
+        u = set_password_first_time(body.account_id.strip(), body.password)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
-    token = create_token(body.role)
-    r = JSONResponse({"ok": True, "role": body.role})
+    token = create_token(u["id"], u["role"], u["name"])
+    r = JSONResponse({"ok": True, "account_id": u["id"], "role": u["role"]})
     r.set_cookie(**auth_cookie_response(token, request))
     return r
 
 
 @app.post("/api/auth/login")
 def api_auth_login(body: AuthLoginBody, request: Request):
-    if body.role not in ROLES:
-        raise HTTPException(status_code=400, detail="잘못된 역할입니다.")
-    if needs_setup(body.role):
-        raise HTTPException(status_code=400, detail="먼저 최초 비밀번호를 설정하세요.")
-    if not verify_login(body.role, body.password):
+    u = verify_login_account(body.account_id.strip(), body.password)
+    if not u:
         raise HTTPException(status_code=401, detail="비밀번호가 올바르지 않습니다.")
-    token = create_token(body.role)
-    r = JSONResponse({"ok": True, "role": body.role})
+    token = create_token(u["id"], u["role"], u["name"])
+    r = JSONResponse({"ok": True, "account_id": u["id"], "role": u["role"]})
     r.set_cookie(**auth_cookie_response(token, request))
     return r
 
@@ -851,6 +879,47 @@ def api_auth_login(body: AuthLoginBody, request: Request):
 @app.post("/api/auth/logout")
 def api_auth_logout(request: Request):
     return logout_response(request)
+
+
+@app.get("/api/auth/accounts")
+def api_auth_accounts_list():
+    return {"accounts": list_accounts_public()}
+
+
+@app.post("/api/auth/accounts")
+def api_auth_accounts_create(body: AccountCreateIn):
+    try:
+        account_create(body.id.strip(), body.name, body.role, body.password)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"ok": True}
+
+
+@app.patch("/api/auth/accounts/{account_id}")
+def api_auth_accounts_patch(account_id: str, body: AccountPatchIn):
+    try:
+        account_update(account_id.strip(), name=body.name, password=body.password)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"ok": True}
+
+
+@app.delete("/api/auth/accounts/{account_id}")
+def api_auth_accounts_delete(account_id: str):
+    try:
+        account_delete(account_id.strip())
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"ok": True}
+
+
+@app.post("/api/auth/accounts/{account_id}/revoke")
+def api_auth_accounts_revoke(account_id: str):
+    try:
+        account_revoke(account_id.strip())
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"ok": True}
 
 
 @app.get("/api/health")
