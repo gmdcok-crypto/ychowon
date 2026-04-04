@@ -170,7 +170,7 @@
   }
 
   function fetchTelReservations() {
-    return fetch(API_TEL_RESERVATIONS + '?date=' + encodeURIComponent(dateKey(selectedDate)))
+    return fetch(API_TEL_RESERVATIONS + '?date=' + encodeURIComponent(dateKey(selectedDate)), { credentials: 'same-origin' })
       .then(function (r) { return r.json(); })
       .then(function (data) {
         telReservations = Array.isArray(data) ? data : [];
@@ -266,7 +266,7 @@
     var query = '?date=' + encodeURIComponent(dateKey(selectedDate)) + '&time=' + encodeURIComponent(timeInput.value);
     roomDialogMeta.textContent = formatDate(selectedDate) + ' · ' + timeInput.value + ' 기준';
 
-    return fetch(API_TEL_ROOMS + query)
+    return fetch(API_TEL_ROOMS + query, { credentials: 'same-origin' })
       .then(function (r) { return r.json(); })
       .then(function (data) {
         roomStatus = Array.isArray(data.rooms) ? data.rooms : [];
@@ -467,6 +467,7 @@
 
     fetch(API_TEL_RESERVATIONS, {
       method: 'POST',
+      credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     })

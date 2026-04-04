@@ -182,7 +182,7 @@
       staffRoomMeta.textContent = formatStaffDate(today) + ' · ' + (timeInput.value || '').trim() + ' 기준';
     }
 
-    return fetch(API_TEL_ROOMS + q)
+    return fetch(API_TEL_ROOMS + q, { credentials: 'same-origin' })
       .then(function (r) { return r.json(); })
       .then(function (data) {
         staffRoomStatus = Array.isArray(data.rooms) ? data.rooms : [];
@@ -293,7 +293,7 @@
   }
 
   function load() {
-    fetch(API)
+    fetch(API, { credentials: 'same-origin' })
       .then(function (r) { return r.json(); })
       .then(function (data) {
         list = Array.isArray(data) ? data.map(normalizeRow) : [];
@@ -343,7 +343,7 @@
             showToast('전화 예약 ID를 찾을 수 없습니다.');
             return;
           }
-          fetch(API_TEL + '/' + tid, { method: 'DELETE' })
+          fetch(API_TEL + '/' + tid, { method: 'DELETE', credentials: 'same-origin' })
             .then(function (r) {
               if (!r.ok) throw new Error('삭제 실패');
               return r.json();
@@ -404,6 +404,7 @@
     };
     fetch(API, {
       method: 'POST',
+      credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     })
@@ -444,6 +445,7 @@
         }
         fetch(API_TEL + '/' + tid, {
           method: 'PATCH',
+          credentials: 'same-origin',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ time: time, name: name, room: room })
         })

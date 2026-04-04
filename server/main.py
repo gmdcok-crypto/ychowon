@@ -16,10 +16,10 @@ from pathlib import Path
 from datetime import datetime
 from typing import Optional, Set
 
-from fastapi import FastAPI, File, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, File, HTTPException, Request, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import RedirectResponse, Response
+from fastapi.responses import JSONResponse, RedirectResponse, Response
 from pydantic import BaseModel
 
 app = FastAPI(title="초원농원 예약 현황 API")
@@ -109,9 +109,30 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+@app.middleware("http")
+async def _auth_middleware_layer(request: Request, call_next):
+    return await auth_middleware(request, call_next)
+
 # 당일 예약 저장 파일 (DB 대신 단일 JSON)
 DATA_DIR = Path(__file__).resolve().parent / "data"
 DATA_DIR.mkdir(exist_ok=True)
+
+from auth_service import (
+    ROLES,
+    auth_cookie_response,
+    auth_middleware,
+    configure as auth_configure,
+    create_token,
+    logout_response,
+    needs_setup,
+    set_password,
+    verify_login,
+    ws_role_allowed,
+)
+
+auth_configure(DATA_DIR)
+
 TODAY_FILE = DATA_DIR / "today.json"
 TEL_FILE = DATA_DIR / "tel_reservations.json"
 DISPLAY_CONTENT_FILE = DATA_DIR / "display_content.json"
@@ -416,6 +437,9 @@ async def broadcast_display_content() -> None:
 
 @app.websocket("/ws")
 async def websocket_display(websocket: WebSocket):
+    if not ws_role_allowed(websocket):
+        await websocket.close(code=4401)
+        return
     await websocket.accept()
     ws_connections.add(websocket)
     try:
@@ -775,6 +799,58 @@ async def delete_tel_reservation(reservation_id: int):
     if removed.get("date") == _today_str():
         await broadcast_reservations()
     return {"ok": True}
+
+
+class AuthSetupBody(BaseModel):
+    role: str
+    password: str
+
+
+class AuthLoginBody(BaseModel):
+    role: str
+    password: str
+
+
+@app.get("/api/auth/status")
+def api_auth_status(role: str):
+    if role not in ROLES:
+        raise HTTPException(status_code=400, detail="잘못된 역할입니다.")
+    return {"needs_setup": needs_setup(role), "role": role}
+
+
+@app.post("/api/auth/setup")
+def api_auth_setup(body: AuthSetupBody, request: Request):
+    if body.role not in ROLES:
+        raise HTTPException(status_code=400, detail="잘못된 역할입니다.")
+    if not needs_setup(body.role):
+        raise HTTPException(status_code=400, detail="이미 비밀번호가 설정되었습니다.")
+    try:
+        set_password(body.role, body.password)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    token = create_token(body.role)
+    r = JSONResponse({"ok": True, "role": body.role})
+    r.set_cookie(**auth_cookie_response(token, request))
+    return r
+
+
+@app.post("/api/auth/login")
+def api_auth_login(body: AuthLoginBody, request: Request):
+    if body.role not in ROLES:
+        raise HTTPException(status_code=400, detail="잘못된 역할입니다.")
+    if needs_setup(body.role):
+        raise HTTPException(status_code=400, detail="먼저 최초 비밀번호를 설정하세요.")
+    if not verify_login(body.role, body.password):
+        raise HTTPException(status_code=401, detail="비밀번호가 올바르지 않습니다.")
+    token = create_token(body.role)
+    r = JSONResponse({"ok": True, "role": body.role})
+    r.set_cookie(**auth_cookie_response(token, request))
+    return r
+
+
+@app.post("/api/auth/logout")
+def api_auth_logout(request: Request):
+    return logout_response(request)
 
 
 @app.get("/api/health")

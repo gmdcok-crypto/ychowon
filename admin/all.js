@@ -144,7 +144,7 @@
   function fetchList() {
     var qs = buildQuery();
     resultCount.textContent = '불러오는 중…';
-    fetch(API + qs)
+    fetch(API + qs, { credentials: 'same-origin' })
       .then(function (r) { return r.json(); })
       .then(function (data) {
         var rows = Array.isArray(data) ? data : [];
@@ -199,7 +199,7 @@
       btn.addEventListener('click', function () {
         var id = parseInt(btn.getAttribute('data-id'), 10);
         if (!id || !window.confirm('이 예약을 삭제할까요?')) return;
-        fetch(API + '/' + id, { method: 'DELETE' })
+        fetch(API + '/' + id, { method: 'DELETE', credentials: 'same-origin' })
           .then(function (r) {
             if (!r.ok) throw new Error();
             return r.json();
@@ -231,6 +231,7 @@
         if (ph.trim()) body.phone = ph.trim();
         fetch(API + '/' + id, {
           method: 'PATCH',
+          credentials: 'same-origin',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body)
         })

@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>로그인 · 전화 예약</title>
+  <style>
+    body { font-family: "Noto Sans KR", system-ui, sans-serif; background: #0f0c09; color: #f5efe6; min-height: 100vh; display: flex; align-items: center; justify-content: center; margin: 0; }
+    .box { background: #221c16; border: 1px solid rgba(201,169,98,.3); border-radius: 12px; padding: 1.5rem; width: 100%; max-width: 380px; box-sizing: border-box; }
+    h1 { font-size: 1.15rem; color: #e5d4a1; margin: 0 0 1rem; font-weight: 600; }
+    label { display: block; font-size: 0.85rem; color: #b8a990; margin-bottom: 0.35rem; }
+    input { width: 100%; box-sizing: border-box; padding: 0.55rem 0.65rem; border-radius: 8px; border: 1px solid rgba(201,169,98,.3); background: rgba(0,0,0,.35); color: #f5efe6; margin-bottom: 0.75rem; font-size: 16px; }
+    button { width: 100%; padding: 0.65rem; border-radius: 8px; border: none; background: #c9a962; color: #1a1510; font-weight: 600; cursor: pointer; margin-top: 0.25rem; font-size: 0.95rem; min-height: 44px; }
+    .err { color: #f0a0a0; font-size: 0.85rem; margin-top: 0.5rem; min-height: 1.2em; }
+    .hint { font-size: 0.8rem; color: #b8a990; margin-bottom: 0.75rem; line-height: 1.4; }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <h1>전화 예약 (tel)</h1>
+    <div id="setupBlock" hidden>
+      <p class="hint">최초 1회 비밀번호를 설정하세요. (4자 이상)</p>
+      <label for="pw1">비밀번호</label>
+      <input type="password" id="pw1" autocomplete="new-password" />
+      <label for="pw2">비밀번호 확인</label>
+      <input type="password" id="pw2" autocomplete="new-password" />
+      <button type="button" id="btnSetup">설정하고 들어가기</button>
+    </div>
+    <div id="loginBlock" hidden>
+      <label for="pw">비밀번호</label>
+      <input type="password" id="pw" autocomplete="current-password" />
+      <button type="button" id="btnLogin">로그인</button>
+    </div>
+    <div id="err" class="err"></div>
+  </div>
+  <script>
+(function () {
+  var ROLE = 'tel';
+  var HOME = '/tel/';
+  var errEl = document.getElementById('err');
+  function showError(msg) { errEl.textContent = msg || ''; }
+  function parseDetail(j) {
+    var d = j && j.detail;
+    if (typeof d === 'string') return d;
+    if (Array.isArray(d) && d[0] && d[0].msg) return d[0].msg;
+    return '요청을 처리하지 못했습니다.';
+  }
+  fetch('/api/auth/status?role=' + encodeURIComponent(ROLE), { credentials: 'same-origin' })
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+      if (data.needs_setup) document.getElementById('setupBlock').hidden = false;
+      else document.getElementById('loginBlock').hidden = false;
+    })
+    .catch(function () { showError('상태를 불러오지 못했습니다.'); });
+  document.getElementById('btnSetup').addEventListener('click', function () {
+    var a = document.getElementById('pw1').value;
+    var b = document.getElementById('pw2').value;
+    if (a.length < 4) { showError('비밀번호는 4자 이상이어야 합니다.'); return; }
+    if (a !== b) { showError('비밀번호가 일치하지 않습니다.'); return; }
+    showError('');
+    fetch('/api/auth/setup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({ role: ROLE, password: a })
+    })
+      .then(function (r) {
+        if (!r.ok) return r.json().then(function (j) { throw new Error(parseDetail(j)); });
+        return r.json();
+      })
+      .then(function () { window.location.href = HOME; })
+      .catch(function (e) { showError(e.message || String(e)); });
+  });
+  document.getElementById('btnLogin').addEventListener('click', function () {
+    var p = document.getElementById('pw').value;
+    showError('');
+    fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({ role: ROLE, password: p })
+    })
+      .then(function (r) {
+        if (!r.ok) return r.json().then(function (j) { throw new Error(parseDetail(j)); });
+        return r.json();
+      })
+      .then(function () { window.location.href = HOME; })
+      .catch(function (e) { showError(e.message || String(e)); });
+  });
+})();
+  </script>
+</body>
+</html>

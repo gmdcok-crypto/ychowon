@@ -66,7 +66,7 @@
   function uploadDisplayFile(file) {
     var fd = new FormData();
     fd.append('file', file);
-    return fetch(API_UPLOAD, { method: 'POST', body: fd }).then(function (r) {
+    return fetch(API_UPLOAD, { method: 'POST', credentials: 'same-origin', body: fd }).then(function (r) {
       if (!r.ok) {
         return r.json().then(function (j) {
           var d = j && j.detail;
@@ -271,6 +271,7 @@
     if (isNaN(di)) di = 8;
     fetch(API, {
       method: 'POST',
+      credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         items: items.map(function (it) {
@@ -307,7 +308,7 @@
 
   function load(options) {
     options = options || {};
-    return fetch(API)
+    return fetch(API, { credentials: 'same-origin' })
       .then(function (r) { return r.json(); })
       .then(function (data) {
         var raw = Array.isArray(data.items) ? data.items : [];
@@ -438,6 +439,7 @@
     if (isNaN(di)) di = 8;
     return fetch(API, {
       method: 'POST',
+      credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         items: items.map(function (it) {

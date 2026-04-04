@@ -93,7 +93,7 @@
 
   function fetchReservations() {
     var url = (API_BASE || '') + '/api/reservations/today';
-    fetch(url)
+    fetch(url, { credentials: 'same-origin' })
       .then(function (r) { return r.json(); })
       .then(renderList)
       .catch(function () { renderList([]); });
@@ -288,7 +288,7 @@
 
     function fetchContent() {
       var url = (API_BASE || '') + '/api/display/content';
-      fetch(url)
+      fetch(url, { credentials: 'same-origin' })
         .then(function (r) { return r.json(); })
         .then(applyPayload)
         .catch(function () {

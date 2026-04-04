@@ -21,3 +21,6 @@ Thumbs.db
 /1.png
 /2.JPG
 /2.png
+
+# JWT 서버 비밀 (로컬/Railway에는 JWT_SECRET 환경 변수 권장)
+server/data/.jwt_secret
