@@ -1,10 +1,4 @@
-# 루트의 requirements.txt만 사용 (server/requirements.txt 경로 오류 방지)
+# 루트 requirements.txt 기준으로 Nixpacks가 Python venv + pip 설치를 수행함.
+# [phases.install]을 직접 쓰면 Nix 프로필의 python( pip 없음 )이 잡혀 "No module named pip"가 남.
 [variables]
 NIXPACKS_PYTHON_VERSION = "3.11"
-
-[phases.install]
-# Nixpacks 이미지에서 pip 단독 명령이 PATH에 없을 수 있음 → python -m pip 사용
-cmds = [
-  "python -m pip install --upgrade pip",
-  "python -m pip install --no-cache-dir -r requirements.txt",
-]
