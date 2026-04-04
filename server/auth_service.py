@@ -159,8 +159,6 @@ def list_login_options(role: str) -> list[dict[str, str]]:
 
 
 def set_password_first_time(account_id: str, password: str) -> dict[str, str]:
-    if len(password) < 4:
-        raise ValueError("비밀번호는 4자 이상이어야 합니다.")
     a = _find_account_by_id(account_id)
     if not a:
         raise ValueError("계정을 찾을 수 없습니다.")
@@ -395,8 +393,6 @@ def account_create(aid: str, name: str, role: str, password: str) -> dict[str, A
         raise ValueError("계정 ID는 영문 시작, 영숫자·_- 만 2~64자")
     if role not in ROLES:
         raise ValueError("잘못된 역할")
-    if len(password) < 4:
-        raise ValueError("비밀번호는 4자 이상")
     if _find_account_by_id(aid):
         raise ValueError("이미 있는 계정 ID입니다.")
     store = _load_store()
@@ -408,8 +404,6 @@ def account_create(aid: str, name: str, role: str, password: str) -> dict[str, A
 
 
 def account_update(aid: str, name: Optional[str] = None, password: Optional[str] = None) -> None:
-    if password is not None and len(password) < 4:
-        raise ValueError("비밀번호는 4자 이상")
     store = _load_store()
     accs = _accounts_list(store)
     for row in accs:

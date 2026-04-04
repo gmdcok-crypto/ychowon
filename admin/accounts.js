@@ -169,10 +169,6 @@
         showToast('계정 ID를 입력하세요.');
         return;
       }
-      if (pw.length < 4) {
-        showToast('비밀번호는 4자 이상이어야 합니다.');
-        return;
-      }
       showToast('');
       apiJson('/api/auth/accounts', {
         method: 'POST',
@@ -197,10 +193,6 @@
       var newPw = pwIn ? pwIn.value : '';
       var body = { name: newName };
       if (newPw.length > 0) {
-        if (newPw.length < 4) {
-          showToast('비밀번호는 4자 이상이어야 합니다.');
-          return;
-        }
         body.password = newPw;
       }
       showToast('');

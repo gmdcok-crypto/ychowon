@@ -19,7 +19,7 @@
   <div class="box">
     <h1>현황판 (display)</h1>
     <div id="setupBlock" hidden>
-      <p class="hint">최초 1회 비밀번호를 설정하세요. (4자 이상)</p>
+      <p class="hint">최초 1회 비밀번호를 설정하세요.</p>
       <label for="accountSetup">계정</label>
       <select id="accountSetup"></select>
       <label for="pw1">비밀번호</label>
@@ -93,7 +93,6 @@
     var a = document.getElementById('pw1').value;
     var b = document.getElementById('pw2').value;
     var accountId = document.getElementById('accountSetup').value;
-    if (a.length < 4) { showError('비밀번호는 4자 이상이어야 합니다.'); return; }
     if (a !== b) { showError('비밀번호가 일치하지 않습니다.'); return; }
     showError('');
     fetch('/api/auth/setup', {
