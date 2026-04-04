@@ -409,26 +409,36 @@
     document.getElementById('room-dialog-backdrop').addEventListener('click', closeRoomDialog);
   }
 
+  function requestFullscreenBest(el) {
+    el = el || document.documentElement;
+    if (el.requestFullscreen) return el.requestFullscreen();
+    if (el.webkitRequestFullscreen) return el.webkitRequestFullscreen();
+    if (el.msRequestFullscreen) return el.msRequestFullscreen();
+    return Promise.reject(new Error('no fullscreen'));
+  }
+
+  /** HTTPS에서 접속 시 전체화면 시도. 일부 브라우저는 사용자 제스처가 필요해 첫 터치에서 한 번 더 시도. */
   function setupFullscreen() {
-    var btn = document.getElementById('tel-fullscreen');
-    if (!btn) return;
-    var doc = document.documentElement;
-    function updateLabel() {
-      btn.textContent = document.fullscreenElement ? '전체화면 해제' : '전체화면';
+    function tryFs() {
+      if (document.fullscreenElement) return Promise.resolve();
+      return requestFullscreenBest(document.documentElement).catch(function () {});
     }
-    document.addEventListener('fullscreenchange', updateLabel);
-    btn.addEventListener('click', function () {
+
+    tryFs();
+
+    function onFirstGesture() {
       if (document.fullscreenElement) {
-        document.exitFullscreen();
-      } else {
-        doc.requestFullscreen().then(function () {
-          showToast('주소창이 숨겨졌습니다. 나가려면 전체화면 버튼을 다시 누르세요.');
-        }).catch(function () {
-          showToast('이 브라우저에서는 전체화면을 사용할 수 없습니다.');
-        });
+        document.removeEventListener('pointerdown', onFirstGesture, true);
+        document.removeEventListener('touchstart', onFirstGesture, true);
+        return;
       }
-    });
-    updateLabel();
+      tryFs().then(function () {
+        document.removeEventListener('pointerdown', onFirstGesture, true);
+        document.removeEventListener('touchstart', onFirstGesture, true);
+      });
+    }
+    document.addEventListener('pointerdown', onFirstGesture, true);
+    document.addEventListener('touchstart', onFirstGesture, true);
   }
 
   formEl.addEventListener('submit', function (e) {

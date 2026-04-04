@@ -33,32 +33,11 @@
     padding-bottom: 0.5rem;
   }
   
-  .tel-header-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.5rem;
-    margin-bottom: 0.25rem;
-  }
-  
   .tel-header h1 {
     font-size: 1.4rem;
     color: var(--gold);
     margin-bottom: 0;
   }
-  
-  .fullscreen-btn {
-    flex-shrink: 0;
-    min-height: var(--touch-min);
-    padding: 0.35rem 0.7rem;
-    border-radius: 8px;
-    border: 1px solid var(--border);
-    background: rgba(0, 0, 0, 0.35);
-    color: var(--gold-light);
-    font-size: 0.85rem;
-    cursor: pointer;
-  }
-  .fullscreen-btn:hover { background: rgba(201, 169, 98, 0.2); }
   
   .tel-header .sub {
     font-size: 0.9rem;
