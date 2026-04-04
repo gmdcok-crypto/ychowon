@@ -16,6 +16,11 @@
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* 점심/저녁 슬롯 전환 등 공통 숨김 (tel.css와 동일) */
+.hidden {
+  display: none !important;
+}
+
 body {
   font-family: var(--font);
   background: var(--bg);
@@ -307,7 +312,7 @@ body {
 }
 
 .staff-time-dialog {
-  z-index: 3100;
+  z-index: 10050;
 }
 
 .staff-time-dialog-panel {

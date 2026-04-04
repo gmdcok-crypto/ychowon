@@ -22,10 +22,47 @@
   const staffRoomClose = document.getElementById('staff-room-dialog-close');
   const staffRoomGroupTabs = document.getElementById('staff-room-group-tabs');
   const staffRoomGrid = document.getElementById('staff-room-grid');
-  const staffTimeDialog = document.getElementById('staff-time-dialog');
   const staffTimeBackdrop = document.getElementById('staff-time-dialog-backdrop');
   const staffTimeClose = document.getElementById('staff-time-dialog-close');
   const staffTimeOpen = document.getElementById('staff-time-open');
+  const staffRoomOpenBtn = document.getElementById('staff-room-open');
+
+  function staffTimeDialogEl() {
+    return document.getElementById('staff-time-dialog');
+  }
+
+  var staffTimeOpenLock = false;
+  function openStaffTimeDialogGuarded() {
+    if (staffTimeOpenLock) return;
+    staffTimeOpenLock = true;
+    openStaffTimeDialog();
+    setTimeout(function () {
+      staffTimeOpenLock = false;
+    }, 450);
+  }
+
+  var staffRoomTapLock = false;
+  function openStaffRoomDialogGuarded() {
+    if (staffRoomTapLock) return;
+    staffRoomTapLock = true;
+    openStaffRoomDialog();
+    setTimeout(function () {
+      staffRoomTapLock = false;
+    }, 450);
+  }
+
+  function bindTapOpen(el, fn) {
+    if (!el) return;
+    function go(e) {
+      if (e) {
+        if (e.type === 'touchend') e.preventDefault();
+        e.stopPropagation();
+      }
+      fn();
+    }
+    el.addEventListener('click', go);
+    el.addEventListener('touchend', go, { passive: false });
+  }
 
   let list = [];
   let editingIndex = -1;
@@ -92,25 +129,28 @@
   }
 
   function closeStaffTimeDialog() {
-    if (!staffTimeDialog) return;
-    staffTimeDialog.classList.add('hidden');
-    staffTimeDialog.setAttribute('aria-hidden', 'true');
+    var dlg = staffTimeDialogEl();
+    if (!dlg) return;
+    dlg.classList.add('hidden');
+    dlg.setAttribute('aria-hidden', 'true');
   }
 
   function openStaffTimeDialog() {
-    if (!staffTimeDialog || !timeInput) return;
-    var t = (timeInput.value || '').trim();
+    var dlg = staffTimeDialogEl();
+    var inp = timeInput || document.getElementById('time');
+    if (!dlg || !inp) return;
+    var t = (inp.value || '').trim();
     if (!staffTimeOk(t)) {
-      timeInput.value = '12:00';
+      inp.value = '12:00';
       t = '12:00';
     } else {
       t = normalizeTimeValue(t);
-      timeInput.value = t;
+      inp.value = t;
     }
     setStaffTimeTab(staffSlotFromTime(t));
     syncStaffTimeDialogButtons(t);
-    staffTimeDialog.classList.remove('hidden');
-    staffTimeDialog.setAttribute('aria-hidden', 'false');
+    dlg.classList.remove('hidden');
+    dlg.setAttribute('aria-hidden', 'false');
   }
 
   function applyStaffTimeChoice(value) {
@@ -125,14 +165,21 @@
 
   function setupStaffTimeDialog() {
     if (!timeInput) return;
-    if (staffTimeOpen) {
-      staffTimeOpen.addEventListener('click', function (e) {
+    bindTapOpen(staffTimeOpen, openStaffTimeDialogGuarded);
+    /* readonly + label(for): 라벨 탭은 input으로 이벤트가 안 올 수 있음 */
+    var timeLabel = document.querySelector('label[for="time"]');
+    if (timeLabel) {
+      timeLabel.addEventListener('click', function (e) {
         e.preventDefault();
-        openStaffTimeDialog();
+        openStaffTimeDialogGuarded();
       });
     }
-    timeInput.addEventListener('click', function () {
-      openStaffTimeDialog();
+    bindTapOpen(timeInput, openStaffTimeDialogGuarded);
+    timeInput.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        openStaffTimeDialogGuarded();
+      }
     });
     if (staffTimeClose) staffTimeClose.addEventListener('click', closeStaffTimeDialog);
     if (staffTimeBackdrop) staffTimeBackdrop.addEventListener('click', closeStaffTimeDialog);
@@ -281,8 +328,9 @@
   }
 
   function setupStaffRoomDialog() {
+    bindTapOpen(staffRoomOpenBtn, openStaffRoomDialogGuarded);
     if (roomInput) {
-      roomInput.addEventListener('click', openStaffRoomDialog);
+      bindTapOpen(roomInput, openStaffRoomDialogGuarded);
     }
     if (staffRoomClose) {
       staffRoomClose.addEventListener('click', closeStaffRoomDialog);
@@ -302,7 +350,8 @@
     }
     document.addEventListener('keydown', function (ev) {
       if (ev.key !== 'Escape') return;
-      if (staffTimeDialog && !staffTimeDialog.classList.contains('hidden')) {
+      var timeDlg = staffTimeDialogEl();
+      if (timeDlg && !timeDlg.classList.contains('hidden')) {
         ev.preventDefault();
         closeStaffTimeDialog();
         return;

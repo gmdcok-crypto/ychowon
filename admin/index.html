@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="admin.css" />
+  <link rel="stylesheet" href="admin.css?v=3" />
 </head>
 <body>
   <div class="admin admin-with-tabs">
@@ -57,6 +57,7 @@
               <label for="room">호실</label>
               <div class="room-picker room-picker-single">
                 <input type="text" id="room" name="room" placeholder="호실 선택" required readonly autocomplete="off" size="1" />
+                <button type="button" class="picker-btn" id="staff-room-open">선택</button>
               </div>
             </div>
             <div class="form-actions form-actions-inline">
@@ -139,62 +140,64 @@
       </div>
     </div>
 
-    <div class="room-dialog staff-time-dialog hidden" id="staff-time-dialog" aria-hidden="true">
-      <div class="room-dialog-backdrop" id="staff-time-dialog-backdrop"></div>
-      <div class="room-dialog-panel staff-time-dialog-panel" role="dialog" aria-modal="true" aria-labelledby="staff-time-dialog-title">
-        <div class="room-dialog-head">
-          <div>
-            <h2 id="staff-time-dialog-title">예약 시간 선택</h2>
-            <p class="room-dialog-meta">전화예약과 동일한 점심·저녁 슬롯입니다.</p>
-          </div>
-          <button type="button" class="room-dialog-close" id="staff-time-dialog-close">닫기</button>
-        </div>
-        <div class="staff-time-quick">
-          <div class="staff-time-tabs">
-            <button type="button" class="staff-time-tab active" data-slot="lunch">점심 12:00~14:00</button>
-            <button type="button" class="staff-time-tab" data-slot="dinner">저녁 17:00~19:00</button>
-          </div>
-          <div class="staff-time-buttons" id="staff-time-buttons-lunch">
-            <button type="button" class="staff-time-btn" data-time="12:00">12:00</button>
-            <button type="button" class="staff-time-btn" data-time="12:30">12:30</button>
-            <button type="button" class="staff-time-btn" data-time="13:00">13:00</button>
-            <button type="button" class="staff-time-btn" data-time="13:30">13:30</button>
-            <button type="button" class="staff-time-btn" data-time="14:00">14:00</button>
-          </div>
-          <div class="staff-time-buttons hidden" id="staff-time-buttons-dinner">
-            <button type="button" class="staff-time-btn" data-time="17:00">17:00</button>
-            <button type="button" class="staff-time-btn" data-time="17:30">17:30</button>
-            <button type="button" class="staff-time-btn" data-time="18:00">18:00</button>
-            <button type="button" class="staff-time-btn" data-time="18:30">18:30</button>
-            <button type="button" class="staff-time-btn" data-time="19:00">19:00</button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="room-dialog hidden" id="staff-room-dialog" aria-hidden="true">
-      <div class="room-dialog-backdrop" id="staff-room-dialog-backdrop"></div>
-      <div class="room-dialog-panel" role="dialog" aria-modal="true" aria-labelledby="staff-room-dialog-title">
-        <div class="room-dialog-head">
-          <div>
-            <h2 id="staff-room-dialog-title">룸 / 테이블 선택</h2>
-            <p class="room-dialog-meta" id="staff-room-dialog-meta">시간을 먼저 입력하세요.</p>
-          </div>
-          <button type="button" class="room-dialog-close" id="staff-room-dialog-close">닫기</button>
-        </div>
-        <div class="room-dialog-legend">
-          <span class="legend available">선택 가능</span>
-          <span class="legend reserved">예약 완료</span>
-          <span class="legend selected">현재 선택</span>
-        </div>
-        <div class="room-group-tabs" id="staff-room-group-tabs"></div>
-        <div class="room-grid" id="staff-room-grid"></div>
-      </div>
-    </div>
-
     <div id="toast" class="toast" aria-live="polite"></div>
   </div>
-  <script src="admin.js"></script>
+
+  <!-- fixed 모달: .admin 밖(body 직계)으로 두어 레이어·터치 이슈 방지 -->
+  <div class="room-dialog staff-time-dialog hidden" id="staff-time-dialog" aria-hidden="true">
+    <div class="room-dialog-backdrop" id="staff-time-dialog-backdrop"></div>
+    <div class="room-dialog-panel staff-time-dialog-panel" role="dialog" aria-modal="true" aria-labelledby="staff-time-dialog-title">
+      <div class="room-dialog-head">
+        <div>
+          <h2 id="staff-time-dialog-title">예약 시간 선택</h2>
+          <p class="room-dialog-meta">전화예약과 동일한 점심·저녁 슬롯입니다.</p>
+        </div>
+        <button type="button" class="room-dialog-close" id="staff-time-dialog-close">닫기</button>
+      </div>
+      <div class="staff-time-quick">
+        <div class="staff-time-tabs">
+          <button type="button" class="staff-time-tab active" data-slot="lunch">점심 12:00~14:00</button>
+          <button type="button" class="staff-time-tab" data-slot="dinner">저녁 17:00~19:00</button>
+        </div>
+        <div class="staff-time-buttons" id="staff-time-buttons-lunch">
+          <button type="button" class="staff-time-btn" data-time="12:00">12:00</button>
+          <button type="button" class="staff-time-btn" data-time="12:30">12:30</button>
+          <button type="button" class="staff-time-btn" data-time="13:00">13:00</button>
+          <button type="button" class="staff-time-btn" data-time="13:30">13:30</button>
+          <button type="button" class="staff-time-btn" data-time="14:00">14:00</button>
+        </div>
+        <div class="staff-time-buttons hidden" id="staff-time-buttons-dinner">
+          <button type="button" class="staff-time-btn" data-time="17:00">17:00</button>
+          <button type="button" class="staff-time-btn" data-time="17:30">17:30</button>
+          <button type="button" class="staff-time-btn" data-time="18:00">18:00</button>
+          <button type="button" class="staff-time-btn" data-time="18:30">18:30</button>
+          <button type="button" class="staff-time-btn" data-time="19:00">19:00</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="room-dialog hidden" id="staff-room-dialog" aria-hidden="true">
+    <div class="room-dialog-backdrop" id="staff-room-dialog-backdrop"></div>
+    <div class="room-dialog-panel" role="dialog" aria-modal="true" aria-labelledby="staff-room-dialog-title">
+      <div class="room-dialog-head">
+        <div>
+          <h2 id="staff-room-dialog-title">룸 / 테이블 선택</h2>
+          <p class="room-dialog-meta" id="staff-room-dialog-meta">시간을 먼저 입력하세요.</p>
+        </div>
+        <button type="button" class="room-dialog-close" id="staff-room-dialog-close">닫기</button>
+      </div>
+      <div class="room-dialog-legend">
+        <span class="legend available">선택 가능</span>
+        <span class="legend reserved">예약 완료</span>
+        <span class="legend selected">현재 선택</span>
+      </div>
+      <div class="room-group-tabs" id="staff-room-group-tabs"></div>
+      <div class="room-grid" id="staff-room-grid"></div>
+    </div>
+  </div>
+
+  <script src="admin.js?v=3"></script>
   <script src="accounts.js"></script>
 </body>
 </html>
