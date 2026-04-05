@@ -1,0 +1,440 @@
+{
+  "version": 1,
+  "description": "mchowon 지점 룸·홀 (룸 9번 없음). Railway mchowon 서비스 data/rooms_config.json 으로 복사해 사용.",
+  "rooms": [
+    {
+      "id": "room1",
+      "label": "룸 1",
+      "display_label": "1",
+      "type": "room",
+      "section": "룸"
+    },
+    {
+      "id": "room2",
+      "label": "룸 2",
+      "display_label": "2",
+      "type": "room",
+      "section": "룸"
+    },
+    {
+      "id": "room3",
+      "label": "룸 3",
+      "display_label": "3",
+      "type": "room",
+      "section": "룸"
+    },
+    {
+      "id": "room4",
+      "label": "룸 4",
+      "display_label": "4",
+      "type": "room",
+      "section": "룸"
+    },
+    {
+      "id": "room5",
+      "label": "룸 5",
+      "display_label": "5",
+      "type": "room",
+      "section": "룸"
+    },
+    {
+      "id": "room6",
+      "label": "룸 6",
+      "display_label": "6",
+      "type": "room",
+      "section": "룸"
+    },
+    {
+      "id": "room7",
+      "label": "룸 7",
+      "display_label": "7",
+      "type": "room",
+      "section": "룸"
+    },
+    {
+      "id": "room8",
+      "label": "룸 8",
+      "display_label": "8",
+      "type": "room",
+      "section": "룸"
+    },
+    {
+      "id": "room10",
+      "label": "룸 10",
+      "display_label": "10",
+      "type": "room",
+      "section": "룸"
+    },
+    {
+      "id": "room11",
+      "label": "룸 11",
+      "display_label": "11",
+      "type": "room",
+      "section": "룸"
+    },
+    {
+      "id": "room12",
+      "label": "룸 12",
+      "display_label": "12",
+      "type": "room",
+      "section": "룸"
+    },
+    {
+      "id": "room13",
+      "label": "룸 13",
+      "display_label": "13",
+      "type": "room",
+      "section": "룸"
+    },
+    {
+      "id": "a1",
+      "label": "A홀 A1",
+      "display_label": "A1",
+      "type": "table",
+      "section": "A홀"
+    },
+    {
+      "id": "a2",
+      "label": "A홀 A2",
+      "display_label": "A2",
+      "type": "table",
+      "section": "A홀"
+    },
+    {
+      "id": "a3",
+      "label": "A홀 A3",
+      "display_label": "A3",
+      "type": "table",
+      "section": "A홀"
+    },
+    {
+      "id": "a4",
+      "label": "A홀 A4",
+      "display_label": "A4",
+      "type": "table",
+      "section": "A홀"
+    },
+    {
+      "id": "a5",
+      "label": "A홀 A5",
+      "display_label": "A5",
+      "type": "table",
+      "section": "A홀"
+    },
+    {
+      "id": "a6",
+      "label": "A홀 A6",
+      "display_label": "A6",
+      "type": "table",
+      "section": "A홀"
+    },
+    {
+      "id": "a7",
+      "label": "A홀 A7",
+      "display_label": "A7",
+      "type": "table",
+      "section": "A홀"
+    },
+    {
+      "id": "a8",
+      "label": "A홀 A8",
+      "display_label": "A8",
+      "type": "table",
+      "section": "A홀"
+    },
+    {
+      "id": "b1",
+      "label": "B홀 B1",
+      "display_label": "B1",
+      "type": "table",
+      "section": "B홀"
+    },
+    {
+      "id": "b2",
+      "label": "B홀 B2",
+      "display_label": "B2",
+      "type": "table",
+      "section": "B홀"
+    },
+    {
+      "id": "b3",
+      "label": "B홀 B3",
+      "display_label": "B3",
+      "type": "table",
+      "section": "B홀"
+    },
+    {
+      "id": "b4",
+      "label": "B홀 B4",
+      "display_label": "B4",
+      "type": "table",
+      "section": "B홀"
+    },
+    {
+      "id": "b5",
+      "label": "B홀 B5",
+      "display_label": "B5",
+      "type": "table",
+      "section": "B홀"
+    },
+    {
+      "id": "c1",
+      "label": "C홀 C1",
+      "display_label": "C1",
+      "type": "table",
+      "section": "C홀"
+    },
+    {
+      "id": "c2",
+      "label": "C홀 C2",
+      "display_label": "C2",
+      "type": "table",
+      "section": "C홀"
+    },
+    {
+      "id": "c3",
+      "label": "C홀 C3",
+      "display_label": "C3",
+      "type": "table",
+      "section": "C홀"
+    },
+    {
+      "id": "c4",
+      "label": "C홀 C4",
+      "display_label": "C4",
+      "type": "table",
+      "section": "C홀"
+    },
+    {
+      "id": "c5",
+      "label": "C홀 C5",
+      "display_label": "C5",
+      "type": "table",
+      "section": "C홀"
+    },
+    {
+      "id": "c6",
+      "label": "C홀 C6",
+      "display_label": "C6",
+      "type": "table",
+      "section": "C홀"
+    },
+    {
+      "id": "d1",
+      "label": "D홀 D1",
+      "display_label": "D1",
+      "type": "table",
+      "section": "D홀"
+    },
+    {
+      "id": "d2",
+      "label": "D홀 D2",
+      "display_label": "D2",
+      "type": "table",
+      "section": "D홀"
+    },
+    {
+      "id": "d3",
+      "label": "D홀 D3",
+      "display_label": "D3",
+      "type": "table",
+      "section": "D홀"
+    },
+    {
+      "id": "d4",
+      "label": "D홀 D4",
+      "display_label": "D4",
+      "type": "table",
+      "section": "D홀"
+    },
+    {
+      "id": "d5",
+      "label": "D홀 D5",
+      "display_label": "D5",
+      "type": "table",
+      "section": "D홀"
+    },
+    {
+      "id": "d6",
+      "label": "D홀 D6",
+      "display_label": "D6",
+      "type": "table",
+      "section": "D홀"
+    },
+    {
+      "id": "e1",
+      "label": "E홀 E1",
+      "display_label": "E1",
+      "type": "table",
+      "section": "E홀"
+    },
+    {
+      "id": "e2",
+      "label": "E홀 E2",
+      "display_label": "E2",
+      "type": "table",
+      "section": "E홀"
+    },
+    {
+      "id": "e3",
+      "label": "E홀 E3",
+      "display_label": "E3",
+      "type": "table",
+      "section": "E홀"
+    },
+    {
+      "id": "e4",
+      "label": "E홀 E4",
+      "display_label": "E4",
+      "type": "table",
+      "section": "E홀"
+    },
+    {
+      "id": "e5",
+      "label": "E홀 E5",
+      "display_label": "E5",
+      "type": "table",
+      "section": "E홀"
+    },
+    {
+      "id": "e6",
+      "label": "E홀 E6",
+      "display_label": "E6",
+      "type": "table",
+      "section": "E홀"
+    },
+    {
+      "id": "e7",
+      "label": "E홀 E7",
+      "display_label": "E7",
+      "type": "table",
+      "section": "E홀"
+    },
+    {
+      "id": "e8",
+      "label": "E홀 E8",
+      "display_label": "E8",
+      "type": "table",
+      "section": "E홀"
+    },
+    {
+      "id": "e9",
+      "label": "E홀 E9",
+      "display_label": "E9",
+      "type": "table",
+      "section": "E홀"
+    },
+    {
+      "id": "e10",
+      "label": "E홀 E10",
+      "display_label": "E10",
+      "type": "table",
+      "section": "E홀"
+    },
+    {
+      "id": "f1",
+      "label": "F홀 F1",
+      "display_label": "F1",
+      "type": "table",
+      "section": "F홀"
+    },
+    {
+      "id": "f2",
+      "label": "F홀 F2",
+      "display_label": "F2",
+      "type": "table",
+      "section": "F홀"
+    },
+    {
+      "id": "f3",
+      "label": "F홀 F3",
+      "display_label": "F3",
+      "type": "table",
+      "section": "F홀"
+    },
+    {
+      "id": "f4",
+      "label": "F홀 F4",
+      "display_label": "F4",
+      "type": "table",
+      "section": "F홀"
+    },
+    {
+      "id": "f5",
+      "label": "F홀 F5",
+      "display_label": "F5",
+      "type": "table",
+      "section": "F홀"
+    },
+    {
+      "id": "f6",
+      "label": "F홀 F6",
+      "display_label": "F6",
+      "type": "table",
+      "section": "F홀"
+    },
+    {
+      "id": "f7",
+      "label": "F홀 F7",
+      "display_label": "F7",
+      "type": "table",
+      "section": "F홀"
+    },
+    {
+      "id": "op1",
+      "label": "OP홀 1",
+      "display_label": "1",
+      "type": "table",
+      "section": "OP홀"
+    },
+    {
+      "id": "op2",
+      "label": "OP홀 2",
+      "display_label": "2",
+      "type": "table",
+      "section": "OP홀"
+    },
+    {
+      "id": "op3",
+      "label": "OP홀 3",
+      "display_label": "3",
+      "type": "table",
+      "section": "OP홀"
+    },
+    {
+      "id": "op4",
+      "label": "OP홀 4",
+      "display_label": "4",
+      "type": "table",
+      "section": "OP홀"
+    },
+    {
+      "id": "op5",
+      "label": "OP홀 5",
+      "display_label": "5",
+      "type": "table",
+      "section": "OP홀"
+    },
+    {
+      "id": "op6",
+      "label": "OP홀 6",
+      "display_label": "6",
+      "type": "table",
+      "section": "OP홀"
+    },
+    {
+      "id": "op7",
+      "label": "OP홀 7",
+      "display_label": "7",
+      "type": "table",
+      "section": "OP홀"
+    },
+    {
+      "id": "op8",
+      "label": "OP홀 8",
+      "display_label": "8",
+      "type": "table",
+      "section": "OP홀"
+    }
+  ]
+}
