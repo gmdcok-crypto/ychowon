@@ -1,18 +1,24 @@
 """
 지점별 룸·홀 구성.
 
-- 배포마다 server/data/ 를 두고, 그 안에 rooms_config.json 이 있으면 해당 목록을 사용합니다.
+- 기본: data/rooms_config.json 이 있으면 해당 목록을 사용합니다.
+- 환경 변수 ROOMS_CONFIG_FILE 로 다른 파일명을 지정할 수 있습니다.
+  예: ROOMS_CONFIG_FILE=rooms_config.mchowon.json (레포의 data/ 아래 파일)
 - 파일이 없거나 오류 시 아래 내장 기본값(초원농원 구조)을 사용합니다.
 - data/rooms_config.example.json 은 참고용 복사 템플릿입니다.
 """
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from typing import Any
 
 CONFIG_FILENAME = "rooms_config.json"
 EXAMPLE_FILENAME = "rooms_config.example.json"
+
+# load_room_options() 성공 시 사용한 파일명(확장자 .json). 없으면 내장 기본값.
+ACTIVE_ROOMS_CONFIG_REF: str | None = None
 
 
 def build_default_room_options() -> list[dict[str, Any]]:
@@ -121,20 +127,37 @@ def _normalize_room_entry(raw: dict[str, Any], index: int) -> dict[str, Any] | N
     }
 
 
+def _safe_rooms_config_filename(env_val: str | None, default: str) -> str:
+    """경로 조작 방지: 파일명(basename)만 허용, .json 만."""
+    if env_val is None or not str(env_val).strip():
+        return default
+    name = Path(str(env_val).strip()).name
+    if not name.endswith(".json"):
+        return default
+    return name
+
+
 def load_room_options(data_dir: Path) -> list[dict[str, Any]]:
-    path = data_dir / CONFIG_FILENAME
+    global ACTIVE_ROOMS_CONFIG_REF
+    fname = _safe_rooms_config_filename(os.environ.get("ROOMS_CONFIG_FILE"), CONFIG_FILENAME)
+    path = data_dir / fname
+    ACTIVE_ROOMS_CONFIG_REF = None
+
     if not path.exists():
+        if os.environ.get("ROOMS_CONFIG_FILE"):
+            print("  경고: data/%s 없음 — 내장 기본 룸 구성 사용" % fname)
         return build_default_room_options()
+
     try:
         with open(path, "r", encoding="utf-8") as f:
             data = json.load(f)
     except (json.JSONDecodeError, OSError) as e:
-        print("  경고: %s JSON 파싱 실패 — 기본 룸 구성 사용 (%s)" % (CONFIG_FILENAME, e))
+        print("  경고: %s JSON 파싱 실패 — 기본 룸 구성 사용 (%s)" % (fname, e))
         return build_default_room_options()
 
     rooms = data.get("rooms") if isinstance(data, dict) else data
     if not isinstance(rooms, list):
-        print("  경고: %s 에 'rooms' 배열이 없음 — 기본 룸 구성 사용" % CONFIG_FILENAME)
+        print("  경고: %s 에 'rooms' 배열이 없음 — 기본 룸 구성 사용" % fname)
         return build_default_room_options()
 
     out: list[dict[str, Any]] = []
@@ -145,8 +168,9 @@ def load_room_options(data_dir: Path) -> list[dict[str, Any]]:
         if norm:
             out.append(norm)
     if not out:
-        print("  경고: %s 에 유효한 룸이 없음 — 기본 룸 구성 사용" % CONFIG_FILENAME)
+        print("  경고: %s 에 유효한 룸이 없음 — 기본 룸 구성 사용" % fname)
         return build_default_room_options()
+    ACTIVE_ROOMS_CONFIG_REF = fname
     return out
 
 

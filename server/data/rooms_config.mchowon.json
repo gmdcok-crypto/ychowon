@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "description": "mchowon 지점 룸·홀 (룸 9번 없음). Railway mchowon 서비스 data/rooms_config.json 으로 복사해 사용.",
+  "description": "mchowon 지점 룸·홀 (룸 9번 없음). Railway 환경 변수 ROOMS_CONFIG_FILE=rooms_config.mchowon.json 또는 이 파일을 rooms_config.json 으로 복사.",
   "rooms": [
     {
       "id": "room1",
