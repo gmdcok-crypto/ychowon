@@ -434,6 +434,13 @@
    * PC(마우스): 재시도 스케줄 생략 — 태블릿·터치 기기에서만 키오스크식 재시도.
    */
   function setupFullscreen() {
+    /* admin 등 상위 페이지 안 iframe: 태블릿용 전체화면·제스처만 iframe 문서로 가서 PC에서 혼란 — 비활성화 */
+    try {
+      if (window.self !== window.top) return;
+    } catch (e) {
+      return;
+    }
+
     var gestureEvents = ['pointerdown', 'touchstart', 'touchend', 'click'];
     var iosHintShown = false;
 
