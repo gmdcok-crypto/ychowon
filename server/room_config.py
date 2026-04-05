@@ -1,10 +1,9 @@
 """
 지점별 룸·홀 구성.
 
-- 우선순위: ROOMS_CONFIG_FILE → data/rooms_config.json 존재 시 →
-  (Railway에서 mchowon 판별 시) data/rooms_config.mchowon.json → 없으면 내장 기본값.
-- mchowon 자동: SITE/BRANCH_SITE=mchowon, 또는 서비스/도메인 환경에 "mchowon" 포함.
-- ROOMS_CONFIG_FILE=rooms_config.mchowon.json 으로 수동 지정 가능.
+- 우선순위: ROOMS_CONFIG_FILE → (mchowon 컨텍스트면) rooms_config.mchowon.json →
+  rooms_config.json → 없으면 내장 기본값.
+- mchowon: USE_MCHOWON_ROOMS=1, SITE=mchowon, 또는 Railway 이름/도메인에 mchowon 포함.
 - data/rooms_config.example.json 은 참고용 복사 템플릿입니다.
 """
 from __future__ import annotations
@@ -137,40 +136,49 @@ def _safe_rooms_config_filename(env_val: str | None, default: str) -> str:
     return name
 
 
+def _is_mchowon_context() -> bool:
+    """mchowon 지점 배포로 볼지 여부."""
+    flag = (os.environ.get("USE_MCHOWON_ROOMS") or "").strip().lower()
+    if flag in ("1", "true", "yes", "on"):
+        return True
+    site = (os.environ.get("SITE") or os.environ.get("BRANCH_SITE") or "").strip().lower()
+    if site == "mchowon":
+        return True
+    svc = (os.environ.get("RAILWAY_SERVICE_NAME") or os.environ.get("RAILWAY_SERVICE") or "").lower()
+    if "mchowon" in svc:
+        return True
+    for key in (
+        "RAILWAY_PUBLIC_DOMAIN",
+        "RAILWAY_STATIC_URL",
+        "RAILWAY_SERVICE_DOMAIN",
+        "RAILWAY_ENVIRONMENT_NAME",
+    ):
+        if "mchowon" in (os.environ.get(key) or "").lower():
+            return True
+    return "mchowon" in (os.environ.get("HOSTNAME") or "").lower()
+
+
 def _pick_rooms_config_filename(data_dir: Path) -> str:
     """
     어떤 JSON을 쓸지 결정 (우선순위).
 
     1) ROOMS_CONFIG_FILE=파일명
-    2) data/rooms_config.json 이 있으면 그것
-    3) Railway: SITE 또는 BRANCH_SITE=mchowon 이거나 서비스 이름에 mchowon 포함 시
-       rooms_config.mchowon.json 이 있으면 그것
-    4) rooms_config.json (없으면 아래에서 기본값)
+    2) mchowon 컨텍스트이고 data/rooms_config.mchowon.json 이 있으면 그것
+       (볼륨에 예전 rooms_config.json 이 남아 있어도 mchowon 설정이 우선)
+    3) data/rooms_config.json
+    4) rooms_config.json (없으면 load_room_options 에서 내장 기본값)
     """
     env_raw = os.environ.get("ROOMS_CONFIG_FILE")
     if env_raw and str(env_raw).strip():
         return _safe_rooms_config_filename(env_raw, CONFIG_FILENAME)
 
-    if (data_dir / CONFIG_FILENAME).exists():
-        return CONFIG_FILENAME
-
     mchowon_file = "rooms_config.mchowon.json"
     mchowon_path = data_dir / mchowon_file
-    if not mchowon_path.exists():
-        return CONFIG_FILENAME
-
-    site = (os.environ.get("SITE") or os.environ.get("BRANCH_SITE") or "").strip().lower()
-    svc = (os.environ.get("RAILWAY_SERVICE_NAME") or os.environ.get("RAILWAY_SERVICE") or "").lower()
-    host_hint = False
-    for key in ("RAILWAY_PUBLIC_DOMAIN", "RAILWAY_STATIC_URL", "RAILWAY_SERVICE_DOMAIN"):
-        if "mchowon" in (os.environ.get(key) or "").lower():
-            host_hint = True
-            break
-    if not host_hint:
-        host_hint = "mchowon" in (os.environ.get("HOSTNAME") or "").lower()
-
-    if site == "mchowon" or "mchowon" in svc or host_hint:
+    if mchowon_path.exists() and _is_mchowon_context():
         return mchowon_file
+
+    if (data_dir / CONFIG_FILENAME).exists():
+        return CONFIG_FILENAME
 
     return CONFIG_FILENAME
 
