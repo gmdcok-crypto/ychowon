@@ -1,10 +1,10 @@
 """
 지점별 룸·홀 구성.
 
-- 기본: data/rooms_config.json 이 있으면 해당 목록을 사용합니다.
-- 환경 변수 ROOMS_CONFIG_FILE 로 다른 파일명을 지정할 수 있습니다.
-  예: ROOMS_CONFIG_FILE=rooms_config.mchowon.json (레포의 data/ 아래 파일)
-- 파일이 없거나 오류 시 아래 내장 기본값(초원농원 구조)을 사용합니다.
+- 우선순위: ROOMS_CONFIG_FILE → data/rooms_config.json 존재 시 →
+  (Railway에서 mchowon 판별 시) data/rooms_config.mchowon.json → 없으면 내장 기본값.
+- mchowon 자동: SITE/BRANCH_SITE=mchowon, 또는 서비스/도메인 환경에 "mchowon" 포함.
+- ROOMS_CONFIG_FILE=rooms_config.mchowon.json 으로 수동 지정 가능.
 - data/rooms_config.example.json 은 참고용 복사 템플릿입니다.
 """
 from __future__ import annotations
@@ -137,9 +137,47 @@ def _safe_rooms_config_filename(env_val: str | None, default: str) -> str:
     return name
 
 
+def _pick_rooms_config_filename(data_dir: Path) -> str:
+    """
+    어떤 JSON을 쓸지 결정 (우선순위).
+
+    1) ROOMS_CONFIG_FILE=파일명
+    2) data/rooms_config.json 이 있으면 그것
+    3) Railway: SITE 또는 BRANCH_SITE=mchowon 이거나 서비스 이름에 mchowon 포함 시
+       rooms_config.mchowon.json 이 있으면 그것
+    4) rooms_config.json (없으면 아래에서 기본값)
+    """
+    env_raw = os.environ.get("ROOMS_CONFIG_FILE")
+    if env_raw and str(env_raw).strip():
+        return _safe_rooms_config_filename(env_raw, CONFIG_FILENAME)
+
+    if (data_dir / CONFIG_FILENAME).exists():
+        return CONFIG_FILENAME
+
+    mchowon_file = "rooms_config.mchowon.json"
+    mchowon_path = data_dir / mchowon_file
+    if not mchowon_path.exists():
+        return CONFIG_FILENAME
+
+    site = (os.environ.get("SITE") or os.environ.get("BRANCH_SITE") or "").strip().lower()
+    svc = (os.environ.get("RAILWAY_SERVICE_NAME") or os.environ.get("RAILWAY_SERVICE") or "").lower()
+    host_hint = False
+    for key in ("RAILWAY_PUBLIC_DOMAIN", "RAILWAY_STATIC_URL", "RAILWAY_SERVICE_DOMAIN"):
+        if "mchowon" in (os.environ.get(key) or "").lower():
+            host_hint = True
+            break
+    if not host_hint:
+        host_hint = "mchowon" in (os.environ.get("HOSTNAME") or "").lower()
+
+    if site == "mchowon" or "mchowon" in svc or host_hint:
+        return mchowon_file
+
+    return CONFIG_FILENAME
+
+
 def load_room_options(data_dir: Path) -> list[dict[str, Any]]:
     global ACTIVE_ROOMS_CONFIG_REF
-    fname = _safe_rooms_config_filename(os.environ.get("ROOMS_CONFIG_FILE"), CONFIG_FILENAME)
+    fname = _pick_rooms_config_filename(data_dir)
     path = data_dir / fname
     ACTIVE_ROOMS_CONFIG_REF = None
 
