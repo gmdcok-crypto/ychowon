@@ -50,6 +50,10 @@ def startup():
     print("  현황판:   http://%s:8000/display/" % ip)
     print("  예약입력: http://%s:8000/admin/ (당일용)" % ip)
     print("  예약접수: http://%s:8000/tel/   (태블릿)" % ip)
+    if (DATA_DIR / CONFIG_FILENAME).exists():
+        print("  룸·홀:    data/%s (지점 설정)" % CONFIG_FILENAME)
+    else:
+        print("  룸·홀:    내장 기본값 (data/%s 로 덮어쓰기 가능)" % CONFIG_FILENAME)
     print("")
 
 
@@ -148,43 +152,10 @@ TEL_FILE = DATA_DIR / "tel_reservations.json"
 DISPLAY_CONTENT_FILE = DATA_DIR / "display_content.json"
 MEAL_DURATION_MINUTES = 120
 
-def _build_room_options() -> list:
-    """4F룸·5F룸·A~F홀 구조. 모달 탭별 표시용."""
-    opts = []
-    # 4F룸 룸1~룸24
-    for i in range(1, 25):
-        opts.append({"id": f"4fr{i}", "label": f"4F룸 룸{i}", "display_label": str(i), "type": "room", "section": "4F룸"})
-    # 5F룸 룸1~룸12
-    for i in range(1, 13):
-        opts.append({"id": f"5fr{i}", "label": f"5F룸 룸{i}", "display_label": str(i), "type": "room", "section": "5F룸"})
-    # A홀 A1~A6
-    for i in range(1, 7):
-        opts.append({"id": f"a{i}", "label": f"A홀 A{i}", "display_label": f"A{i}", "type": "table", "section": "A홀"})
-    # B홀 B1~B9
-    for i in range(1, 10):
-        opts.append({"id": f"b{i}", "label": f"B홀 B{i}", "display_label": f"B{i}", "type": "table", "section": "B홀"})
-    # C홀 C1~C10
-    for i in range(1, 11):
-        opts.append({"id": f"c{i}", "label": f"C홀 C{i}", "display_label": f"C{i}", "type": "table", "section": "C홀"})
-    # D홀 D1, D2~D8 각각 + D2(임시)~D8(임시), D9~D11
-    d_labels = ["D1"]
-    for i in range(2, 9):
-        d_labels.append(f"D{i}")
-        d_labels.append(f"D{i}(임시)")
-    for i in range(9, 12):
-        d_labels.append(f"D{i}")
-    for idx, dl in enumerate(d_labels):
-        opts.append({"id": f"d{idx + 1}", "label": f"D홀 {dl}", "display_label": dl, "type": "table", "section": "D홀"})
-    # E홀 E1~E9
-    for i in range(1, 10):
-        opts.append({"id": f"e{i}", "label": f"E홀 E{i}", "display_label": f"E{i}", "type": "table", "section": "E홀"})
-    # F홀 F1~F3
-    for i in range(1, 4):
-        opts.append({"id": f"f{i}", "label": f"F홀 F{i}", "display_label": f"F{i}", "type": "table", "section": "F홀"})
-    return opts
+from room_config import CONFIG_FILENAME, ensure_example_file, load_room_options
 
-
-ROOM_OPTIONS = _build_room_options()
+ensure_example_file(DATA_DIR)
+ROOM_OPTIONS = load_room_options(DATA_DIR)
 
 
 def _today_str() -> str:

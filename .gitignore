@@ -24,3 +24,6 @@ Thumbs.db
 
 # JWT 서버 비밀 (로컬/Railway에는 JWT_SECRET 환경 변수 권장)
 server/data/.jwt_secret
+
+# 지점별 룸·홀 구성 (rooms_config.example.json 은 저장소에 둠)
+server/data/rooms_config.json
