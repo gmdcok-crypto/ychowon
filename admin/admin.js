@@ -624,7 +624,6 @@
     var panelAll = document.getElementById('panel-all');
     var panelDisplay = document.getElementById('panel-display');
     var panelAccounts = document.getElementById('panel-accounts');
-    var adminRoot = document.querySelector('.admin.admin-with-tabs');
     if (!tabs.length || !panelStaff || !panelTel || !panelAll || !panelDisplay || !panelAccounts) return;
     tabs.forEach(function (btn) {
       btn.addEventListener('click', function () {
@@ -641,11 +640,6 @@
         panelAccounts.classList.toggle('hidden', tab !== 'accounts');
         if (tab === 'accounts' && typeof window.__accountsReload === 'function') {
           window.__accountsReload();
-        }
-        if (adminRoot) {
-          adminRoot.classList.toggle('is-tab-all', tab === 'all');
-          adminRoot.classList.toggle('is-tab-display', tab === 'display');
-          adminRoot.classList.toggle('is-tab-accounts', tab === 'accounts');
         }
       });
     });
