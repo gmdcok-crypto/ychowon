@@ -7,6 +7,42 @@
   const API = '/api/reservations/today';
   const API_TEL = '/api/tel/reservations';
   const API_TEL_ROOMS = '/api/tel/rooms';
+  const BRANCH_KEY = 'reserve_branch_id';
+
+  function getBranch() {
+    try {
+      var v = localStorage.getItem(BRANCH_KEY);
+      return v && String(v).trim() ? String(v).trim() : 'default';
+    } catch (e) {
+      return 'default';
+    }
+  }
+
+  function setBranch(id) {
+    try {
+      localStorage.setItem(BRANCH_KEY, id || 'default');
+    } catch (e) {}
+  }
+
+  function branchQuery() {
+    return 'branch=' + encodeURIComponent(getBranch());
+  }
+
+  function withBranch(url) {
+    var sep = url.indexOf('?') >= 0 ? '&' : '?';
+    return url + sep + branchQuery();
+  }
+
+  function syncAdminIframes() {
+    var b = getBranch();
+    var q = 'branch=' + encodeURIComponent(b);
+    var tel = document.getElementById('iframe-tel-admin');
+    if (tel) tel.src = '/tel/?' + q;
+    var all = document.getElementById('iframe-all-admin');
+    if (all) all.src = '/admin/all.html?embed=1&' + q;
+    var dc = document.getElementById('iframe-display-admin');
+    if (dc) dc.src = '/admin/display-content.html?embed=1&' + q;
+  }
   const listEl = document.getElementById('list');
   const addForm = document.getElementById('add-form');
   const toastEl = document.getElementById('toast');
@@ -276,7 +312,7 @@
     }
 
     var today = new Date();
-    var q = '?date=' + encodeURIComponent(dateKey(today)) + '&time=' + encodeURIComponent((timeInput.value || '').trim());
+    var q = '?date=' + encodeURIComponent(dateKey(today)) + '&time=' + encodeURIComponent((timeInput.value || '').trim()) + '&' + branchQuery();
     if (staffRoomMeta) {
       staffRoomMeta.textContent = formatStaffDate(today) + ' · ' + (timeInput.value || '').trim() + ' 기준';
     }
@@ -399,7 +435,7 @@
   }
 
   function load() {
-    fetch(API, { credentials: 'same-origin' })
+    fetch(withBranch(API), { credentials: 'same-origin' })
       .then(function (r) { return r.json(); })
       .then(function (data) {
         list = Array.isArray(data) ? data.map(normalizeRow) : [];
@@ -449,7 +485,7 @@
             showToast('전화 예약 ID를 찾을 수 없습니다.');
             return;
           }
-          fetch(API_TEL + '/' + tid, { method: 'DELETE', credentials: 'same-origin' })
+          fetch(withBranch(API_TEL + '/' + tid), { method: 'DELETE', credentials: 'same-origin' })
             .then(function (r) {
               if (!r.ok) throw new Error('삭제 실패');
               return r.json();
@@ -508,7 +544,7 @@
         return { id: id, time: r.time || '', name: r.name || '', room: r.room || '' };
       })
     };
-    fetch(API, {
+    fetch(withBranch(API), {
       method: 'POST',
       credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' },
@@ -549,7 +585,7 @@
           showToast('전화 예약 ID를 찾을 수 없습니다.');
           return;
         }
-        fetch(API_TEL + '/' + tid, {
+        fetch(withBranch(API_TEL + '/' + tid), {
           method: 'PATCH',
           credentials: 'same-origin',
           headers: { 'Content-Type': 'application/json' },
@@ -590,9 +626,18 @@
 
   if (cancelEditBtn) cancelEditBtn.addEventListener('click', cancelEdit);
 
+  var staffWs = null;
+
   function connectWs() {
+    if (staffWs) {
+      try {
+        staffWs.close();
+      } catch (e) {}
+      staffWs = null;
+    }
     var protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    var ws = new WebSocket(protocol + '//' + window.location.host + '/ws');
+    var ws = new WebSocket(protocol + '//' + window.location.host + '/ws?' + branchQuery());
+    staffWs = ws;
     ws.onmessage = function (ev) {
       try {
         var data = JSON.parse(ev.data);
@@ -645,8 +690,118 @@
     });
   })();
 
+  function initBranchUi() {
+    var sel = document.getElementById('admin-branch-select');
+    if (!sel) {
+      load();
+      connectWs();
+      return;
+    }
+    fetch('/api/branches', { credentials: 'same-origin' })
+      .then(function (r) {
+        return r.json();
+      })
+      .then(function (data) {
+        var rows = data && data.branches ? data.branches : [];
+        sel.innerHTML = '';
+        var current = getBranch();
+        var found = false;
+        rows.forEach(function (b) {
+          var opt = document.createElement('option');
+          opt.value = b.id;
+          opt.textContent = b.name || b.id;
+          if (b.id === current) found = true;
+          sel.appendChild(opt);
+        });
+        if (!rows.length) {
+          var o = document.createElement('option');
+          o.value = 'default';
+          o.textContent = '본점';
+          sel.appendChild(o);
+          setBranch('default');
+          sel.value = 'default';
+        } else {
+          if (!found) {
+            setBranch(rows[0].id);
+          }
+          sel.value = getBranch();
+        }
+        syncAdminIframes();
+        sel.addEventListener('change', function () {
+          setBranch(sel.value);
+          syncAdminIframes();
+          load();
+          connectWs();
+        });
+        load();
+        connectWs();
+      })
+      .catch(function () {
+        load();
+        connectWs();
+      });
+  }
+
+  function wireBranchAdd() {
+    var btn = document.getElementById('new-branch-btn');
+    var idEl = document.getElementById('new-branch-id');
+    var nameEl = document.getElementById('new-branch-name');
+    if (!btn || !idEl || !nameEl) return;
+    btn.addEventListener('click', function () {
+      var id = (idEl.value || '').trim().toLowerCase();
+      var nm = (nameEl.value || '').trim();
+      if (!id) {
+        showToast('지점 코드를 입력하세요.');
+        return;
+      }
+      fetch('/api/branches', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: id, name: nm || id })
+      })
+        .then(function (r) {
+          return r.json().then(function (j) {
+            return { ok: r.ok, data: j };
+          });
+        })
+        .then(function (res) {
+          if (!res.ok) {
+            var d = res.data && res.data.detail;
+            throw new Error(typeof d === 'string' ? d : '추가 실패');
+          }
+          showToast('지점을 추가했습니다.');
+          idEl.value = '';
+          nameEl.value = '';
+          setBranch(id);
+          return fetch('/api/branches', { credentials: 'same-origin' }).then(function (r) {
+            return r.json();
+          });
+        })
+        .then(function (data) {
+          var sel = document.getElementById('admin-branch-select');
+          if (!sel || !data || !data.branches) return;
+          var rows = data.branches;
+          sel.innerHTML = '';
+          rows.forEach(function (b) {
+            var opt = document.createElement('option');
+            opt.value = b.id;
+            opt.textContent = b.name || b.id;
+            sel.appendChild(opt);
+          });
+          sel.value = getBranch();
+          syncAdminIframes();
+          load();
+          connectWs();
+        })
+        .catch(function (e) {
+          showToast(e.message || '추가에 실패했습니다.');
+        });
+    });
+  }
+
   setupStaffTimeDialog();
   setupStaffRoomDialog();
-  load();
-  connectWs();
+  wireBranchAdd();
+  initBranchUi();
 })();

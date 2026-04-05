@@ -5,6 +5,32 @@
   'use strict';
 
   var API = '/api/tel/reservations';
+  var BRANCH_KEY = 'reserve_branch_id';
+
+  function getBranch() {
+    try {
+      var u = new URL(window.location.href);
+      var b = u.searchParams.get('branch');
+      if (b && String(b).trim()) {
+        var id = String(b).trim().toLowerCase();
+        try {
+          localStorage.setItem(BRANCH_KEY, id);
+        } catch (e) {}
+        return id;
+      }
+    } catch (e) {}
+    try {
+      var v = localStorage.getItem(BRANCH_KEY);
+      return v && String(v).trim() ? String(v).trim() : 'default';
+    } catch (e2) {
+      return 'default';
+    }
+  }
+
+  function withBranch(url) {
+    var sep = url.indexOf('?') >= 0 ? '&' : '?';
+    return url + sep + 'branch=' + encodeURIComponent(getBranch());
+  }
 
   var filterFrom = document.getElementById('filter-from');
   var filterTo = document.getElementById('filter-to');
@@ -129,11 +155,11 @@
   function buildQuery() {
     var from = (filterFrom.value || '').trim();
     var to = (filterTo.value || '').trim();
-    if (!from && !to) return '';
     var q = [];
     if (from) q.push('date_from=' + encodeURIComponent(from));
     if (to) q.push('date_to=' + encodeURIComponent(to));
-    return q.length ? ('?' + q.join('&')) : '';
+    var base = API + (q.length ? ('?' + q.join('&')) : '');
+    return withBranch(base);
   }
 
   function countText(n, from, to) {
@@ -142,9 +168,8 @@
   }
 
   function fetchList() {
-    var qs = buildQuery();
     resultCount.textContent = '불러오는 중…';
-    fetch(API + qs, { credentials: 'same-origin' })
+    fetch(buildQuery(), { credentials: 'same-origin' })
       .then(function (r) { return r.json(); })
       .then(function (data) {
         var rows = Array.isArray(data) ? data : [];
@@ -199,7 +224,7 @@
       btn.addEventListener('click', function () {
         var id = parseInt(btn.getAttribute('data-id'), 10);
         if (!id || !window.confirm('이 예약을 삭제할까요?')) return;
-        fetch(API + '/' + id, { method: 'DELETE', credentials: 'same-origin' })
+        fetch(withBranch(API + '/' + id), { method: 'DELETE', credentials: 'same-origin' })
           .then(function (r) {
             if (!r.ok) throw new Error();
             return r.json();
@@ -229,7 +254,7 @@
         if (ph === null) return;
         var body = { time: t.trim(), name: n.trim(), room: rm.trim() };
         if (ph.trim()) body.phone = ph.trim();
-        fetch(API + '/' + id, {
+        fetch(withBranch(API + '/' + id), {
           method: 'PATCH',
           credentials: 'same-origin',
           headers: { 'Content-Type': 'application/json' },

@@ -331,6 +331,12 @@ def api_allows(path: str, method: str, role: Optional[str]) -> bool:
     p = path.rstrip("/") or "/"
     if is_public_auth_api_path(p) or p == "/api/health":
         return True
+    if p == "/api/branches":
+        if method == "GET":
+            return role in ("admin", "display", "tel")
+        if method == "POST":
+            return role == "admin"
+        return False
     if p.startswith("/api/auth/accounts"):
         return role == "admin"
     if not role:

@@ -11,7 +11,8 @@
       "room": "4F룸 룸7",
       "adult": 4,
       "child": 3,
-      "infant": 0
+      "infant": 0,
+      "branch_id": "default"
     },
     {
       "id": 2,
@@ -24,7 +25,8 @@
       "room": "B홀 B2",
       "adult": 3,
       "child": 1,
-      "infant": 0
+      "infant": 0,
+      "branch_id": "default"
     },
     {
       "id": 3,
@@ -37,7 +39,8 @@
       "room": "4F룸 룸1",
       "adult": 3,
       "child": 1,
-      "infant": 0
+      "infant": 0,
+      "branch_id": "default"
     }
   ]
 }

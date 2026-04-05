@@ -104,6 +104,11 @@ body {
   margin-bottom: 1.25rem;
   padding-bottom: 0.75rem;
   border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
 }
 
 .admin-header h1 {
@@ -111,6 +116,68 @@ body {
   font-weight: 700;
   color: var(--gold);
   margin: 0;
+}
+
+.admin-branch-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  color: var(--cream-dim);
+}
+
+.admin-branch-wrap label {
+  margin: 0;
+  white-space: nowrap;
+}
+
+.admin-branch-select {
+  min-width: 9rem;
+  padding: 0.35rem 0.5rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg-panel);
+  color: var(--cream);
+}
+
+.admin-branch-add {
+  font-size: 0.85rem;
+}
+
+.admin-branch-add summary {
+  cursor: pointer;
+  color: var(--gold-light);
+  list-style: none;
+}
+
+.admin-branch-add summary::-webkit-details-marker {
+  display: none;
+}
+
+.admin-branch-add-fields {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.5rem;
+  padding: 0.5rem;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.admin-branch-input {
+  width: 7rem;
+  padding: 0.3rem 0.45rem;
+  font-size: 0.85rem;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: var(--bg-panel);
+  color: var(--cream);
+}
+
+.admin-branch-add-fields .btn {
+  padding: 0.3rem 0.65rem;
+  font-size: 0.85rem;
 }
 
 .admin-nav {

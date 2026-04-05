@@ -12,11 +12,12 @@ import asyncio
 import json
 import socket
 import uuid
+from collections import defaultdict
 from pathlib import Path
 from datetime import datetime
-from typing import Optional, Set
+from typing import Optional
 
-from fastapi import FastAPI, File, HTTPException, Request, UploadFile, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, File, HTTPException, Query, Request, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse, Response
@@ -24,7 +25,7 @@ from pydantic import BaseModel
 
 app = FastAPI(title="초원농원 예약 현황 API")
 
-ws_connections: Set[WebSocket] = set()
+ws_by_branch: dict[str, set[WebSocket]] = defaultdict(set)
 
 
 def _local_ip() -> str:
@@ -149,9 +150,22 @@ from auth_service import (
 
 auth_configure(DATA_DIR)
 
-TODAY_FILE = DATA_DIR / "today.json"
+from branch_data import (
+    append_branch,
+    configure as branch_configure,
+    ensure_migrations,
+    load_branch_today,
+    load_branches,
+    load_display_content,
+    normalize_branch_id,
+    save_branch_today,
+    save_display_content,
+    tel_branch_key,
+)
+
+branch_configure(DATA_DIR)
 TEL_FILE = DATA_DIR / "tel_reservations.json"
-DISPLAY_CONTENT_FILE = DATA_DIR / "display_content.json"
+ensure_migrations(TEL_FILE)
 MEAL_DURATION_MINUTES = 120
 
 from room_config import CONFIG_FILENAME, ensure_example_file, load_room_options
@@ -164,34 +178,19 @@ def _today_str() -> str:
     return datetime.now().strftime("%Y-%m-%d")
 
 
-def _load() -> dict:
-    if not TODAY_FILE.exists():
-        return {"date": _today_str(), "reservations": []}
-    try:
-        with open(TODAY_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except (json.JSONDecodeError, OSError):
-        return {"date": _today_str(), "reservations": []}
-
-
-def _save(data: dict) -> None:
-    with open(TODAY_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
-
-
-def _get_admin_today_list() -> list:
-    """직원(admin)이 저장한 당일 목록만 (today.json)."""
-    data = _load()
+def _get_admin_today_list(branch_id: str) -> list:
+    """직원(admin)이 저장한 당일 목록만 (지점별 today/{id}.json)."""
+    data = load_branch_today(branch_id)
     if data.get("date") != _today_str():
         return []
     items = data.get("reservations") or []
     return sorted(items, key=lambda x: x.get("time", ""))
 
 
-def _get_board_today_merged() -> list:
-    """현황판·admin 목록용: 당일 직원 입력 + 당일 전화 예약(tel) 합침."""
+def _get_board_today_merged(branch_id: str) -> list:
+    """현황판·admin 목록용: 당일 직원 입력 + 당일 전화 예약(tel) 합침 (지점별)."""
     merged = []
-    for r in _get_admin_today_list():
+    for r in _get_admin_today_list(branch_id):
         merged.append({
             "id": r.get("id"),
             "time": r.get("time", ""),
@@ -199,7 +198,7 @@ def _get_board_today_merged() -> list:
             "room": r.get("room", ""),
             "source": "admin",
         })
-    for r in _get_tel_reservations(_today_str()):
+    for r in _get_tel_reservations(_today_str(), branch_id):
         tid = r.get("id")
         merged.append({
             "id": f"tel-{tid}",
@@ -297,26 +296,8 @@ def _save_tel(data: dict) -> None:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
 
-def _load_display_content() -> dict:
-    if not DISPLAY_CONTENT_FILE.exists():
-        return {"items": [], "default_interval_sec": 8}
-    try:
-        with open(DISPLAY_CONTENT_FILE, "r", encoding="utf-8") as f:
-            data = json.load(f)
-            if isinstance(data, dict):
-                return data
-    except (json.JSONDecodeError, OSError):
-        pass
-    return {"items": [], "default_interval_sec": 8}
-
-
-def _save_display_content(data: dict) -> None:
-    with open(DISPLAY_CONTENT_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
-
-
-def _active_display_slides() -> list:
-    data = _load_display_content()
+def _active_display_slides(branch_id: str) -> list:
+    data = load_display_content(branch_id)
     try:
         default_dur = int(data.get("default_interval_sec") or 8)
     except (TypeError, ValueError):
@@ -344,20 +325,22 @@ def _active_display_slides() -> list:
     return out
 
 
-def _get_tel_reservations(date_text: Optional[str] = None) -> list:
+def _get_tel_reservations(date_text: Optional[str] = None, branch_id: Optional[str] = None) -> list:
     data = _load_tel()
     items = data.get("reservations") or []
     normalized = []
     for item in items:
         slot = item.get("slot") or _time_slot(item.get("time", ""))
         normalized.append({**item, "slot": slot})
+    if branch_id is not None:
+        normalized = [item for item in normalized if tel_branch_key(item) == branch_id]
     if date_text:
         normalized = [item for item in normalized if item.get("date") == date_text]
     return sorted(normalized, key=lambda x: (x.get("date", ""), x.get("time", ""), x.get("room", "")))
 
 
-def _room_status(date_text: str, time_text: str) -> list:
-    reservations = _get_tel_reservations(date_text)
+def _room_status(date_text: str, time_text: str, branch_id: str) -> list:
+    reservations = _get_tel_reservations(date_text, branch_id)
     by_room = {}
     for item in reservations:
         room_name = item.get("room")
@@ -390,46 +373,51 @@ def _room_status(date_text: str, time_text: str) -> list:
     return result
 
 
-async def broadcast_reservations() -> None:
-    payload = json.dumps(_get_board_today_merged(), ensure_ascii=False)
+async def broadcast_reservations(branch_id: str) -> None:
+    payload = json.dumps(_get_board_today_merged(branch_id), ensure_ascii=False)
     dead = set()
-    for ws in ws_connections:
+    for ws in list(ws_by_branch.get(branch_id, ())):
         try:
             await ws.send_text(payload)
         except Exception:
             dead.add(ws)
     for ws in dead:
-        ws_connections.discard(ws)
+        ws_by_branch[branch_id].discard(ws)
 
 
-async def broadcast_display_content() -> None:
-    """현황판 하단 슬라이드 설정이 바뀌었을 때 모든 WS 클라이언트에 푸시."""
+async def broadcast_display_content(branch_id: str) -> None:
+    """현황판 하단 슬라이드 설정이 바뀌었을 때 해당 지점 WS 클라이언트에 푸시."""
     payload = json.dumps(
-        {"type": "display_content", "active_slides": _active_display_slides()},
+        {"type": "display_content", "active_slides": _active_display_slides(branch_id)},
         ensure_ascii=False,
     )
     dead = set()
-    for ws in ws_connections:
+    for ws in list(ws_by_branch.get(branch_id, ())):
         try:
             await ws.send_text(payload)
         except Exception:
             dead.add(ws)
     for ws in dead:
-        ws_connections.discard(ws)
+        ws_by_branch[branch_id].discard(ws)
 
 
 @app.websocket("/ws")
-async def websocket_display(websocket: WebSocket):
+async def websocket_display(websocket: WebSocket, branch: str = Query(default="default")):
     if not ws_role_allowed(websocket):
         await websocket.close(code=4401)
         return
-    await websocket.accept()
-    ws_connections.add(websocket)
     try:
-        await websocket.send_text(json.dumps(_get_board_today_merged(), ensure_ascii=False))
+        bid = normalize_branch_id(branch)
+    except HTTPException:
+        await websocket.close(code=4400)
+        return
+    await websocket.accept()
+    ws_by_branch[bid].add(websocket)
+    try:
+        await websocket.send_text(json.dumps(_get_board_today_merged(bid), ensure_ascii=False))
         await websocket.send_text(
             json.dumps(
-                {"type": "display_content", "active_slides": _active_display_slides()},
+                {"type": "display_content", "active_slides": _active_display_slides(bid)},
                 ensure_ascii=False,
             )
         )
@@ -438,7 +426,7 @@ async def websocket_display(websocket: WebSocket):
     except WebSocketDisconnect:
         pass
     finally:
-        ws_connections.discard(websocket)
+        ws_by_branch[bid].discard(websocket)
 
 
 class ReservationItem(BaseModel):
@@ -466,22 +454,45 @@ class TelReservationItem(BaseModel):
     slot: Optional[str] = None
 
 
+class BranchCreateIn(BaseModel):
+    id: str
+    name: str = ""
+
+
+@app.get("/api/branches")
+def api_get_branches():
+    """등록된 지점 목록 (현황·예약·광고 구분용)."""
+    return {"branches": load_branches()}
+
+
+@app.post("/api/branches")
+def api_post_branches(body: BranchCreateIn):
+    """관리자: 지점 추가 (당일·하단 광고 파일이 함께 생성됨)."""
+    try:
+        append_branch(body.id.strip(), (body.name or "").strip())
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"ok": True, "branches": load_branches()}
+
+
 @app.get("/api/reservations/today")
-def get_today_reservations():
-    """당일 현황판용: 직원 입력 + 전화 예약(tel) 합친 목록."""
-    return _get_board_today_merged()
+def get_today_reservations(branch: str = Query(default="default")):
+    """당일 현황판용: 직원 입력 + 전화 예약(tel) 합친 목록 (지점별)."""
+    bid = normalize_branch_id(branch)
+    return _get_board_today_merged(bid)
 
 
 @app.post("/api/reservations/today")
-async def set_today_reservations(payload: TodayReservations):
+async def set_today_reservations(payload: TodayReservations, branch: str = Query(default="default")):
     """직원(admin) 당일 예약만 통째로 교체. 전화 예약(tel)은 그대로 두고 합쳐서 현황판에 반영."""
+    bid = normalize_branch_id(branch)
     items = [r.model_dump() for r in payload.reservations]
     for i, r in enumerate(items):
         if r.get("id") is None:
             r["id"] = i + 1
     data = {"date": _today_str(), "reservations": items}
-    _save(data)
-    await broadcast_reservations()
+    save_branch_today(bid, data)
+    await broadcast_reservations(bid)
     return {"ok": True, "count": len(items)}
 
 
@@ -490,11 +501,13 @@ def get_tel_reservations(
     date: Optional[str] = None,
     date_from: Optional[str] = None,
     date_to: Optional[str] = None,
+    branch: str = Query(default="default"),
 ):
     """전화 예약 목록. date 단일 지정 시 해당 일만. 그 외 date_from·date_to로 기간 필터(둘 다 생략 시 전체)."""
+    bid = normalize_branch_id(branch)
     if date:
-        return _get_tel_reservations(date)
-    items = _get_tel_reservations(None)
+        return _get_tel_reservations(date, bid)
+    items = _get_tel_reservations(None, bid)
     if date_from:
         items = [i for i in items if (i.get("date") or "") >= date_from]
     if date_to:
@@ -506,23 +519,27 @@ def get_tel_reservations(
 
 
 @app.get("/api/tel/rooms")
-def get_tel_room_status(date: str, time: str):
+def get_tel_room_status(date: str, time: str, branch: str = Query(default="default")):
     """날짜+시간 기준 호실/테이블 예약 가능 상태."""
+    bid = normalize_branch_id(branch)
     return {
         "date": date,
         "time": time,
         "slot": _time_slot(time),
-        "rooms": _room_status(date, time),
+        "rooms": _room_status(date, time, bid),
     }
 
 
 @app.post("/api/tel/reservations")
-async def create_tel_reservation(payload: TelReservationItem):
+async def create_tel_reservation(payload: TelReservationItem, branch: str = Query(default="default")):
     """전화 예약 접수 등록. 당일이면 현황판에 즉시 반영."""
+    bid = normalize_branch_id(branch)
     items = _get_tel_reservations()
     slot = payload.slot or _time_slot(payload.time)
 
     for item in items:
+        if tel_branch_key(item) != bid:
+            continue
         if (
             item.get("date") == payload.date
             and item.get("room") == payload.room
@@ -533,6 +550,7 @@ async def create_tel_reservation(payload: TelReservationItem):
     next_id = max([int(item.get("id", 0) or 0) for item in items] + [0]) + 1
     new_item = {
         "id": next_id,
+        "branch_id": bid,
         "date": payload.date,
         "time": payload.time,
         "slot": slot,
@@ -547,7 +565,7 @@ async def create_tel_reservation(payload: TelReservationItem):
     items.append(new_item)
     _save_tel({"reservations": items})
     if payload.date == _today_str():
-        await broadcast_reservations()
+        await broadcast_reservations(bid)
     return {"ok": True, "item": new_item}
 
 
@@ -573,8 +591,9 @@ class DisplayContentIn(BaseModel):
 
 
 @app.get("/api/display/content")
-def api_get_display_content():
-    data = _load_display_content()
+def api_get_display_content(branch: str = Query(default="default")):
+    bid = normalize_branch_id(branch)
+    data = load_display_content(bid)
     try:
         di = int(data.get("default_interval_sec") or 8)
     except (TypeError, ValueError):
@@ -591,13 +610,14 @@ def api_get_display_content():
     return {
         "items": items_out,
         "default_interval_sec": max(3, min(600, di)),
-        "active_slides": _active_display_slides(),
+        "active_slides": _active_display_slides(bid),
     }
 
 
 @app.post("/api/display/content")
-async def api_set_display_content(payload: DisplayContentIn):
-    old_items = list(_load_display_content().get("items") or [])
+async def api_set_display_content(payload: DisplayContentIn, branch: str = Query(default="default")):
+    bid = normalize_branch_id(branch)
+    old_items = list(load_display_content(bid).get("items") or [])
     normalized: list = []
     for it in payload.items:
         d = it.model_dump()
@@ -632,9 +652,9 @@ async def api_set_display_content(payload: DisplayContentIn):
         di = 8
     new_urls = {str(d.get("url") or "").strip() for d in normalized}
     _cleanup_removed_display_uploads(old_items, new_urls)
-    _save_display_content({"items": normalized, "default_interval_sec": di})
-    await broadcast_display_content()
-    return {"ok": True, "active_slides": _active_display_slides()}
+    save_display_content(bid, {"items": normalized, "default_interval_sec": di})
+    await broadcast_display_content(bid)
+    return {"ok": True, "active_slides": _active_display_slides(bid)}
 
 
 _DISPLAY_UPLOAD_EXTS = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".mp4", ".webm", ".mov", ".m4v"}
@@ -736,13 +756,20 @@ async def api_upload_display_asset(file: UploadFile = File(...)):
 
 
 @app.patch("/api/tel/reservations/{reservation_id}")
-async def patch_tel_reservation(reservation_id: int, payload: TelReservationPatch):
+async def patch_tel_reservation(
+    reservation_id: int,
+    payload: TelReservationPatch,
+    branch: str = Query(default="default"),
+):
     """전화 예약 수정 (admin·당일 현황 연동)."""
+    bid = normalize_branch_id(branch)
     items = _get_tel_reservations()
     idx = next((i for i, x in enumerate(items) if int(x.get("id", 0) or 0) == reservation_id), None)
     if idx is None:
         raise HTTPException(status_code=404, detail="예약을 찾을 수 없습니다.")
     cur = dict(items[idx])
+    if tel_branch_key(cur) != bid:
+        raise HTTPException(status_code=404, detail="예약을 찾을 수 없습니다.")
     new_time = payload.time if payload.time is not None else cur.get("time", "")
     new_room = payload.room if payload.room is not None else cur.get("room", "")
     new_name = payload.name if payload.name is not None else cur.get("name", "")
@@ -750,6 +777,8 @@ async def patch_tel_reservation(reservation_id: int, payload: TelReservationPatc
     date = cur.get("date", "")
     for item in items:
         if int(item.get("id", 0) or 0) == reservation_id:
+            continue
+        if tel_branch_key(item) != bid:
             continue
         if item.get("date") == date and item.get("room") == new_room and _times_overlap(item.get("time", ""), new_time):
             raise HTTPException(status_code=409, detail="기본 식사시간 2시간 기준으로 이미 예약된 호실/테이블입니다.")
@@ -761,13 +790,14 @@ async def patch_tel_reservation(reservation_id: int, payload: TelReservationPatc
     items[idx] = cur
     _save_tel({"reservations": items})
     if date == _today_str():
-        await broadcast_reservations()
+        await broadcast_reservations(bid)
     return {"ok": True, "item": cur}
 
 
 @app.delete("/api/tel/reservations/{reservation_id}")
-async def delete_tel_reservation(reservation_id: int):
+async def delete_tel_reservation(reservation_id: int, branch: str = Query(default="default")):
     """전화 예약 삭제."""
+    bid = normalize_branch_id(branch)
     items = _get_tel_reservations()
     removed = None
     kept = []
@@ -778,9 +808,11 @@ async def delete_tel_reservation(reservation_id: int):
         kept.append(x)
     if removed is None:
         raise HTTPException(status_code=404, detail="예약을 찾을 수 없습니다.")
+    if tel_branch_key(removed) != bid:
+        raise HTTPException(status_code=404, detail="예약을 찾을 수 없습니다.")
     _save_tel({"reservations": kept})
     if removed.get("date") == _today_str():
-        await broadcast_reservations()
+        await broadcast_reservations(bid)
     return {"ok": True}
 
 

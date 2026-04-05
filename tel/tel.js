@@ -3,6 +3,36 @@
 
   var API_TEL_RESERVATIONS = '/api/tel/reservations';
   var API_TEL_ROOMS = '/api/tel/rooms';
+  var BRANCH_KEY = 'reserve_branch_id';
+
+  function getTelBranch() {
+    try {
+      var u = new URL(window.location.href);
+      var b = u.searchParams.get('branch');
+      if (b && String(b).trim()) {
+        var id = String(b).trim().toLowerCase();
+        try {
+          localStorage.setItem(BRANCH_KEY, id);
+        } catch (e) {}
+        return id;
+      }
+    } catch (e) {}
+    try {
+      var v = localStorage.getItem(BRANCH_KEY);
+      return v && String(v).trim() ? String(v).trim() : 'default';
+    } catch (e2) {
+      return 'default';
+    }
+  }
+
+  function branchQuery() {
+    return 'branch=' + encodeURIComponent(getTelBranch());
+  }
+
+  function withBranch(url) {
+    var sep = url.indexOf('?') >= 0 ? '&' : '?';
+    return url + sep + branchQuery();
+  }
 
   var today = new Date();
   var currentMonth = today.getMonth();
@@ -170,7 +200,7 @@
   }
 
   function fetchTelReservations() {
-    return fetch(API_TEL_RESERVATIONS + '?date=' + encodeURIComponent(dateKey(selectedDate)), { credentials: 'same-origin' })
+    return fetch(withBranch(API_TEL_RESERVATIONS + '?date=' + encodeURIComponent(dateKey(selectedDate))), { credentials: 'same-origin' })
       .then(function (r) { return r.json(); })
       .then(function (data) {
         telReservations = Array.isArray(data) ? data : [];
@@ -263,7 +293,7 @@
       return Promise.resolve();
     }
 
-    var query = '?date=' + encodeURIComponent(dateKey(selectedDate)) + '&time=' + encodeURIComponent(timeInput.value);
+    var query = '?date=' + encodeURIComponent(dateKey(selectedDate)) + '&time=' + encodeURIComponent(timeInput.value) + '&' + branchQuery();
     roomDialogMeta.textContent = formatDate(selectedDate) + ' · ' + timeInput.value + ' 기준';
 
     return fetch(API_TEL_ROOMS + query, { credentials: 'same-origin' })
@@ -564,7 +594,7 @@
       return;
     }
 
-    fetch(API_TEL_RESERVATIONS, {
+    fetch(withBranch(API_TEL_RESERVATIONS), {
       method: 'POST',
       credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' },

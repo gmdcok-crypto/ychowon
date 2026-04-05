@@ -7,6 +7,37 @@
   'use strict';
 
   const API_BASE = '';
+  const BRANCH_KEY = 'reserve_branch_id';
+
+  function getDisplayBranch() {
+    try {
+      var u = new URL(window.location.href);
+      var b = u.searchParams.get('branch');
+      if (b && String(b).trim()) {
+        var id = String(b).trim().toLowerCase();
+        try {
+          localStorage.setItem(BRANCH_KEY, id);
+        } catch (e) {}
+        return id;
+      }
+    } catch (e) {}
+    try {
+      var v = localStorage.getItem(BRANCH_KEY);
+      return v && String(v).trim() ? String(v).trim() : 'default';
+    } catch (e2) {
+      return 'default';
+    }
+  }
+
+  function branchQuery() {
+    return 'branch=' + encodeURIComponent(getDisplayBranch());
+  }
+
+  function withBranch(url) {
+    var sep = url.indexOf('?') >= 0 ? '&' : '?';
+    return url + sep + branchQuery();
+  }
+
   const ROWS_PER_BLOCK = 15;
   const MIN_BLOCKS = 2;
   const blocksEl = document.getElementById('reservation-blocks');
@@ -92,7 +123,7 @@
   }
 
   function fetchReservations() {
-    var url = (API_BASE || '') + '/api/reservations/today';
+    var url = withBranch((API_BASE || '') + '/api/reservations/today');
     fetch(url, { credentials: 'same-origin' })
       .then(function (r) { return r.json(); })
       .then(renderList)
@@ -102,7 +133,7 @@
   function connectWs() {
     var protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     var host = window.location.host;
-    var ws = new WebSocket(protocol + '//' + host + (API_BASE || '') + '/ws');
+    var ws = new WebSocket(protocol + '//' + host + (API_BASE || '') + '/ws?' + branchQuery());
     ws.onmessage = function (ev) {
       try {
         var data = JSON.parse(ev.data);
@@ -287,7 +318,7 @@
     }
 
     function fetchContent() {
-      var url = (API_BASE || '') + '/api/display/content';
+      var url = withBranch((API_BASE || '') + '/api/display/content');
       fetch(url, { credentials: 'same-origin' })
         .then(function (r) { return r.json(); })
         .then(applyPayload)

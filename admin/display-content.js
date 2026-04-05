@@ -4,6 +4,28 @@
 (function () {
   'use strict';
 
+  var BRANCH_KEY = 'reserve_branch_id';
+
+  function getBranch() {
+    try {
+      var u = new URL(window.location.href);
+      var b = u.searchParams.get('branch');
+      if (b && String(b).trim()) {
+        var id = String(b).trim().toLowerCase();
+        try {
+          localStorage.setItem(BRANCH_KEY, id);
+        } catch (e) {}
+        return id;
+      }
+    } catch (e) {}
+    try {
+      var v = localStorage.getItem(BRANCH_KEY);
+      return v && String(v).trim() ? String(v).trim() : 'default';
+    } catch (e2) {
+      return 'default';
+    }
+  }
+
   function apiUrl(path) {
     var base = window.location.origin;
     if (!base || base === 'null' || window.location.protocol === 'file:') {
@@ -12,7 +34,12 @@
     return base + (path.charAt(0) === '/' ? path : '/' + path);
   }
 
-  var API = apiUrl('/api/display/content');
+  function apiUrlWithBranch(path) {
+    var u = apiUrl(path);
+    return u + (u.indexOf('?') >= 0 ? '&' : '?') + 'branch=' + encodeURIComponent(getBranch());
+  }
+
+  var API = apiUrlWithBranch('/api/display/content');
   var API_UPLOAD = apiUrl('/api/display/upload');
   var addPanelEl = document.getElementById('dc-add-panel');
   var defaultIntervalEl = document.getElementById('dc-default-interval');
