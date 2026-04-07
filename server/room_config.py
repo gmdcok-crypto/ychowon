@@ -174,11 +174,29 @@ def _pick_rooms_config_filename(data_dir: Path) -> str:
 
     mchowon_file = "rooms_config.mchowon.json"
     mchowon_path = data_dir / mchowon_file
-    if mchowon_path.exists() and _is_mchowon_context():
-        return mchowon_file
+    if _is_mchowon_context():
+        try:
+            from db_config import database_enabled
+            from db_repo import load_rooms_config_file
+
+            if database_enabled() and load_rooms_config_file(mchowon_file) is not None:
+                return mchowon_file
+        except Exception:
+            pass
+        if mchowon_path.exists():
+            return mchowon_file
 
     if (data_dir / CONFIG_FILENAME).exists():
         return CONFIG_FILENAME
+
+    try:
+        from db_config import database_enabled
+        from db_repo import load_rooms_config_file
+
+        if database_enabled() and load_rooms_config_file(CONFIG_FILENAME) is not None:
+            return CONFIG_FILENAME
+    except Exception:
+        pass
 
     return CONFIG_FILENAME
 
@@ -189,17 +207,28 @@ def load_room_options(data_dir: Path) -> list[dict[str, Any]]:
     path = data_dir / fname
     ACTIVE_ROOMS_CONFIG_REF = None
 
-    if not path.exists():
-        if os.environ.get("ROOMS_CONFIG_FILE"):
-            print("  경고: data/%s 없음 — 내장 기본 룸 구성 사용" % fname)
-        return build_default_room_options()
-
+    data = None
     try:
-        with open(path, "r", encoding="utf-8") as f:
-            data = json.load(f)
-    except (json.JSONDecodeError, OSError) as e:
-        print("  경고: %s JSON 파싱 실패 — 기본 룸 구성 사용 (%s)" % (fname, e))
-        return build_default_room_options()
+        from db_config import database_enabled
+        from db_repo import load_rooms_config_file
+
+        if database_enabled():
+            data = load_rooms_config_file(fname)
+    except Exception:
+        pass
+
+    if data is None:
+        if not path.exists():
+            if os.environ.get("ROOMS_CONFIG_FILE"):
+                print("  경고: data/%s 없음 — 내장 기본 룸 구성 사용" % fname)
+            return build_default_room_options()
+
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        except (json.JSONDecodeError, OSError) as e:
+            print("  경고: %s JSON 파싱 실패 — 기본 룸 구성 사용 (%s)" % (fname, e))
+            return build_default_room_options()
 
     rooms = data.get("rooms") if isinstance(data, dict) else data
     if not isinstance(rooms, list):

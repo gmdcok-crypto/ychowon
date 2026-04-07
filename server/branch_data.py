@@ -19,6 +19,15 @@ DEFAULT_BRANCH_ID = "default"
 _ROOT: Optional[Path] = None
 
 
+def _use_db() -> bool:
+    try:
+        from db_config import database_enabled
+
+        return database_enabled()
+    except Exception:
+        return False
+
+
 def configure(data_dir: Path) -> None:
     global _ROOT
     _ROOT = data_dir
@@ -121,6 +130,19 @@ def ensure_migrations(tel_file: Path) -> None:
 
 
 def load_branches() -> list[dict[str, Any]]:
+    if _use_db():
+        from db_repo import load_branches as db_load_branches
+
+        rows = db_load_branches()
+        out = []
+        for r in rows:
+            bid = str(r.get("id") or "").strip().lower()
+            if not BRANCH_ID_RE.match(bid):
+                continue
+            name = str(r.get("name") or bid).strip()[:80] or bid
+            out.append({"id": bid, "name": name})
+        return out if out else [{"id": DEFAULT_BRANCH_ID, "name": "본점"}]
+
     p = branches_path()
     try:
         data = json.loads(p.read_text(encoding="utf-8"))
@@ -160,6 +182,11 @@ def tel_branch_key(item: dict) -> str:
 
 
 def load_branch_today(branch_id: str) -> dict:
+    if _use_db():
+        from db_repo import load_branch_today as db_load
+
+        return db_load(branch_id)
+
     p = today_path(branch_id)
     if not p.exists():
         return {"date": today_str(), "reservations": []}
@@ -174,6 +201,12 @@ def load_branch_today(branch_id: str) -> dict:
 
 
 def save_branch_today(branch_id: str, data: dict) -> None:
+    if _use_db():
+        from db_repo import save_branch_today as db_save
+
+        db_save(branch_id, data)
+        return
+
     today_dir().mkdir(parents=True, exist_ok=True)
     p = today_path(branch_id)
     with open(p, "w", encoding="utf-8") as f:
@@ -181,6 +214,11 @@ def save_branch_today(branch_id: str, data: dict) -> None:
 
 
 def load_display_content(branch_id: str) -> dict:
+    if _use_db():
+        from db_repo import load_display_content as db_load
+
+        return db_load(branch_id)
+
     p = display_content_path(branch_id)
     if not p.exists():
         return {"items": [], "default_interval_sec": 8}
@@ -195,6 +233,12 @@ def load_display_content(branch_id: str) -> dict:
 
 
 def save_display_content(branch_id: str, data: dict) -> None:
+    if _use_db():
+        from db_repo import save_display_content as db_save
+
+        db_save(branch_id, data)
+        return
+
     display_content_dir().mkdir(parents=True, exist_ok=True)
     p = display_content_path(branch_id)
     with open(p, "w", encoding="utf-8") as f:
@@ -209,10 +253,16 @@ def append_branch(branch_id: str, name: str) -> None:
     if any(b["id"] == bid for b in rows):
         raise ValueError("이미 있는 지점 코드입니다.")
     rows.append({"id": bid, "name": (name or bid).strip()[:80] or bid})
+    if _use_db():
+        from db_repo import replace_branches, seed_new_branch
+
+        replace_branches(rows)
+        seed_new_branch(bid, (name or bid).strip()[:80] or bid)
+        return
+
     branches_path().write_text(
         json.dumps({"branches": rows}, ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
-    # 빈 당일·빈 광고
     save_branch_today(bid, {"date": today_str(), "reservations": []})
     save_display_content(bid, {"items": [], "default_interval_sec": 8})

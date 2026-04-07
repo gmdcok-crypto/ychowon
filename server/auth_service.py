@@ -61,12 +61,22 @@ _auth_file: Optional[Path] = None
 _secret_file: Optional[Path] = None
 
 
+def _use_db() -> bool:
+    try:
+        from db_config import database_enabled
+
+        return database_enabled()
+    except Exception:
+        return False
+
+
 def configure(data_dir: Path) -> None:
     global _data_dir, _auth_file, _secret_file
     _data_dir = data_dir
     _auth_file = data_dir / "auth.json"
     _secret_file = data_dir / ".jwt_secret"
-    _ensure_auth_file()
+    if not _use_db():
+        _ensure_auth_file()
 
 
 def _ensure_auth_file() -> None:
@@ -98,6 +108,10 @@ def _migrate_passwords_to_accounts(raw: dict[str, Any]) -> dict[str, Any]:
 
 
 def _load_store() -> dict[str, Any]:
+    if _use_db():
+        from db_repo import load_auth_store
+
+        return load_auth_store()
     assert _auth_file is not None
     _ensure_auth_file()
     try:
@@ -111,6 +125,11 @@ def _load_store() -> dict[str, Any]:
 
 
 def _save_store(data: dict[str, Any]) -> None:
+    if _use_db():
+        from db_repo import save_auth_store
+
+        save_auth_store(data)
+        return
     assert _auth_file is not None
     _auth_file.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
 
@@ -134,6 +153,10 @@ def _jwt_secret() -> str:
     env = (os.environ.get("JWT_SECRET") or "").strip()
     if env:
         return env
+    if _use_db():
+        from db_repo import get_or_create_jwt_secret
+
+        return get_or_create_jwt_secret()
     assert _secret_file is not None
     if _secret_file.is_file():
         return _secret_file.read_text(encoding="utf-8").strip()

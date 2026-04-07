@@ -67,6 +67,10 @@ def startup():
         print("  룸·홀:    data/%s (지점 설정)" % _room_cfg_ref)
     else:
         print("  룸·홀:    내장 기본값 (ROOMS_CONFIG_FILE 또는 data/%s)" % CONFIG_FILENAME)
+    if database_enabled():
+        print("  저장소:   MySQL/MariaDB (DATABASE_URL)")
+    else:
+        print("  저장소:   로컬 data/*.json")
     print("")
 
 
@@ -175,7 +179,16 @@ from branch_data import (
 
 branch_configure(DATA_DIR)
 TEL_FILE = DATA_DIR / "tel_reservations.json"
-ensure_migrations(TEL_FILE)
+
+from db_config import database_enabled, init_db
+from db_repo import migrate_from_data_dir
+
+if database_enabled():
+    init_db()
+    migrate_from_data_dir(DATA_DIR)
+else:
+    ensure_migrations(TEL_FILE)
+
 MEAL_DURATION_MINUTES = 120
 
 from room_config import CONFIG_FILENAME, ensure_example_file, load_room_options
@@ -298,6 +311,10 @@ def _times_overlap(time_a: str, time_b: str) -> bool:
 
 
 def _load_tel() -> dict:
+    if database_enabled():
+        from db_repo import load_tel_store
+
+        return load_tel_store()
     if not TEL_FILE.exists():
         return {"reservations": []}
     try:
@@ -311,6 +328,11 @@ def _load_tel() -> dict:
 
 
 def _save_tel(data: dict) -> None:
+    if database_enabled():
+        from db_repo import save_tel_store
+
+        save_tel_store(data)
+        return
     with open(TEL_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
