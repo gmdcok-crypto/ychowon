@@ -804,4 +804,12 @@
   setupStaffRoomDialog();
   wireBranchAdd();
   initBranchUi();
+
+  /* 자정 이후에도 WebSocket이 어제 목록을 유지하는 문제: 주기·탭 복귀 시 서버와 동기화 */
+  setInterval(function () {
+    load();
+  }, 60000);
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'visible') load();
+  });
 })();

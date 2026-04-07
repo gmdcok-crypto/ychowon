@@ -17,7 +17,17 @@ from pathlib import Path
 from datetime import datetime
 from typing import Optional
 
-from fastapi import FastAPI, File, HTTPException, Query, Request, UploadFile, WebSocket, WebSocketDisconnect
+from fastapi import (
+    BackgroundTasks,
+    FastAPI,
+    File,
+    HTTPException,
+    Query,
+    Request,
+    UploadFile,
+    WebSocket,
+    WebSocketDisconnect,
+)
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse, Response
@@ -216,6 +226,15 @@ def _get_board_today_merged(branch_id: str) -> list:
     return merged
 
 
+def _rollover_branch_today_if_stale(branch_id: str) -> bool:
+    """today 파일의 date가 오늘이 아니면 직원 당일 예약을 비우고 오늘 날짜로 맞춤 (자정 이후 첫 접근 시)."""
+    data = load_branch_today(branch_id)
+    if (data.get("date") or "") == _today_str():
+        return False
+    save_branch_today(branch_id, {"date": _today_str(), "reservations": []})
+    return True
+
+
 def _time_slot(time_text: str) -> str:
     try:
         hour = int((time_text or "").split(":")[0])
@@ -411,6 +430,8 @@ async def websocket_display(websocket: WebSocket, branch: str = Query(default="d
     except HTTPException:
         await websocket.close(code=4400)
         return
+    if _rollover_branch_today_if_stale(bid):
+        await broadcast_reservations(bid)
     await websocket.accept()
     ws_by_branch[bid].add(websocket)
     try:
@@ -476,9 +497,14 @@ def api_post_branches(body: BranchCreateIn):
 
 
 @app.get("/api/reservations/today")
-def get_today_reservations(branch: str = Query(default="default")):
-    """당일 현황판용: 직원 입력 + 전화 예약(tel) 합친 목록 (지점별)."""
+async def get_today_reservations(
+    background_tasks: BackgroundTasks,
+    branch: str = Query(default="default"),
+):
+    """당일 현황판용: 직원 입력 + 전화 예약(tel) 합친 목록 (지점별). 날짜가 바뀌었으면 직원 당일 파일을 초기화."""
     bid = normalize_branch_id(branch)
+    if _rollover_branch_today_if_stale(bid):
+        background_tasks.add_task(broadcast_reservations, bid)
     return _get_board_today_merged(bid)
 
 
