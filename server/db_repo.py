@@ -36,8 +36,7 @@ def _session() -> Session:
 
 def table_has_rows(model) -> bool:
     with _session() as s:
-        n = s.execute(select(func.count()).select_from(model)).scalar()
-        return bool(n and n > 0)
+        return s.scalars(select(model).limit(1)).first() is not None
 
 
 def load_auth_store() -> dict[str, Any]:
