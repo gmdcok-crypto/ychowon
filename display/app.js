@@ -308,20 +308,23 @@
       showCurrent();
     }
 
-    function applyPayload(data) {
+    function applyPayload(data, force) {
       var act = data && Array.isArray(data.active_slides) ? data.active_slides : [];
       var use = act.length ? act : FALLBACK;
       var key = slidesKey(use);
-      if (key === lastKey && mediaEl.children.length) return;
+      if (!force && key === lastKey && mediaEl.children.length) return;
       lastKey = key;
       startRotation(use);
     }
 
     function fetchContent() {
-      var url = withBranch((API_BASE || '') + '/api/display/content');
-      fetch(url, { credentials: 'same-origin' })
+      var base = withBranch((API_BASE || '') + '/api/display/content');
+      var url = base + (base.indexOf('?') >= 0 ? '&' : '?') + '_=' + Date.now();
+      fetch(url, { credentials: 'same-origin', cache: 'no-store' })
         .then(function (r) { return r.json(); })
-        .then(applyPayload)
+        .then(function (data) {
+          applyPayload(data, true);
+        })
         .catch(function () {
           if (!mediaEl.children.length) {
             lastKey = '';
@@ -331,10 +334,10 @@
     }
 
     fetchContent();
-    setInterval(fetchContent, 60 * 1000);
+    setInterval(fetchContent, 15 * 1000);
 
     window.__displayApplyPayload = function (data) {
-      applyPayload(data);
+      applyPayload(data, false);
     };
   })();
 

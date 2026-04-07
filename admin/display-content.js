@@ -39,8 +39,12 @@
     return u + (u.indexOf('?') >= 0 ? '&' : '?') + 'branch=' + encodeURIComponent(getBranch());
   }
 
-  var API = apiUrlWithBranch('/api/display/content');
-  var API_UPLOAD = apiUrl('/api/display/upload');
+  function contentApiUrl() {
+    return apiUrlWithBranch('/api/display/content');
+  }
+  function uploadApiUrl() {
+    return apiUrlWithBranch('/api/display/upload');
+  }
   var addPanelEl = document.getElementById('dc-add-panel');
   var defaultIntervalEl = document.getElementById('dc-default-interval');
   var toastEl = document.getElementById('dc-toast');
@@ -93,7 +97,7 @@
   function uploadDisplayFile(file) {
     var fd = new FormData();
     fd.append('file', file);
-    return fetch(API_UPLOAD, { method: 'POST', credentials: 'same-origin', body: fd }).then(function (r) {
+    return fetch(uploadApiUrl(), { method: 'POST', credentials: 'same-origin', body: fd }).then(function (r) {
       if (!r.ok) {
         return r.json().then(function (j) {
           var d = j && j.detail;
@@ -296,7 +300,7 @@
     });
     var di = defaultIntervalEl ? parseInt(defaultIntervalEl.value, 10) : 8;
     if (isNaN(di)) di = 8;
-    fetch(API, {
+    fetch(contentApiUrl(), {
       method: 'POST',
       credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' },
@@ -335,7 +339,7 @@
 
   function load(options) {
     options = options || {};
-    return fetch(API, { credentials: 'same-origin' })
+    return fetch(contentApiUrl(), { credentials: 'same-origin' })
       .then(function (r) { return r.json(); })
       .then(function (data) {
         var raw = Array.isArray(data.items) ? data.items : [];
@@ -464,7 +468,7 @@
   function saveQuiet() {
     var di = defaultIntervalEl ? parseInt(defaultIntervalEl.value, 10) : 8;
     if (isNaN(di)) di = 8;
-    return fetch(API, {
+    return fetch(contentApiUrl(), {
       method: 'POST',
       credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' },

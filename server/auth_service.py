@@ -309,6 +309,9 @@ def is_public_path(path: str) -> bool:
         return True
     if path.startswith("/display/icon-") or path == "/display/manifest.json":
         return True
+    # 하단광고 업로드 파일: URL이 긴 난수라 추측 어렵고, img 태그는 동일 출처 쿠키 이슈가 있어 공개
+    if path.startswith("/display/uploads/"):
+        return True
     return False
 
 

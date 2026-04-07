@@ -633,11 +633,17 @@ def api_get_display_content(branch: str = Query(default="default")):
         if filled:
             row["name"] = filled
         items_out.append(row)
-    return {
-        "items": items_out,
-        "default_interval_sec": max(3, min(600, di)),
-        "active_slides": _active_display_slides(bid),
-    }
+    return JSONResponse(
+        content={
+            "items": items_out,
+            "default_interval_sec": max(3, min(600, di)),
+            "active_slides": _active_display_slides(bid),
+        },
+        headers={
+            "Cache-Control": "no-store, no-cache, must-revalidate",
+            "Pragma": "no-cache",
+        },
+    )
 
 
 @app.post("/api/display/content")
