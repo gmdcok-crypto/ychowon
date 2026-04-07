@@ -23,10 +23,44 @@ import argparse
 import os
 import sys
 from pathlib import Path
+from typing import Optional
+from urllib.parse import urlparse
 
 _SERVER = Path(__file__).resolve().parent
 if str(_SERVER) not in sys.path:
     sys.path.insert(0, str(_SERVER))
+
+
+def _fail_if_local_railway_internal() -> Optional[int]:
+    """
+    mysql.railway.internal 은 Railway 컨테이너 안에서만 이름이 풀립니다.
+    로컬 PC에서 쓰면 getaddrinfo failed(11001) 가 납니다.
+    """
+    raw = (os.environ.get("DATABASE_URL") or "").strip()
+    if not raw:
+        return None
+    norm = raw
+    if norm.startswith("mysql+pymysql://"):
+        norm = "mysql://" + norm[len("mysql+pymysql://") :]
+    u = urlparse(norm)
+    host = (u.hostname or "").lower()
+    if "railway.internal" not in host:
+        return None
+    if os.environ.get("RAILWAY_ENVIRONMENT") or os.environ.get("ALLOW_RAILWAY_INTERNAL_LOCAL"):
+        return None
+    print(
+        "오류: DATABASE_URL 의 호스트가 mysql.railway.internal 입니다.\n"
+        "이 주소는 집/로컬 PC에서는 DNS가 안 풀립니다 (지금 난 getaddrinfo failed).\n\n"
+        "선택지:\n"
+        "  1) Railway → MySQL 서비스 → Networking / Variables 에서 나오는\n"
+        "     공개(Public) 호스트·포트로 URL을 바꿔 $env:DATABASE_URL 에 넣기\n"
+        "  2) Railway CLI:  railway run --service <웹서비스이름> python migrate_json_to_mysql.py\n"
+        "     (같은 프로젝트 네트워크 안에서 실행)\n"
+        "  3) 마이그레이션을 로컬에서 안 하고, 배포된 앱이 빈 DB에 자동 임포트하게 두기\n\n"
+        "고급: 정말 로컬에서 internal 을 써야 하면 ALLOW_RAILWAY_INTERNAL_LOCAL=1",
+        file=sys.stderr,
+    )
+    return 1
 
 
 def main() -> int:
@@ -47,6 +81,10 @@ def main() -> int:
     if not (os.environ.get("DATABASE_URL") or "").strip():
         print("오류: DATABASE_URL 환경 변수를 설정하세요.", file=sys.stderr)
         return 1
+
+    early = _fail_if_local_railway_internal()
+    if early is not None:
+        return early
 
     from db_config import database_enabled, get_engine, init_db
     from db_models import Base
