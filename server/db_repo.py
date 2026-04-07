@@ -189,14 +189,14 @@ def save_rooms_config_file(file_name: str, data: dict[str, Any]) -> None:
         s.commit()
 
 
-def migrate_from_data_dir(data_dir: Path) -> None:
-    """DB가 비어 있을 때만 data/*.json 을 임포트."""
+def migrate_from_data_dir(data_dir: Path) -> bool:
+    """DB가 비어 있을 때만 data/*.json 을 임포트. 이미 지점이 있으면 False."""
     init_db()
     from branch_data import DEFAULT_BRANCH_ID
 
     with _session() as s:
         if s.scalars(select(BranchRow).limit(1)).first() is not None:
-            return
+            return False
 
     # branches.json
     bp = data_dir / "branches.json"
@@ -322,6 +322,8 @@ def migrate_from_data_dir(data_dir: Path) -> None:
                     save_rooms_config_file(name, data)
             except (OSError, json.JSONDecodeError):
                 pass
+
+    return True
 
 
 def seed_new_branch(branch_id: str, name: str) -> None:
