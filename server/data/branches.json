@@ -3,6 +3,10 @@
     {
       "id": "default",
       "name": "본점"
+    },
+    {
+      "id": "mchowon",
+      "name": "국제식품 초원농원"
     }
   ]
 }

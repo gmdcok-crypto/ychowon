@@ -331,6 +331,13 @@ def api_allows(path: str, method: str, role: Optional[str]) -> bool:
     p = path.rstrip("/") or "/"
     if is_public_auth_api_path(p) or p == "/api/health":
         return True
+
+    # 현황판 TV·키오스크: 당일 목록·하단광고 조회는 비로그인 허용 (쿠키 없음·401 반복 방지)
+    if method == "GET" and p.startswith("/api/reservations/today"):
+        return True
+    if method == "GET" and p == "/api/display/content":
+        return True
+
     if p == "/api/branches":
         if method == "GET":
             return role in ("admin", "display", "tel")
@@ -342,10 +349,10 @@ def api_allows(path: str, method: str, role: Optional[str]) -> bool:
     if not role:
         return False
 
-    # 현황판 하단: 업로드·목록 저장은 관리자만. (이 블록을 admin 조기 return보다 먼저 두어 권한이 분명히 적용되도록 함)
+    # 현황판 하단: 업로드·목록 저장은 관리자·현황판 계정
     if p.startswith("/api/display"):
         if p == "/api/display/upload" or (p == "/api/display/content" and method == "POST"):
-            return role == "admin"
+            return role in ("admin", "display")
         if role == "admin":
             return True
         return role == "display"
@@ -353,8 +360,6 @@ def api_allows(path: str, method: str, role: Optional[str]) -> bool:
     if role == "admin":
         return True
     if p.startswith("/api/reservations/today"):
-        if method == "GET":
-            return role == "display"
         return False
     if p.startswith("/api/tel/"):
         return role == "tel"
@@ -397,7 +402,7 @@ def ws_role_allowed(websocket) -> bool:
     token = websocket.cookies.get(COOKIE_NAME)
     payload = decode_token(token)
     if not payload:
-        return False
+        return True
     role = payload.get("role")
     return role in ("admin", "display")
 
