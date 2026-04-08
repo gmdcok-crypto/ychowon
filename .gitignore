@@ -2,6 +2,7 @@ display/uploads/*
 !display/uploads/.gitkeep
 
 # Python
+.venv/
 server/venv/
 **/__pycache__/
 *.py[cod]
