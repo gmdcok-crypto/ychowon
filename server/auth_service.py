@@ -61,77 +61,23 @@ _auth_file: Optional[Path] = None
 _secret_file: Optional[Path] = None
 
 
-def _use_db() -> bool:
-    try:
-        from db_config import database_enabled
-
-        return database_enabled()
-    except Exception:
-        return False
-
-
 def configure(data_dir: Path) -> None:
     global _data_dir, _auth_file, _secret_file
     _data_dir = data_dir
     _auth_file = data_dir / "auth.json"
     _secret_file = data_dir / ".jwt_secret"
-    if not _use_db():
-        _ensure_auth_file()
-
-
-def _ensure_auth_file() -> None:
-    assert _auth_file is not None
-    if not _auth_file.is_file():
-        accs = [
-            {"id": "admin", "name": DEFAULT_NAMES["admin"], "role": "admin", "password_hash": None},
-            {"id": "display", "name": DEFAULT_NAMES["display"], "role": "display", "password_hash": None},
-            {"id": "tel", "name": DEFAULT_NAMES["tel"], "role": "tel", "password_hash": None},
-        ]
-        _auth_file.write_text(json.dumps({"accounts": accs}, ensure_ascii=False, indent=2), encoding="utf-8")
-
-
-def _migrate_passwords_to_accounts(raw: dict[str, Any]) -> dict[str, Any]:
-    if isinstance(raw.get("accounts"), list) and raw["accounts"]:
-        return raw
-    passwords = raw.get("passwords") or {}
-    accounts = []
-    for rid in ROLES:
-        accounts.append(
-            {
-                "id": rid,
-                "name": DEFAULT_NAMES.get(rid, rid),
-                "role": rid,
-                "password_hash": passwords.get(rid),
-            }
-        )
-    return {"accounts": accounts}
 
 
 def _load_store() -> dict[str, Any]:
-    if _use_db():
-        from db_repo import load_auth_store
+    from db_repo import load_auth_store
 
-        return load_auth_store()
-    assert _auth_file is not None
-    _ensure_auth_file()
-    try:
-        raw = json.loads(_auth_file.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        raw = {}
-    merged = _migrate_passwords_to_accounts(raw)
-    if merged != raw and _auth_file.is_file():
-        _save_store(merged)
-    return merged
+    return load_auth_store()
 
 
 def _save_store(data: dict[str, Any]) -> None:
-    if _use_db():
-        from db_repo import save_auth_store
+    from db_repo import save_auth_store
 
-        save_auth_store(data)
-        return
-    assert _auth_file is not None
-    _auth_file.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    save_auth_store(data)
 
 
 def _accounts_list(store: Optional[dict[str, Any]] = None) -> list[dict[str, Any]]:
@@ -153,18 +99,9 @@ def _jwt_secret() -> str:
     env = (os.environ.get("JWT_SECRET") or "").strip()
     if env:
         return env
-    if _use_db():
-        from db_repo import get_or_create_jwt_secret
+    from db_repo import get_or_create_jwt_secret
 
-        return get_or_create_jwt_secret()
-    assert _secret_file is not None
-    if _secret_file.is_file():
-        return _secret_file.read_text(encoding="utf-8").strip()
-    import secrets
-
-    s = secrets.token_hex(32)
-    _secret_file.write_text(s, encoding="utf-8")
-    return s
+    return get_or_create_jwt_secret()
 
 
 def needs_setup(role: str) -> bool:

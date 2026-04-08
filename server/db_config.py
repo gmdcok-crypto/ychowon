@@ -1,4 +1,4 @@
-"""MySQL/MariaDB 연결. 환경 변수 DATABASE_URL 이 있으면 JSON 파일 대신 DB 사용."""
+"""MySQL/MariaDB 전용. Railway 등에서 DATABASE_URL 필수."""
 
 from __future__ import annotations
 
@@ -13,7 +13,18 @@ _SessionLocal: Optional[sessionmaker] = None
 
 
 def database_enabled() -> bool:
-    return bool((os.environ.get("DATABASE_URL") or "").strip())
+    """항상 DB 저장소 사용 (JSON 파일 폴백 없음)."""
+    return True
+
+
+def require_database_url() -> str:
+    raw = (os.environ.get("DATABASE_URL") or "").strip()
+    if not raw:
+        raise RuntimeError(
+            "DATABASE_URL 환경 변수가 없습니다. Railway MySQL 변수를 서비스에 연결하거나 "
+            "mysql://USER:PASSWORD@HOST:PORT/DB 형식으로 설정하세요."
+        )
+    return raw
 
 
 def normalize_database_url(url: str) -> str:
@@ -28,7 +39,7 @@ def normalize_database_url(url: str) -> str:
 def get_engine():
     global _engine
     if _engine is None:
-        url = normalize_database_url(os.environ["DATABASE_URL"])
+        url = normalize_database_url(require_database_url())
         _engine = create_engine(
             url,
             pool_pre_ping=True,

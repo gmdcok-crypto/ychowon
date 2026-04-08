@@ -176,10 +176,9 @@ def _pick_rooms_config_filename(data_dir: Path) -> str:
     mchowon_path = data_dir / mchowon_file
     if _is_mchowon_context():
         try:
-            from db_config import database_enabled
             from db_repo import load_rooms_config_file
 
-            if database_enabled() and load_rooms_config_file(mchowon_file) is not None:
+            if load_rooms_config_file(mchowon_file) is not None:
                 return mchowon_file
         except Exception:
             pass
@@ -190,10 +189,9 @@ def _pick_rooms_config_filename(data_dir: Path) -> str:
         return CONFIG_FILENAME
 
     try:
-        from db_config import database_enabled
         from db_repo import load_rooms_config_file
 
-        if database_enabled() and load_rooms_config_file(CONFIG_FILENAME) is not None:
+        if load_rooms_config_file(CONFIG_FILENAME) is not None:
             return CONFIG_FILENAME
     except Exception:
         pass
@@ -209,11 +207,9 @@ def load_room_options(data_dir: Path) -> list[dict[str, Any]]:
 
     data = None
     try:
-        from db_config import database_enabled
         from db_repo import load_rooms_config_file
 
-        if database_enabled():
-            data = load_rooms_config_file(fname)
+        data = load_rooms_config_file(fname)
     except Exception:
         pass
 

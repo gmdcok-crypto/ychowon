@@ -86,12 +86,14 @@ def main() -> int:
     if early is not None:
         return early
 
-    from db_config import database_enabled, get_engine, init_db
+    from db_config import get_engine, init_db, normalize_database_url, require_database_url
     from db_models import Base
     from db_repo import migrate_from_data_dir
 
-    if not database_enabled():
-        print("오류: DATABASE_URL 형식을 확인하세요 (mysql://...)", file=sys.stderr)
+    try:
+        normalize_database_url(require_database_url())
+    except ValueError as e:
+        print(f"오류: {e}", file=sys.stderr)
         return 1
 
     data_dir = args.data_dir.resolve()
