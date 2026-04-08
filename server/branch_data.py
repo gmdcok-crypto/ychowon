@@ -1,6 +1,8 @@
 """
-지점(branch)별 당일 예약·현황판 하단 광고 JSON.
-기존 단일 파일(today.json, display_content.json)은 최초 기동 시 default 지점으로 이관합니다.
+지점(branch)별 당일 예약·현황판 하단 광고.
+
+런타임 저장은 MySQL(db_repo)만 사용합니다. 아래 파일 경로·ensure_migrations 는
+구 데이터 이전·마이그레이션 스크립트용으로만 남아 있습니다.
 """
 from __future__ import annotations
 

@@ -1,9 +1,9 @@
 """
 지점별 룸·홀 구성.
 
-- DATABASE_URL 등으로 DB가 켜지면 룸·홀 목록은 MySQL만 사용 (로컬 rooms_config.json 미사용).
-- DB 없음(로컬 개발 등): ROOMS_CONFIG_FILE → (mchowon) rooms_config.mchowon.json →
-  rooms_config.json → 없으면 내장 기본값.
+서버 기동 시 MySQL 연결이 필수이므로, 런타임은 **MySQL의 rooms 설정**만 사용합니다.
+(``database_enabled()`` 가 꺼진 예외 경로에서만 ``data/rooms_config*.json`` 폴백 — 마이그레이션·구버전 호환용)
+
 - mchowon: USE_MCHOWON_ROOMS=1, SITE=mchowon, 또는 Railway 이름/도메인에 mchowon 포함.
 - data/rooms_config.example.json 은 참고용 복사 템플릿입니다.
 """

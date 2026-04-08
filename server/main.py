@@ -66,26 +66,21 @@ def startup():
     print("  예약접수: http://%s:8000/tel/   (태블릿)" % ip)
     from room_config import ACTIVE_ROOMS_CONFIG_REF as _room_cfg_ref
 
-    if database_enabled() and _room_cfg_ref:
+    if _room_cfg_ref:
         print("  룸·홀:    MySQL — %s" % _room_cfg_ref)
-    elif _room_cfg_ref:
-        print("  룸·홀:    data/%s (지점 설정)" % _room_cfg_ref)
     else:
         print("  룸·홀:    내장 기본값 (ROOMS_CONFIG_FILE 또는 data/%s)" % CONFIG_FILENAME)
-    if database_enabled():
-        try:
-            from db_config import mysql_target_summary
+    try:
+        from db_config import mysql_target_summary
 
-            _tgt = mysql_target_summary()
-        except Exception:
-            _tgt = ""
-        _suffix = (" → " + _tgt) if _tgt else ""
-        if running_on_railway():
-            print("  저장소:   Railway MySQL (지점별로 DB 따로 연결 권장)%s" % _suffix)
-        else:
-            print("  저장소:   MySQL/MariaDB%s" % _suffix)
+        _tgt = mysql_target_summary()
+    except Exception:
+        _tgt = ""
+    _suffix = (" → " + _tgt) if _tgt else ""
+    if running_on_railway():
+        print("  저장소:   Railway MySQL (지점별로 DB 따로 연결 권장)%s" % _suffix)
     else:
-        print("  저장소:   로컬 data/*.json")
+        print("  저장소:   MySQL/MariaDB%s" % _suffix)
     try:
         from r2_storage import r2_enabled
 
@@ -191,7 +186,6 @@ auth_configure(DATA_DIR)
 from branch_data import (
     append_branch,
     configure as branch_configure,
-    ensure_migrations,
     load_branch_today,
     load_branches,
     load_display_content,
@@ -202,44 +196,39 @@ from branch_data import (
 )
 
 branch_configure(DATA_DIR)
-TEL_FILE = DATA_DIR / "tel_reservations.json"
 
 from db_config import (
-    database_enabled,
-    ensure_railway_database_url_or_exit,
+    ensure_database_url_or_exit,
     init_db,
     running_on_railway,
     validate_mysql_database_url_or_exit,
 )
 from db_repo import migrate_from_data_dir
 
-ensure_railway_database_url_or_exit()
+ensure_database_url_or_exit()
 
-if database_enabled():
-    try:
-        validate_mysql_database_url_or_exit()
-        init_db()
-        migrate_from_data_dir(DATA_DIR)
-    except SystemExit:
-        raise
-    except OperationalError:
-        print(
-            "MySQL 연결 실패 (OperationalError). Deploy Logs 위쪽에 상세 원인이 있습니다.\n"
-            "· Variables: DATABASE_URL 또는 MYSQL_URL 이 이 프로젝트의 MySQL을 가리키는지\n"
-            "· (2003) 타임아웃이면 호스트/포트·방화벽·SSL 요구 여부를 확인하세요.",
-            file=sys.stderr,
-        )
-        traceback.print_exc()
-        raise
-    except Exception:
-        print(
-            "--- DB 초기화 실패 (Railway Deploy Logs 에서 아래 Traceback 확인) ---",
-            file=sys.stderr,
-        )
-        traceback.print_exc()
-        raise
-else:
-    ensure_migrations(TEL_FILE)
+try:
+    validate_mysql_database_url_or_exit()
+    init_db()
+    migrate_from_data_dir(DATA_DIR)
+except SystemExit:
+    raise
+except OperationalError:
+    print(
+        "MySQL 연결 실패 (OperationalError). Deploy Logs 위쪽에 상세 원인이 있습니다.\n"
+        "· Variables: DATABASE_URL 또는 MYSQL_URL 이 이 프로젝트의 MySQL을 가리키는지\n"
+        "· (2003) 타임아웃이면 호스트/포트·방화벽·SSL 요구 여부를 확인하세요.",
+        file=sys.stderr,
+    )
+    traceback.print_exc()
+    raise
+except Exception:
+    print(
+        "--- DB 초기화 실패 (Railway Deploy Logs 에서 아래 Traceback 확인) ---",
+        file=sys.stderr,
+    )
+    traceback.print_exc()
+    raise
 
 MEAL_DURATION_MINUTES = 120
 
@@ -254,7 +243,7 @@ def _today_str() -> str:
 
 
 def _get_admin_today_list(branch_id: str) -> list:
-    """직원(admin)이 저장한 당일 목록만 (지점별 today/{id}.json)."""
+    """직원(admin)이 저장한 당일 목록만 (지점별 MySQL)."""
     data = load_branch_today(branch_id)
     if data.get("date") != _today_str():
         return []
@@ -363,30 +352,15 @@ def _times_overlap(time_a: str, time_b: str) -> bool:
 
 
 def _load_tel() -> dict:
-    if database_enabled():
-        from db_repo import load_tel_store
+    from db_repo import load_tel_store
 
-        return load_tel_store()
-    if not TEL_FILE.exists():
-        return {"reservations": []}
-    try:
-        with open(TEL_FILE, "r", encoding="utf-8") as f:
-            data = json.load(f)
-            if isinstance(data, dict):
-                return data
-    except (json.JSONDecodeError, OSError):
-        pass
-    return {"reservations": []}
+    return load_tel_store()
 
 
 def _save_tel(data: dict) -> None:
-    if database_enabled():
-        from db_repo import save_tel_store
+    from db_repo import save_tel_store
 
-        save_tel_store(data)
-        return
-    with open(TEL_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
+    save_tel_store(data)
 
 
 def _active_display_slides(branch_id: str, data: Optional[dict[str, Any]] = None) -> list:

@@ -1,7 +1,7 @@
 """MySQL/MariaDB 연결.
 
-- 로컬: ``DATABASE_URL`` 또는 ``MYSQL_URL`` 이 있으면 DB, 없으면 ``data/*.json``
-- Railway: 항상 DB만 사용 (아래 URL 중 하나 필수, 없으면 기동 실패)
+런타임 저장소는 **MySQL만** 사용합니다. ``DATABASE_URL`` 등이 없으면 기동하지 않습니다.
+(구 ``data/*.json`` 은 ``migrate_from_data_dir`` / ``migrate_json_to_mysql.py`` 로 DB 이전할 때만 읽습니다.)
 
 Railway MySQL은 웹 서비스에 ``DATABASE_URL`` 대신 ``MYSQL_URL`` 만 노출되는 경우가 있어 둘 다 지원합니다.
 
@@ -82,28 +82,28 @@ def running_on_railway() -> bool:
 
 
 def database_enabled() -> bool:
-    """DB 저장소 사용 여부. Railway에서는 URL 유무와 관계없이 True(파일 폴백 없음)."""
-    if database_url_effective():
-        return True
-    return running_on_railway()
+    """DB 저장소 사용 여부. 연결 문자열이 있을 때만 True (JSON 폴백 없음)."""
+    return bool(database_url_effective())
 
 
-def ensure_railway_database_url_or_exit() -> None:
-    """Railway인데 MySQL URL이 없으면 프로세스 종료."""
-    if not running_on_railway():
-        return
+def ensure_database_url_or_exit() -> None:
+    """MySQL 연결 문자열이 없으면 프로세스 종료 (로컬·Railway 공통)."""
     if database_url_effective():
         return
     print(
-        "오류: Railway 배포에서는 MySQL 연결 정보가 필요합니다.\n"
-        "아래 중 하나를 웹 서비스 Variables에 넣으세요.\n"
-        "  · DATABASE_URL 또는 MYSQL_URL (= ${{MySQL.MYSQL_URL}} 등으로 참조)\n"
+        "오류: MySQL 연결 정보가 필요합니다. JSON 파일 저장은 런타임에 사용하지 않습니다.\n"
+        "  · DATABASE_URL 또는 MYSQL_URL\n"
         "  · 또는 MYSQLHOST, MYSQLUSER, MYSQLPASSWORD, MYSQLDATABASE (및 MYSQLPORT)\n"
-        "    를 MySQL 서비스에서 웹 서비스로 참조 추가\n"
-        "Railway 대시보드: MySQL 서비스 → Connect / Variables → 웹 서비스에 연결",
+        "Railway: MySQL 서비스를 웹 서비스 Variables에 연결 (예: ${{MySQL.MYSQL_URL}})\n"
+        "로컬: Docker MySQL 등에 연결하거나 migrate_json_to_mysql.py 로 이전 후 사용하세요.",
         file=sys.stderr,
     )
     raise SystemExit(1)
+
+
+def ensure_railway_database_url_or_exit() -> None:
+    """호환용 별칭. ``ensure_database_url_or_exit`` 와 동일."""
+    ensure_database_url_or_exit()
 
 
 def validate_mysql_database_url_or_exit() -> None:
