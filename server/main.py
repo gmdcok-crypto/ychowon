@@ -78,6 +78,15 @@ def startup():
         print("  저장소:   MySQL/MariaDB (DATABASE_URL)")
     else:
         print("  저장소:   로컬 data/*.json")
+    try:
+        from r2_storage import r2_enabled
+
+        if r2_enabled():
+            print("  하단광고 파일: Cloudflare R2 (R2_PUBLIC_BASE_URL)")
+        else:
+            print("  하단광고 파일: 로컬 display/uploads")
+    except Exception:
+        print("  하단광고 파일: 로컬 display/uploads")
     print("")
 
 
@@ -827,6 +836,14 @@ def _fill_display_name_from_upload_meta(url: str, current_name: str) -> str:
     if nm:
         return nm
     u = (url or "").strip()
+    try:
+        from r2_storage import head_original_name, is_r2_public_url
+
+        if is_r2_public_url(u):
+            got = head_original_name(u)
+            return got if got else ""
+    except Exception:
+        pass
     if not u.startswith("/display/uploads/"):
         return ""
     part = u.split("/")[-1].split("?")[0]
@@ -834,15 +851,33 @@ def _fill_display_name_from_upload_meta(url: str, current_name: str) -> str:
 
 
 def _cleanup_removed_display_uploads(old_items: list, new_urls: set) -> None:
-    """관리 화면에서 항목이 빠지면 display/uploads 안의 해당 파일·메타도 삭제합니다."""
+    """관리 화면에서 항목이 빠지면 로컬 display/uploads 또는 R2 객체를 삭제합니다."""
+    try:
+        from r2_storage import delete_object_by_public_url, is_r2_public_url
+    except Exception:
+
+        def is_r2_public_url(_u: str) -> bool:  # type: ignore[misc]
+            return False
+
+        def delete_object_by_public_url(_u: str) -> None:  # type: ignore[misc]
+            return None
+
     base = _display_uploads_dir().resolve()
+    norm_new = {str(x).strip().split("?")[0] for x in new_urls}
     for it in old_items:
         url = str(it.get("url") or "").strip()
-        if not url or url in new_urls:
+        u = url.split("?")[0]
+        if not u or u in norm_new:
             continue
-        if not url.startswith("/display/uploads/"):
+        if is_r2_public_url(u):
+            try:
+                delete_object_by_public_url(u)
+            except Exception:
+                pass
             continue
-        part = url.split("/")[-1].split("?")[0]
+        if not u.startswith("/display/uploads/"):
+            continue
+        part = u.split("/")[-1].split("?")[0]
         if not part or ".." in part or "/" in part or "\\" in part:
             continue
         try:
@@ -869,11 +904,7 @@ def _cleanup_removed_display_uploads(old_items: list, new_urls: set) -> None:
 
 @app.post("/api/display/upload")
 async def api_upload_display_asset(file: UploadFile = File(...)):
-    """현황판 하단용 이미지·동영상을 display/uploads 에 저장하고 URL 경로를 반환합니다."""
-    if not DISPLAY_DIR.exists():
-        raise HTTPException(status_code=500, detail="display 폴더를 찾을 수 없습니다.")
-    upload_dir = DISPLAY_DIR / "uploads"
-    upload_dir.mkdir(parents=True, exist_ok=True)
+    """현황판 하단용 이미지·동영상을 R2 또는 display/uploads 에 저장하고 URL을 반환합니다."""
     raw_name = (file.filename or "file").replace("\\", "/").split("/")[-1]
     suffix = Path(raw_name).suffix.lower()
     if suffix not in _DISPLAY_UPLOAD_EXTS:
@@ -881,11 +912,33 @@ async def api_upload_display_asset(file: UploadFile = File(...)):
             status_code=400,
             detail="허용 확장자: " + ", ".join(sorted(_DISPLAY_UPLOAD_EXTS)),
         )
-    safe_name = f"{uuid.uuid4().hex}{suffix}"
-    dest = upload_dir / safe_name
     body = await file.read()
     if len(body) > _DISPLAY_UPLOAD_MAX:
         raise HTTPException(status_code=400, detail="파일 크기는 50MB 이하만 가능합니다.")
+
+    try:
+        from r2_storage import r2_enabled, upload_display_bytes
+
+        if r2_enabled():
+            try:
+                public_url = upload_display_bytes(body, suffix, raw_name)
+            except Exception as e:
+                raise HTTPException(
+                    status_code=500,
+                    detail="R2 업로드 실패: " + str(e),
+                ) from e
+            return {"url": public_url, "original_name": raw_name}
+    except HTTPException:
+        raise
+    except Exception:
+        pass
+
+    if not DISPLAY_DIR.exists():
+        raise HTTPException(status_code=500, detail="display 폴더를 찾을 수 없습니다.")
+    upload_dir = DISPLAY_DIR / "uploads"
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    safe_name = f"{uuid.uuid4().hex}{suffix}"
+    dest = upload_dir / safe_name
     dest.write_bytes(body)
     meta_path = upload_dir / f"{safe_name}.meta.json"
     try:
