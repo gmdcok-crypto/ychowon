@@ -11,11 +11,21 @@
 
   function getBranch() {
     try {
+      var u = new URL(window.location.href);
+      var b = u.searchParams.get('branch');
+      if (b && String(b).trim()) {
+        var id = String(b).trim().toLowerCase();
+        try {
+          localStorage.setItem(BRANCH_KEY, id);
+        } catch (e) {}
+        return id;
+      }
+    } catch (e) {}
+    try {
       var v = localStorage.getItem(BRANCH_KEY);
-      return v && String(v).trim() ? String(v).trim() : 'default';
-    } catch (e) {
-      return 'default';
-    }
+      if (v && String(v).trim()) return String(v).trim().toLowerCase();
+    } catch (e2) {}
+    return typeof reserveInferDefaultBranch === 'function' ? reserveInferDefaultBranch() : 'default';
   }
 
   function setBranch(id) {

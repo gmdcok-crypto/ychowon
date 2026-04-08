@@ -10,6 +10,7 @@
 """
 import asyncio
 import json
+import os
 import socket
 import sys
 import traceback
@@ -1135,6 +1136,31 @@ def api_auth_accounts_revoke(account_id: str):
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     return {"ok": True}
+
+
+@app.get("/api/branch-boot.js")
+def branch_boot_js():
+    """Railway 서비스별 DEFAULT_BRANCH_ID + 호스트명(mchowon/ychowon)으로 기본 지점 추론."""
+    bid = (os.environ.get("DEFAULT_BRANCH_ID") or "").strip().lower()
+    env_literal = json.dumps(bid) if bid else "null"
+    body = (
+        f"window.__RESERVE_DEFAULT_BRANCH__={env_literal};\n"
+        "(function(g){"
+        "function inferHost(){try{var h=(g.location.hostname||'').toLowerCase();"
+        "if(h.indexOf('ychowon')>=0)return'ychowon';"
+        "if(h.indexOf('mchowon')>=0)return'mchowon';"
+        "}catch(e){}return'';}"
+        "g.reserveInferDefaultBranch=function(){"
+        "var w=g.__RESERVE_DEFAULT_BRANCH__;"
+        "if(w!=null&&String(w).trim())return String(w).trim().toLowerCase();"
+        "var x=inferHost();if(x)return x;return'default';};"
+        "})(window);\n"
+    )
+    return Response(
+        content=body,
+        media_type="application/javascript",
+        headers={"Cache-Control": "no-store"},
+    )
 
 
 @app.get("/api/health")

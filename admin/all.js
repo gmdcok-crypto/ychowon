@@ -21,10 +21,9 @@
     } catch (e) {}
     try {
       var v = localStorage.getItem(BRANCH_KEY);
-      return v && String(v).trim() ? String(v).trim() : 'default';
-    } catch (e2) {
-      return 'default';
-    }
+      if (v && String(v).trim()) return String(v).trim().toLowerCase();
+    } catch (e2) {}
+    return typeof reserveInferDefaultBranch === 'function' ? reserveInferDefaultBranch() : 'default';
   }
 
   function withBranch(url) {

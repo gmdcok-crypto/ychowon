@@ -104,7 +104,7 @@
 
     <div class="admin-tab-panel admin-tab-panel-tel hidden" id="panel-tel" role="tabpanel" aria-labelledby="tab-btn-tel">
       <div class="admin-tel-frame">
-        <iframe id="iframe-tel-admin" class="admin-tel-iframe" title="전화 예약 접수" src="/tel/?branch=default"></iframe>
+        <iframe id="iframe-tel-admin" class="admin-tel-iframe" title="전화 예약 접수" src="/tel/"></iframe>
       </div>
     </div>
 
@@ -116,7 +116,7 @@
 
     <div class="admin-tab-panel admin-tab-panel-display hidden" id="panel-display" role="tabpanel" aria-labelledby="tab-btn-display">
       <div class="admin-tel-frame admin-all-frame">
-        <iframe id="iframe-display-admin" class="admin-tel-iframe" title="컨텐츠관리" src="/admin/display-content.html?embed=1&amp;branch=default"></iframe>
+        <iframe id="iframe-display-admin" class="admin-tel-iframe" title="컨텐츠관리" src="/admin/display-content.html?embed=1"></iframe>
       </div>
     </div>
 
@@ -214,7 +214,8 @@
     </div>
   </div>
 
-  <script src="admin.js?v=8"></script>
+  <script src="/api/branch-boot.js"></script>
+  <script src="admin.js?v=9"></script>
   <script src="accounts.js"></script>
 </body>
 </html>

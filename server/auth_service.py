@@ -324,7 +324,7 @@ def is_public_auth_api_path(path: str) -> bool:
 def is_public_path(path: str) -> bool:
     if is_public_auth_api_path(path):
         return True
-    if path in ("/api/health", "/favicon.ico", "/sw.js"):
+    if path in ("/api/health", "/api/branch-boot.js", "/favicon.ico", "/sw.js"):
         return True
     if path in ("/admin/login.html", "/display/login.html", "/tel/login.html"):
         return True
