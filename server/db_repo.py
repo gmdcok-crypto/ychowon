@@ -12,6 +12,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from db_config import SessionLocal, get_engine, init_db
+from kst_time import today_date_kst, today_str_kst
 from db_models import (
     AccountRow,
     AppKvRow,
@@ -34,14 +35,14 @@ TEL_LEGACY_ROW_ID = 1
 
 
 def _today_str() -> str:
-    return datetime.now().strftime("%Y-%m-%d")
+    return today_str_kst()
 
 
 def _parse_ymd(s: str) -> date:
     try:
         return datetime.strptime((s or "")[:10], "%Y-%m-%d").date()
     except ValueError:
-        return date.today()
+        return today_date_kst()
 
 
 def _session() -> Session:

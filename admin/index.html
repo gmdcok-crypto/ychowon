@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="admin.css?v=7" />
+  <link rel="stylesheet" href="admin.css?v=10" />
 </head>
 <body>
   <div class="admin admin-with-tabs">
@@ -39,7 +39,10 @@
 
     <section class="main-section admin-tab-panel" id="panel-staff" role="tabpanel" aria-labelledby="tab-btn-staff">
       <div class="form-block">
-        <h2 id="form-title">예약 추가</h2>
+        <div class="form-block-head">
+          <h2 id="form-title">예약 추가</h2>
+          <span id="staff-kst-clock" class="staff-kst-clock" aria-live="polite"></span>
+        </div>
         <form id="add-form" class="add-form">
           <div class="field field-time">
             <label for="time">시간</label>
@@ -215,7 +218,7 @@
   </div>
 
   <script src="/api/branch-boot.js"></script>
-  <script src="admin.js?v=9"></script>
+  <script src="admin.js?v=10"></script>
   <script src="accounts.js"></script>
 </body>
 </html>

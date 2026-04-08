@@ -827,4 +827,28 @@
   document.addEventListener('visibilitychange', function () {
     if (document.visibilityState === 'visible') load();
   });
+
+  (function staffKstClock() {
+    var el = document.getElementById('staff-kst-clock');
+    if (!el) return;
+    function tick() {
+      try {
+        el.textContent = new Intl.DateTimeFormat('ko-KR', {
+          timeZone: 'Asia/Seoul',
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          weekday: 'short',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: false
+        }).format(new Date());
+      } catch (e) {
+        el.textContent = '';
+      }
+    }
+    tick();
+    setInterval(tick, 1000);
+  })();
 })();

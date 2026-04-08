@@ -10,11 +10,12 @@ import json
 import os
 import re
 import shutil
-from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
 
 from fastapi import HTTPException
+
+from kst_time import today_str_kst
 
 BRANCH_ID_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,31}$")
 DEFAULT_BRANCH_ID = "default"
@@ -71,7 +72,7 @@ def display_content_path(branch_id: str) -> Path:
 
 
 def today_str() -> str:
-    return datetime.now().strftime("%Y-%m-%d")
+    return today_str_kst()
 
 
 def ensure_migrations(tel_file: Path) -> None:

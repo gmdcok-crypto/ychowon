@@ -1,5 +1,5 @@
 """
-초원농원 예약 현황판 - 당일 전용, DB 없이 JSON 파일만 사용
+초원농원 예약 현황판 — 당일·예약 데이터는 MySQL, 날짜 기준은 한국시간(KST)
 
 로그·Invalid HTTP request 관련 (참고):
 - favicon /sw.js 404 는 아래 고정 라우트로 완화.
@@ -16,7 +16,6 @@ import traceback
 import uuid
 from collections import defaultdict
 from pathlib import Path
-from datetime import datetime
 from typing import Any, Optional
 
 from fastapi import (
@@ -204,6 +203,7 @@ from db_config import (
     validate_mysql_database_url_or_exit,
 )
 from db_repo import migrate_from_data_dir
+from kst_time import today_str_kst
 
 ensure_database_url_or_exit()
 
@@ -239,7 +239,7 @@ ROOM_OPTIONS = load_room_options(DATA_DIR)
 
 
 def _today_str() -> str:
-    return datetime.now().strftime("%Y-%m-%d")
+    return today_str_kst()
 
 
 def _get_admin_today_list(branch_id: str) -> list:
