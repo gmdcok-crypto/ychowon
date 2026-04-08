@@ -188,7 +188,7 @@ from branch_data import (
     load_branch_today,
     load_branches,
     load_display_content,
-    normalize_branch_id,
+    resolve_effective_branch,
     save_branch_today,
     save_display_content,
     tel_branch_key,
@@ -533,7 +533,7 @@ async def websocket_display(websocket: WebSocket, branch: str = Query(default="d
         await websocket.close(code=4401)
         return
     try:
-        bid = normalize_branch_id(branch)
+        bid = resolve_effective_branch(branch, websocket.headers.get("host"))
     except HTTPException:
         await websocket.close(code=4400)
         return
@@ -600,20 +600,25 @@ def api_post_branches(body: BranchCreateIn):
 
 @app.get("/api/reservations/today")
 async def get_today_reservations(
+    request: Request,
     background_tasks: BackgroundTasks,
     branch: str = Query(default="default"),
 ):
     """당일 현황판용: 직원 입력 + 전화 예약(tel) 합친 목록 (지점별). 날짜가 바뀌었으면 직원 당일 파일을 초기화."""
-    bid = normalize_branch_id(branch)
+    bid = resolve_effective_branch(branch, request.headers.get("host"))
     if _rollover_branch_today_if_stale(bid):
         background_tasks.add_task(broadcast_reservations, bid)
     return _get_board_today_merged(bid)
 
 
 @app.post("/api/reservations/today")
-async def set_today_reservations(payload: TodayReservations, branch: str = Query(default="default")):
+async def set_today_reservations(
+    request: Request,
+    payload: TodayReservations,
+    branch: str = Query(default="default"),
+):
     """직원(admin) 당일 예약만 통째로 교체. 전화 예약(tel)은 그대로 두고 합쳐서 현황판에 반영."""
-    bid = normalize_branch_id(branch)
+    bid = resolve_effective_branch(branch, request.headers.get("host"))
     items = [r.model_dump() for r in payload.reservations]
     for i, r in enumerate(items):
         if r.get("id") is None:
@@ -647,13 +652,14 @@ async def set_today_reservations(payload: TodayReservations, branch: str = Query
 
 @app.get("/api/tel/reservations")
 def get_tel_reservations(
+    request: Request,
     date: Optional[str] = None,
     date_from: Optional[str] = None,
     date_to: Optional[str] = None,
     branch: str = Query(default="default"),
 ):
     """전화 예약 목록. date 단일 지정 시 해당 일만. 그 외 date_from·date_to로 기간 필터(둘 다 생략 시 전체)."""
-    bid = normalize_branch_id(branch)
+    bid = resolve_effective_branch(branch, request.headers.get("host"))
     if date:
         return _get_tel_reservations(date, bid)
     items = _get_tel_reservations(None, bid)
@@ -668,9 +674,14 @@ def get_tel_reservations(
 
 
 @app.get("/api/tel/rooms")
-def get_tel_room_status(date: str, time: str, branch: str = Query(default="default")):
+def get_tel_room_status(
+    request: Request,
+    date: str,
+    time: str,
+    branch: str = Query(default="default"),
+):
     """날짜+시간 기준 호실/테이블 예약 가능 상태."""
-    bid = normalize_branch_id(branch)
+    bid = resolve_effective_branch(branch, request.headers.get("host"))
     return {
         "date": date,
         "time": time,
@@ -680,9 +691,13 @@ def get_tel_room_status(date: str, time: str, branch: str = Query(default="defau
 
 
 @app.post("/api/tel/reservations")
-async def create_tel_reservation(payload: TelReservationItem, branch: str = Query(default="default")):
+async def create_tel_reservation(
+    request: Request,
+    payload: TelReservationItem,
+    branch: str = Query(default="default"),
+):
     """전화 예약 접수 등록. 당일이면 현황판에 즉시 반영."""
-    bid = normalize_branch_id(branch)
+    bid = resolve_effective_branch(branch, request.headers.get("host"))
     items = _get_tel_reservations()
     slot = payload.slot or _time_slot(payload.time)
 
@@ -747,8 +762,8 @@ class DisplayContentIn(BaseModel):
 
 
 @app.get("/api/display/content")
-def api_get_display_content(branch: str = Query(default="default")):
-    bid = normalize_branch_id(branch)
+def api_get_display_content(request: Request, branch: str = Query(default="default")):
+    bid = resolve_effective_branch(branch, request.headers.get("host"))
     data = load_display_content(bid)
     try:
         di = int(data.get("default_interval_sec") or 8)
@@ -777,8 +792,12 @@ def api_get_display_content(branch: str = Query(default="default")):
 
 
 @app.post("/api/display/content")
-async def api_set_display_content(payload: DisplayContentIn, branch: str = Query(default="default")):
-    bid = normalize_branch_id(branch)
+async def api_set_display_content(
+    request: Request,
+    payload: DisplayContentIn,
+    branch: str = Query(default="default"),
+):
+    bid = resolve_effective_branch(branch, request.headers.get("host"))
     old_items = list(load_display_content(bid).get("items") or [])
     normalized: list = []
     for it in payload.items:
@@ -943,12 +962,13 @@ async def api_upload_display_asset(file: UploadFile = File(...)):
 
 @app.patch("/api/tel/reservations/{reservation_id}")
 async def patch_tel_reservation(
+    request: Request,
     reservation_id: int,
     payload: TelReservationPatch,
     branch: str = Query(default="default"),
 ):
     """전화 예약 수정 (admin·당일 현황 연동)."""
-    bid = normalize_branch_id(branch)
+    bid = resolve_effective_branch(branch, request.headers.get("host"))
     items = _get_tel_reservations()
     idx = next((i for i, x in enumerate(items) if int(x.get("id", 0) or 0) == reservation_id), None)
     if idx is None:
@@ -987,9 +1007,13 @@ async def patch_tel_reservation(
 
 
 @app.delete("/api/tel/reservations/{reservation_id}")
-async def delete_tel_reservation(reservation_id: int, branch: str = Query(default="default")):
+async def delete_tel_reservation(
+    request: Request,
+    reservation_id: int,
+    branch: str = Query(default="default"),
+):
     """전화 예약 삭제."""
-    bid = normalize_branch_id(branch)
+    bid = resolve_effective_branch(branch, request.headers.get("host"))
     items = _get_tel_reservations()
     removed = None
     kept = []

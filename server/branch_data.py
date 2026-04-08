@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import shutil
 from datetime import datetime
@@ -175,6 +176,53 @@ def normalize_branch_id(branch: Optional[str]) -> str:
     if b not in branch_ids():
         raise HTTPException(status_code=400, detail=f"등록되지 않은 지점입니다: {b}")
     return b
+
+
+def deployment_default_branch_id() -> Optional[str]:
+    v = (os.environ.get("DEFAULT_BRANCH_ID") or "").strip().lower()
+    if v and BRANCH_ID_RE.match(v):
+        return v
+    return None
+
+
+def infer_branch_from_host(host: Optional[str]) -> Optional[str]:
+    """Railway 등 호스트명에 서비스명이 들어간 경우 (예: mchowon-production-....up.railway.app)."""
+    h = (host or "").strip().lower()
+    if ":" in h:
+        h = h.split(":")[0]
+    if "ychowon" in h:
+        return "ychowon"
+    if "mchowon" in h:
+        return "mchowon"
+    return None
+
+
+def railway_service_branch_hint(ids: set[str]) -> Optional[str]:
+    """Railway 서비스 이름을 지점 코드와 동일하게 둔 경우 (예: RAILWAY_SERVICE_NAME=mchowon)."""
+    v = (os.environ.get("RAILWAY_SERVICE_NAME") or "").strip().lower()
+    if v and v in ids:
+        return v
+    return None
+
+
+def resolve_effective_branch(branch: Optional[str], host: Optional[str]) -> str:
+    """
+    클라이언트가 branch=default 로 보낼 때, DB에 literal default 지점이 없으면
+    이 배포의 DEFAULT_BRANCH_ID, Host 헤더, Railway 서비스명으로 실제 지점을 고릅니다.
+    (현황판·전화예약이 쿼리 없이 열릴 때 지점이 갈리도록)
+    """
+    b = (branch or DEFAULT_BRANCH_ID).strip().lower() or DEFAULT_BRANCH_ID
+    ids = branch_ids()
+    if b == DEFAULT_BRANCH_ID and DEFAULT_BRANCH_ID not in ids:
+        for candidate in (
+            deployment_default_branch_id(),
+            infer_branch_from_host(host),
+            railway_service_branch_hint(ids),
+        ):
+            if candidate and candidate in ids:
+                b = candidate
+                break
+    return normalize_branch_id(b)
 
 
 def tel_branch_key(item: dict) -> str:
