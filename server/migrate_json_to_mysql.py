@@ -30,13 +30,15 @@ _SERVER = Path(__file__).resolve().parent
 if str(_SERVER) not in sys.path:
     sys.path.insert(0, str(_SERVER))
 
+from db_config import database_url_effective  # noqa: E402
+
 
 def _fail_if_local_railway_internal() -> Optional[int]:
     """
     mysql.railway.internal 은 Railway 컨테이너 안에서만 이름이 풀립니다.
     로컬 PC에서 쓰면 getaddrinfo failed(11001) 가 납니다.
     """
-    raw = (os.environ.get("DATABASE_URL") or "").strip()
+    raw = database_url_effective()
     if not raw:
         return None
     norm = raw
@@ -78,22 +80,20 @@ def main() -> int:
     )
     args = ap.parse_args()
 
-    if not (os.environ.get("DATABASE_URL") or "").strip():
-        print("오류: DATABASE_URL 환경 변수를 설정하세요.", file=sys.stderr)
+    if not database_url_effective():
+        print("오류: DATABASE_URL 또는 MYSQL_URL 환경 변수를 설정하세요.", file=sys.stderr)
         return 1
 
     early = _fail_if_local_railway_internal()
     if early is not None:
         return early
 
-    from db_config import get_engine, init_db, normalize_database_url, require_database_url
+    from db_config import database_enabled, get_engine, init_db
     from db_models import Base
     from db_repo import migrate_from_data_dir
 
-    try:
-        normalize_database_url(require_database_url())
-    except ValueError as e:
-        print(f"오류: {e}", file=sys.stderr)
+    if not database_enabled():
+        print("오류: DATABASE_URL 형식을 확인하세요 (mysql://...)", file=sys.stderr)
         return 1
 
     data_dir = args.data_dir.resolve()

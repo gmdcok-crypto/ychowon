@@ -34,6 +34,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse, Response
 from pydantic import BaseModel
+from sqlalchemy.exc import OperationalError
 
 app = FastAPI(title="초원농원 예약 현황 API")
 
@@ -202,8 +203,20 @@ if database_enabled():
         migrate_from_data_dir(DATA_DIR)
     except SystemExit:
         raise
-    except BaseException:
-        print("--- DB 초기화 실패 (아래 스택을 Railway Deploy Logs 에서 확인하세요) ---", file=sys.stderr)
+    except OperationalError:
+        print(
+            "MySQL 연결 실패 (OperationalError). Deploy Logs 위쪽에 상세 원인이 있습니다.\n"
+            "· Variables: DATABASE_URL 또는 MYSQL_URL 이 이 프로젝트의 MySQL을 가리키는지\n"
+            "· (2003) 타임아웃이면 호스트/포트·방화벽·SSL 요구 여부를 확인하세요.",
+            file=sys.stderr,
+        )
+        traceback.print_exc()
+        raise
+    except Exception:
+        print(
+            "--- DB 초기화 실패 (Railway Deploy Logs 에서 아래 Traceback 확인) ---",
+            file=sys.stderr,
+        )
         traceback.print_exc()
         raise
 else:
