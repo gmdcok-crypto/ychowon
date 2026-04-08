@@ -17,7 +17,7 @@ import uuid
 from collections import defaultdict
 from pathlib import Path
 from datetime import datetime
-from typing import Optional
+from typing import Any, Optional
 
 from fastapi import (
     BackgroundTasks,
@@ -381,8 +381,9 @@ def _save_tel(data: dict) -> None:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
 
-def _active_display_slides(branch_id: str) -> list:
-    data = load_display_content(branch_id)
+def _active_display_slides(branch_id: str, data: Optional[dict[str, Any]] = None) -> list:
+    if data is None:
+        data = load_display_content(branch_id)
     try:
         default_dur = int(data.get("default_interval_sec") or 8)
     except (TypeError, ValueError):
@@ -408,6 +409,22 @@ def _active_display_slides(branch_id: str) -> list:
             dur_i = default_dur
         out.append({"type": "image", "url": url, "duration_sec": dur_i})
     return out
+
+
+def _display_content_push_payload(branch_id: str) -> dict[str, Any]:
+    """WS·푸시용: active_slides + items(클라이언트 폴백) + default_interval_sec."""
+    data = load_display_content(branch_id)
+    try:
+        di = int(data.get("default_interval_sec") or 8)
+    except (TypeError, ValueError):
+        di = 8
+    di = max(3, min(600, di))
+    return {
+        "type": "display_content",
+        "active_slides": _active_display_slides(branch_id, data),
+        "items": list(data.get("items") or []),
+        "default_interval_sec": di,
+    }
 
 
 def _get_tel_reservations(date_text: Optional[str] = None, branch_id: Optional[str] = None) -> list:
@@ -498,10 +515,7 @@ async def broadcast_reservations(branch_id: str) -> None:
 
 async def broadcast_display_content(branch_id: str) -> None:
     """현황판 하단 슬라이드 설정이 바뀌었을 때 해당 지점 WS 클라이언트에 푸시."""
-    payload = json.dumps(
-        {"type": "display_content", "active_slides": _active_display_slides(branch_id)},
-        ensure_ascii=False,
-    )
+    payload = json.dumps(_display_content_push_payload(branch_id), ensure_ascii=False)
     dead = set()
     for ws in list(ws_by_branch.get(branch_id, ())):
         try:
@@ -528,12 +542,7 @@ async def websocket_display(websocket: WebSocket, branch: str = Query(default="d
     ws_by_branch[bid].add(websocket)
     try:
         await websocket.send_text(json.dumps(_get_board_today_merged(bid), ensure_ascii=False))
-        await websocket.send_text(
-            json.dumps(
-                {"type": "display_content", "active_slides": _active_display_slides(bid)},
-                ensure_ascii=False,
-            )
-        )
+        await websocket.send_text(json.dumps(_display_content_push_payload(bid), ensure_ascii=False))
         while True:
             await websocket.receive_text()
     except WebSocketDisconnect:

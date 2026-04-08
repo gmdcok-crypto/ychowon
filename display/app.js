@@ -216,6 +216,30 @@
       }));
     }
 
+    /** active_slides 가 비어 있을 때 서버 items 로 복구 (DB·API 불일치 대비) */
+    function buildSlidesFromItems(items, defaultIntervalSec) {
+      var di = parseInt(defaultIntervalSec, 10);
+      if (isNaN(di)) di = 8;
+      di = Math.max(3, Math.min(600, di));
+      var out = [];
+      (items || []).forEach(function (it) {
+        var url = it && it.url != null ? String(it.url).trim() : '';
+        if (!url) return;
+        var t = (it.type || 'image').toLowerCase();
+        if (t === 'video') {
+          out.push({ type: 'video', url: url });
+        } else {
+          var durRaw = it.duration_sec;
+          var durI = di;
+          if (durRaw != null && durRaw !== '' && !isNaN(parseInt(durRaw, 10))) {
+            durI = Math.max(3, Math.min(600, parseInt(durRaw, 10)));
+          }
+          out.push({ type: 'image', url: url, duration_sec: durI });
+        }
+      });
+      return out;
+    }
+
     function clearRotation() {
       if (rotateTimer) {
         clearTimeout(rotateTimer);
@@ -310,6 +334,9 @@
 
     function applyPayload(data, force) {
       var act = data && Array.isArray(data.active_slides) ? data.active_slides : [];
+      if (!act.length && data && Array.isArray(data.items) && data.items.length) {
+        act = buildSlidesFromItems(data.items, data.default_interval_sec);
+      }
       var use = act.length ? act : FALLBACK;
       var key = slidesKey(use);
       if (!force && key === lastKey && mediaEl.children.length) return;

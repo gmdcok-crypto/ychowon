@@ -20,10 +20,13 @@ Cloudflare R2 (S3 호환 API) — 현황판 하단 광고 파일 업로드.
 
 from __future__ import annotations
 
+import logging
 import os
 import uuid
 from typing import Optional
 from urllib.parse import quote, unquote
+
+_logger = logging.getLogger(__name__)
 
 
 def account_id() -> str:
@@ -152,9 +155,12 @@ def upload_display_bytes(
     }
     if ct:
         kw["ContentType"] = ct
+    bkt = _bucket()
     _client().put_object(**kw)
     base = public_base_url()
-    return f"{base}/{key}"
+    public = f"{base}/{key}"
+    _logger.info("R2 put_object ok bucket=%s key=%s url=%s", bkt, key, public)
+    return public
 
 
 def is_r2_public_url(url: str) -> bool:
