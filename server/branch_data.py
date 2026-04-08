@@ -185,20 +185,49 @@ def deployment_default_branch_id() -> Optional[str]:
     return None
 
 
-def infer_branch_from_host(host: Optional[str]) -> Optional[str]:
-    """Railway 등 호스트명에 서비스명이 들어간 경우 (예: mchowon-production-....up.railway.app)."""
+def _strip_host_port(host: str) -> str:
     h = (host or "").strip().lower()
+    if not h:
+        return ""
+    if h.startswith("["):
+        return h.split("]", 1)[0] + "]" if "]" in h else h
     if ":" in h:
-        h = h.split(":")[0]
-    if "ychowon" in h:
+        return h.rsplit(":", 1)[0]
+    return h
+
+
+def _deployment_hint_blob(host: Optional[str]) -> str:
+    """Host + Railway 공개 도메인·서비스명 등에서 mchowon/ychowon 문자열 탐지."""
+    parts: list[str] = []
+    sh = _strip_host_port(host or "")
+    if sh:
+        parts.append(sh)
+    for key in ("RAILWAY_PUBLIC_DOMAIN", "RAILWAY_SERVICE_NAME", "RAILWAY_PROJECT_NAME"):
+        v = (os.environ.get(key) or "").strip()
+        if not v:
+            continue
+        v = v.lower()
+        if "://" in v:
+            v = v.split("://", 1)[-1]
+        v = v.split("/")[0]
+        if ":" in v and not v.startswith("["):
+            v = v.rsplit(":", 1)[0]
+        parts.append(v)
+    return " ".join(parts)
+
+
+def infer_branch_from_host(host: Optional[str]) -> Optional[str]:
+    """Host 헤더·Railway 환경 변수 문자열에 ychowon/mchowon 이 포함되면 해당 지점."""
+    t = _deployment_hint_blob(host)
+    if "ychowon" in t:
         return "ychowon"
-    if "mchowon" in h:
+    if "mchowon" in t:
         return "mchowon"
     return None
 
 
 def railway_service_branch_hint(ids: set[str]) -> Optional[str]:
-    """Railway 서비스 이름을 지점 코드와 동일하게 둔 경우 (예: RAILWAY_SERVICE_NAME=mchowon)."""
+    """Railway 서비스 이름이 branches 의 id 와 동일한 경우 (예: RAILWAY_SERVICE_NAME=mchowon)."""
     v = (os.environ.get("RAILWAY_SERVICE_NAME") or "").strip().lower()
     if v and v in ids:
         return v
@@ -207,22 +236,48 @@ def railway_service_branch_hint(ids: set[str]) -> Optional[str]:
 
 def resolve_effective_branch(branch: Optional[str], host: Optional[str]) -> str:
     """
-    클라이언트가 branch=default 로 보낼 때, DB에 literal default 지점이 없으면
-    이 배포의 DEFAULT_BRANCH_ID, Host 헤더, Railway 서비스명으로 실제 지점을 고릅니다.
-    (현황판·전화예약이 쿼리 없이 열릴 때 지점이 갈리도록)
+    클라이언트가 branch=default 로 보낼 때:
+    - DEFAULT_BRANCH_ID·Host·Railway 도메인/서비스명으로 특정 지점이 잡히면 그 지점을 씀
+      (DB에 default 행이 있어도, 같은 DB를 쓰는 두 Railway 배포를 나누기 위해)
+    - 그렇지 않으면 등록된 default 지점을 씀.
     """
     b = (branch or DEFAULT_BRANCH_ID).strip().lower() or DEFAULT_BRANCH_ID
     ids = branch_ids()
-    if b == DEFAULT_BRANCH_ID and DEFAULT_BRANCH_ID not in ids:
-        for candidate in (
-            deployment_default_branch_id(),
-            infer_branch_from_host(host),
-            railway_service_branch_hint(ids),
-        ):
-            if candidate and candidate in ids:
-                b = candidate
-                break
-    return normalize_branch_id(b)
+
+    if b != DEFAULT_BRANCH_ID:
+        return normalize_branch_id(b)
+
+    env_b = deployment_default_branch_id()
+    ordered: list[str] = []
+    if env_b and env_b in ids:
+        ordered.append(env_b)
+    h = infer_branch_from_host(host)
+    if h and h in ids:
+        ordered.append(h)
+    svc = railway_service_branch_hint(ids)
+    if svc and svc in ids:
+        ordered.append(svc)
+
+    seen: set[str] = set()
+    deduped: list[str] = []
+    for x in ordered:
+        if x not in seen:
+            seen.add(x)
+            deduped.append(x)
+
+    if DEFAULT_BRANCH_ID not in ids:
+        for c in deduped:
+            return normalize_branch_id(c)
+        raise HTTPException(
+            status_code=400,
+            detail="등록된 지점이 없거나 default 를 결정할 수 없습니다. branches·DEFAULT_BRANCH_ID 를 확인하세요.",
+        )
+
+    for c in deduped:
+        if c != DEFAULT_BRANCH_ID:
+            return normalize_branch_id(c)
+
+    return normalize_branch_id(DEFAULT_BRANCH_ID)
 
 
 def tel_branch_key(item: dict) -> str:

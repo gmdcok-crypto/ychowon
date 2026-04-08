@@ -10,7 +10,6 @@
 """
 import asyncio
 import json
-import os
 import socket
 import sys
 import traceback
@@ -1163,10 +1162,13 @@ def api_auth_accounts_revoke(account_id: str):
 
 
 @app.get("/api/branch-boot.js")
-def branch_boot_js():
-    """Railway 서비스별 DEFAULT_BRANCH_ID + 호스트명(mchowon/ychowon)으로 기본 지점 추론."""
-    bid = (os.environ.get("DEFAULT_BRANCH_ID") or "").strip().lower()
-    env_literal = json.dumps(bid) if bid else "null"
+def branch_boot_js(request: Request):
+    """API의 resolve_effective_branch 와 동일 규칙으로 기본 지점을 내려줌 (컨텐츠·현황과 정합)."""
+    try:
+        bid = resolve_effective_branch("default", request.headers.get("host"))
+        env_literal = json.dumps(bid)
+    except HTTPException:
+        env_literal = "null"
     body = (
         f"window.__RESERVE_DEFAULT_BRANCH__={env_literal};\n"
         "(function(g){"
