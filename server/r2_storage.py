@@ -160,6 +160,8 @@ def upload_display_bytes(
     base = public_base_url()
     public = f"{base}/{key}"
     _logger.info("R2 put_object ok bucket=%s key=%s url=%s", bkt, key, public)
+    # Railway 로그에는 print 가 항상 보이므로 중복 출력(디버깅용)
+    print(f"R2 put_object ok bucket={bkt} key={key} url={public}", flush=True)
     return public
 
 

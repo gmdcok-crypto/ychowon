@@ -429,7 +429,11 @@
         showToast('업로드 중…');
         uploadDisplayFile(f)
           .then(function (data) {
-            var u = (data && data.url) ? data.url : '';
+            var u = data && data.url != null ? String(data.url).trim() : '';
+            if (!u) {
+              showToast('업로드 응답에 URL이 없습니다. 서버(Railway) 로그에서 R2 오류를 확인하세요.');
+              return;
+            }
             var picked = displayNameFromUpload(data, f, u);
             var typeSel = document.getElementById('dc-add-type');
             if (typeSel) {
