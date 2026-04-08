@@ -1,6 +1,8 @@
 """
 Cloudflare R2 (S3 호환 API) — 현황판 하단 광고 파일 업로드.
 
+앱의 ``/api/display/upload`` 는 R2만 사용합니다 (로컬 display/uploads 폴백 없음).
+
 필수 환경 변수:
   R2_ACCOUNT_ID (또는 CLOUDFLARE_ACCOUNT_ID)
   R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY

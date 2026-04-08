@@ -82,11 +82,11 @@ def startup():
         from r2_storage import r2_enabled
 
         if r2_enabled():
-            print("  하단광고 파일: Cloudflare R2 (R2_PUBLIC_BASE_URL)")
+            print("  하단광고 업로드: Cloudflare R2 (필수)")
         else:
-            print("  하단광고 파일: 로컬 display/uploads")
+            print("  하단광고 업로드: R2 미설정 — /api/display/upload 는 503 (환경 변수 필요)")
     except Exception:
-        print("  하단광고 파일: 로컬 display/uploads")
+        print("  하단광고 업로드: R2 설정 확인 불가 — 업로드 API 사용 불가")
     print("")
 
 
@@ -904,7 +904,19 @@ def _cleanup_removed_display_uploads(old_items: list, new_urls: set) -> None:
 
 @app.post("/api/display/upload")
 async def api_upload_display_asset(file: UploadFile = File(...)):
-    """현황판 하단용 이미지·동영상을 R2 또는 display/uploads 에 저장하고 URL을 반환합니다."""
+    """현황판 하단용 이미지·동영상은 Cloudflare R2에만 저장합니다 (로컬 폴백 없음)."""
+    from r2_storage import r2_enabled, upload_display_bytes
+
+    if not r2_enabled():
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "하단광고 파일은 R2에만 저장됩니다. "
+                "R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, "
+                "R2_BUCKET_NAME, R2_PUBLIC_BASE_URL 을 설정하세요."
+            ),
+        )
+
     raw_name = (file.filename or "file").replace("\\", "/").split("/")[-1]
     suffix = Path(raw_name).suffix.lower()
     if suffix not in _DISPLAY_UPLOAD_EXTS:
@@ -917,38 +929,13 @@ async def api_upload_display_asset(file: UploadFile = File(...)):
         raise HTTPException(status_code=400, detail="파일 크기는 50MB 이하만 가능합니다.")
 
     try:
-        from r2_storage import r2_enabled, upload_display_bytes
-
-        if r2_enabled():
-            try:
-                public_url = upload_display_bytes(body, suffix, raw_name)
-            except Exception as e:
-                raise HTTPException(
-                    status_code=500,
-                    detail="R2 업로드 실패: " + str(e),
-                ) from e
-            return {"url": public_url, "original_name": raw_name}
-    except HTTPException:
-        raise
-    except Exception:
-        pass
-
-    if not DISPLAY_DIR.exists():
-        raise HTTPException(status_code=500, detail="display 폴더를 찾을 수 없습니다.")
-    upload_dir = DISPLAY_DIR / "uploads"
-    upload_dir.mkdir(parents=True, exist_ok=True)
-    safe_name = f"{uuid.uuid4().hex}{suffix}"
-    dest = upload_dir / safe_name
-    dest.write_bytes(body)
-    meta_path = upload_dir / f"{safe_name}.meta.json"
-    try:
-        meta_path.write_text(
-            json.dumps({"original_name": raw_name}, ensure_ascii=False),
-            encoding="utf-8",
-        )
-    except OSError:
-        pass
-    return {"url": f"/display/uploads/{safe_name}", "original_name": raw_name}
+        public_url = upload_display_bytes(body, suffix, raw_name)
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail="R2 업로드 실패: " + str(e),
+        ) from e
+    return {"url": public_url, "original_name": raw_name}
 
 
 @app.patch("/api/tel/reservations/{reservation_id}")
