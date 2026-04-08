@@ -7,8 +7,10 @@ Cloudflare R2 (S3 호환 API) — 현황판 하단 광고 파일 업로드.
   R2_ACCOUNT_ID (또는 CLOUDFLARE_ACCOUNT_ID)
   R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY
   R2_BUCKET_NAME
-  R2_PUBLIC_BASE_URL  — 퍼블릭 접근 URL 접두사 (끝 슬래시 없음)
-                         예: https://pub-xxxx.r2.dev 또는 커스텀 도메인
+  R2_PUBLIC_BASE_URL  — 브라우저가 파일을 불러올 **퍼블릭 URL** (끝 / 없음)
+                         예: https://pub-xxxx.r2.dev (버킷 → Public access)
+                         **금지:** …r2.cloudflarestorage.com 은 S3 API 주소이며 여기 넣으면 안 됨
+                         (API 주소는 R2_S3_ENDPOINT 또는 R2_ACCOUNT_ID 로만 사용)
 
 선택:
   R2_KEY_PREFIX  — 객체 키 접두사 (기본 display-uploads)
@@ -37,11 +39,19 @@ def public_base_url() -> str:
     return (os.environ.get("R2_PUBLIC_BASE_URL") or "").strip().rstrip("/")
 
 
+def _public_url_is_s3_api_host(url: str) -> bool:
+    """퍼블릭 URL 자리에 S3 API 엔드포인트를 넣은 경우(흔한 설정 오류)."""
+    return "r2.cloudflarestorage.com" in (url or "").strip().lower()
+
+
 def r2_enabled() -> bool:
     key = (os.environ.get("R2_ACCESS_KEY_ID") or "").strip()
     sec = (os.environ.get("R2_SECRET_ACCESS_KEY") or "").strip()
     bucket = (os.environ.get("R2_BUCKET_NAME") or "").strip()
-    if not (key and sec and bucket and public_base_url()):
+    pub = public_base_url()
+    if not (key and sec and bucket and pub):
+        return False
+    if _public_url_is_s3_api_host(pub):
         return False
     return bool(s3_endpoint_url())
 
@@ -62,9 +72,15 @@ def r2_missing_env_hints() -> list[str]:
         missing.append("R2_SECRET_ACCESS_KEY")
     if not (os.environ.get("R2_BUCKET_NAME") or "").strip():
         missing.append("R2_BUCKET_NAME")
-    if not public_base_url():
+    pub_raw = (os.environ.get("R2_PUBLIC_BASE_URL") or "").strip()
+    if pub_raw and _public_url_is_s3_api_host(pub_raw):
         missing.append(
-            "R2_PUBLIC_BASE_URL (R2 버킷 퍼블릭 URL 접두사, https://… , 끝 / 없음)"
+            "R2_PUBLIC_BASE_URL이 S3 API 주소입니다 → R2 버킷 Public access의 "
+            "https://pub-….r2.dev 로 바꾸세요(API 주소는 R2_S3_ENDPOINT에만)"
+        )
+    elif not public_base_url():
+        missing.append(
+            "R2_PUBLIC_BASE_URL (R2 버킷 퍼블릭 URL, https://pub-….r2.dev , 끝 / 없음)"
         )
     return missing
 
