@@ -1,5 +1,5 @@
 /**
- * 현황판(display) 하단 광고 — 추가 패널 + 목록 표만 사용
+ * 현황판(display) 하단 광고 — 목록 표·기본 간격만 (항목 추가 패널 없음)
  */
 (function () {
   'use strict';
@@ -41,14 +41,10 @@
   function contentApiUrl() {
     return apiUrlWithBranch('/api/display/content');
   }
-  function uploadApiUrl() {
-    return apiUrlWithBranch('/api/display/upload');
-  }
-  var addPanelEl = document.getElementById('dc-add-panel');
+
   var defaultIntervalEl = document.getElementById('dc-default-interval');
   var toastEl = document.getElementById('dc-toast');
   var items = [];
-  var addPanelBound = false;
 
   function getDefaultSec() {
     var di = defaultIntervalEl ? parseInt(defaultIntervalEl.value, 10) : 8;
@@ -78,11 +74,6 @@
     return urlToLabel(it.url);
   }
 
-  function looksLikeUrl(v) {
-    var s = String(v || '').trim();
-    return s.indexOf('http://') === 0 || s.indexOf('https://') === 0 || s.indexOf('/') === 0;
-  }
-
   function formatDisplayTime(it) {
     if (it.type === 'video') return '재생 끝까지';
     var d = it.duration_sec;
@@ -93,43 +84,6 @@
     return '기본(' + def + '초)';
   }
 
-  function uploadDisplayFile(file) {
-    var fd = new FormData();
-    fd.append('file', file);
-    return fetch(uploadApiUrl(), { method: 'POST', credentials: 'same-origin', body: fd }).then(function (r) {
-      if (!r.ok) {
-        return r.json().then(function (j) {
-          var d = j && j.detail;
-          throw new Error(typeof d === 'string' ? d : (d ? JSON.stringify(d) : '업로드 실패'));
-        });
-      }
-      return r.json();
-    });
-  }
-
-  function guessTypeFromFile(f) {
-    var mt = (f && f.type) ? String(f.type) : '';
-    if (mt.indexOf('video') === 0) return 'video';
-    if (mt.indexOf('image') === 0) return 'image';
-    var ext = ((f && f.name) ? f.name : '').split('.').pop().toLowerCase();
-    if ({ mp4: 1, webm: 1, mov: 1, m4v: 1 }[ext]) return 'video';
-    return 'image';
-  }
-
-  function displayNameFromUpload(data, f, url) {
-    var fromServer = data && data.original_name != null ? String(data.original_name).trim() : '';
-    if (fromServer) return fromServer;
-    if (f && f.name) return String(f.name).trim();
-    try {
-      var parts = String(url || '').split('/').filter(function (x) {
-        return x.length;
-      });
-      return parts.length ? parts[parts.length - 1] : '';
-    } catch (e) {
-      return '';
-    }
-  }
-
   function showToast(msg) {
     if (!toastEl) return;
     toastEl.textContent = msg;
@@ -138,75 +92,6 @@
     toastEl._t = setTimeout(function () {
       toastEl.classList.remove('show');
     }, 2500);
-  }
-
-  function updateAddPanelDurationVisibility() {
-    var typeEl = document.getElementById('dc-add-type');
-    var lab = document.querySelector('.dc-add-duration-label');
-    var inp = document.getElementById('dc-add-duration');
-    if (!typeEl || !inp) return;
-    var hide = typeEl.value === 'video';
-    if (lab) lab.hidden = hide;
-    inp.hidden = hide;
-  }
-
-  function resetAddPanel() {
-    var nameEl = document.getElementById('dc-add-name');
-    var realEl = document.getElementById('dc-add-url-real');
-    var urlEl = document.getElementById('dc-add-url');
-    var typeEl = document.getElementById('dc-add-type');
-    var durEl = document.getElementById('dc-add-duration');
-    var fileEl = document.getElementById('dc-add-file');
-    if (nameEl) nameEl.value = '';
-    if (realEl) realEl.value = '';
-    if (urlEl) urlEl.value = '';
-    if (typeEl) typeEl.value = 'image';
-    if (durEl) durEl.value = '';
-    if (fileEl) fileEl.value = '';
-    updateAddPanelDurationVisibility();
-  }
-
-  function readAddPanel() {
-    var typeEl = document.getElementById('dc-add-type');
-    var urlEl = document.getElementById('dc-add-url');
-    var realEl = document.getElementById('dc-add-url-real');
-    var nameEl = document.getElementById('dc-add-name');
-    var durEl = document.getElementById('dc-add-duration');
-    var visRaw = urlEl && urlEl.value ? urlEl.value.trim() : '';
-    var urlVal = '';
-    if (realEl && realEl.value.trim()) {
-      urlVal = realEl.value.trim();
-    } else if (visRaw && looksLikeUrl(visRaw)) {
-      urlVal = visRaw;
-    }
-    var nameVal = '';
-    if (urlVal && visRaw && !looksLikeUrl(visRaw)) {
-      nameVal = visRaw;
-    } else if (nameEl && nameEl.value.trim()) {
-      nameVal = nameEl.value.trim();
-    }
-    var isVid = typeEl && typeEl.value === 'video';
-    var durRaw = durEl && durEl.value ? durEl.value.trim() : '';
-    var dur = durRaw === '' ? null : parseInt(durRaw, 10);
-    if (dur !== null && (isNaN(dur) || dur < 3 || dur > 600)) dur = null;
-    return {
-      id: '',
-      type: isVid ? 'video' : 'image',
-      url: urlVal,
-      name: nameVal,
-      duration_sec: isVid ? null : dur
-    };
-  }
-
-  function showAddPanel() {
-    if (!addPanelEl) return;
-    addPanelEl.hidden = false;
-    resetAddPanel();
-  }
-
-  function hideAddPanel() {
-    if (!addPanelEl) return;
-    addPanelEl.hidden = true;
   }
 
   function renderSummary() {
@@ -344,15 +229,13 @@
         var raw = Array.isArray(data.items) ? data.items : [];
         items = raw.map(function (x) {
           var isVid = x.type === 'video';
-          var o = {
+          return {
             id: x.id || '',
             type: isVid ? 'video' : 'image',
             url: x.url || '',
             name: x.name != null ? String(x.name) : '',
             duration_sec: isVid ? null : (x.duration_sec != null ? x.duration_sec : null)
           };
-          if (options.hideUrlInForm && o.url) o._hideUrlInForm = true;
-          return o;
         });
         if (defaultIntervalEl) {
           var di = parseInt(data.default_interval_sec, 10);
@@ -366,151 +249,6 @@
         showToast('목록을 불러오지 못했습니다.');
       });
   }
-
-  function commitAddPanelFromUrl() {
-    var it = readAddPanel();
-    if (!String(it.url || '').trim()) {
-      showToast('URL을 입력하거나 파일을 선택하세요.');
-      return;
-    }
-    items.push(it);
-    resetAddPanel();
-    saveQuiet();
-  }
-
-  function bindAddPanel() {
-    if (addPanelBound) return;
-    addPanelBound = true;
-    var typeEl = document.getElementById('dc-add-type');
-    if (typeEl) {
-      typeEl.addEventListener('change', updateAddPanelDurationVisibility);
-    }
-    var urlEl = document.getElementById('dc-add-url');
-    var realEl = document.getElementById('dc-add-url-real');
-    var nameEl = document.getElementById('dc-add-name');
-    if (urlEl) {
-      urlEl.addEventListener('keydown', function (e) {
-        if (e.key === 'Enter') {
-          e.preventDefault();
-          commitAddPanelFromUrl();
-        }
-      });
-      urlEl.addEventListener('input', function () {
-        var v = urlEl.value.trim();
-        if (realEl && realEl.value.trim() && v && !looksLikeUrl(v) && nameEl) {
-          nameEl.value = v;
-        }
-      });
-      urlEl.addEventListener('blur', function () {
-        var v = urlEl.value.trim();
-        if (!v) {
-          if (realEl && realEl.value.trim()) return;
-          if (realEl) realEl.value = '';
-          if (nameEl) nameEl.value = '';
-          return;
-        }
-        if (looksLikeUrl(v)) {
-          if (realEl) realEl.value = v;
-          if (nameEl) nameEl.value = '';
-          return;
-        }
-        if (realEl && realEl.value.trim() && nameEl) {
-          nameEl.value = v;
-        }
-      });
-    }
-    var fileEl = document.getElementById('dc-add-file');
-    if (fileEl) {
-      fileEl.addEventListener('change', function () {
-        var f = fileEl.files && fileEl.files[0];
-        fileEl.value = '';
-        if (!f) return;
-        showToast('업로드 중…');
-        uploadDisplayFile(f)
-          .then(function (data) {
-            var u = data && data.url != null ? String(data.url).trim() : '';
-            if (!u) {
-              showToast('업로드 응답에 URL이 없습니다. 서버(Railway) 로그에서 R2 오류를 확인하세요.');
-              return;
-            }
-            var picked = displayNameFromUpload(data, f, u);
-            var typeSel = document.getElementById('dc-add-type');
-            if (typeSel) {
-              typeSel.value = guessTypeFromFile(f);
-              updateAddPanelDurationVisibility();
-            }
-            var durEl = document.getElementById('dc-add-duration');
-            var durRaw = durEl && durEl.value ? durEl.value.trim() : '';
-            var dur = durRaw === '' ? null : parseInt(durRaw, 10);
-            if (dur !== null && (isNaN(dur) || dur < 3 || dur > 600)) dur = null;
-            var isVid = typeSel && typeSel.value === 'video';
-            var newItem = {
-              id: '',
-              type: isVid ? 'video' : 'image',
-              url: u,
-              name: picked || '',
-              duration_sec: isVid ? null : dur
-            };
-            items.push(newItem);
-            resetAddPanel();
-            return saveQuiet();
-          })
-          .catch(function (err) {
-            showToast(err.message || '업로드에 실패했습니다.');
-          });
-      });
-    }
-    var closeBtn = document.getElementById('dc-add-close');
-    if (closeBtn) {
-      closeBtn.addEventListener('click', function () {
-        hideAddPanel();
-      });
-    }
-  }
-
-  function saveQuiet() {
-    var di = defaultIntervalEl ? parseInt(defaultIntervalEl.value, 10) : 8;
-    if (isNaN(di)) di = 8;
-    return fetch(contentApiUrl(), {
-      method: 'POST',
-      credentials: 'same-origin',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        items: items.map(function (it) {
-          return {
-            type: it.type,
-            url: it.url,
-            name: it.name != null && it.name !== undefined ? String(it.name) : '',
-            duration_sec: it.duration_sec === undefined ? null : it.duration_sec
-          };
-        }),
-        default_interval_sec: di
-      })
-    })
-      .then(function (r) {
-        if (!r.ok) return r.json().then(function (j) {
-          throw new Error((j && j.detail) ? (typeof j.detail === 'string' ? j.detail : JSON.stringify(j.detail)) : '저장 실패');
-        });
-        return r.json();
-      })
-      .then(function () {
-        showToast('목록·현황판에 반영했습니다.');
-        return load({ hideUrlInForm: true });
-      })
-      .catch(function (err) {
-        items.pop();
-        showToast(err.message || '저장에 실패했습니다.');
-      });
-  }
-
-  var addBtn = document.getElementById('dc-add');
-  if (addBtn) {
-    addBtn.addEventListener('click', function () {
-      showAddPanel();
-    });
-  }
-
-  bindAddPanel();
 
   var summaryWrap = document.getElementById('dc-summary-wrap');
   if (summaryWrap) {

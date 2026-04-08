@@ -28,12 +28,6 @@
     return typeof reserveInferDefaultBranch === 'function' ? reserveInferDefaultBranch() : 'default';
   }
 
-  function setBranch(id) {
-    try {
-      localStorage.setItem(BRANCH_KEY, id || 'default');
-    } catch (e) {}
-  }
-
   function branchQuery() {
     return 'branch=' + encodeURIComponent(getBranch());
   }
@@ -705,120 +699,15 @@
     });
   })();
 
-  function initBranchUi() {
-    var sel = document.getElementById('admin-branch-select');
-    if (!sel) {
-      load();
-      connectWs();
-      return;
-    }
-    fetch('/api/branches', { credentials: 'same-origin' })
-      .then(function (r) {
-        return r.json();
-      })
-      .then(function (data) {
-        var rows = data && data.branches ? data.branches : [];
-        sel.innerHTML = '';
-        var current = getBranch();
-        var found = false;
-        rows.forEach(function (b) {
-          var opt = document.createElement('option');
-          opt.value = b.id;
-          opt.textContent = b.name || b.id;
-          if (b.id === current) found = true;
-          sel.appendChild(opt);
-        });
-        if (!rows.length) {
-          var o = document.createElement('option');
-          o.value = 'default';
-          o.textContent = '본점';
-          sel.appendChild(o);
-          setBranch('default');
-          sel.value = 'default';
-        } else {
-          if (!found) {
-            setBranch(rows[0].id);
-          }
-          sel.value = getBranch();
-        }
-        syncAdminIframes();
-        sel.addEventListener('change', function () {
-          setBranch(sel.value);
-          syncAdminIframes();
-          load();
-          connectWs();
-        });
-        load();
-        connectWs();
-      })
-      .catch(function () {
-        load();
-        connectWs();
-      });
-  }
-
-  function wireBranchAdd() {
-    var btn = document.getElementById('new-branch-btn');
-    var idEl = document.getElementById('new-branch-id');
-    var nameEl = document.getElementById('new-branch-name');
-    if (!btn || !idEl || !nameEl) return;
-    btn.addEventListener('click', function () {
-      var id = (idEl.value || '').trim().toLowerCase();
-      var nm = (nameEl.value || '').trim();
-      if (!id) {
-        showToast('지점 코드를 입력하세요.');
-        return;
-      }
-      fetch('/api/branches', {
-        method: 'POST',
-        credentials: 'same-origin',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: id, name: nm || id })
-      })
-        .then(function (r) {
-          return r.json().then(function (j) {
-            return { ok: r.ok, data: j };
-          });
-        })
-        .then(function (res) {
-          if (!res.ok) {
-            var d = res.data && res.data.detail;
-            throw new Error(typeof d === 'string' ? d : '추가 실패');
-          }
-          showToast('지점을 추가했습니다.');
-          idEl.value = '';
-          nameEl.value = '';
-          setBranch(id);
-          return fetch('/api/branches', { credentials: 'same-origin' }).then(function (r) {
-            return r.json();
-          });
-        })
-        .then(function (data) {
-          var sel = document.getElementById('admin-branch-select');
-          if (!sel || !data || !data.branches) return;
-          var rows = data.branches;
-          sel.innerHTML = '';
-          rows.forEach(function (b) {
-            var opt = document.createElement('option');
-            opt.value = b.id;
-            opt.textContent = b.name || b.id;
-            sel.appendChild(opt);
-          });
-          sel.value = getBranch();
-          syncAdminIframes();
-          load();
-          connectWs();
-        })
-        .catch(function (e) {
-          showToast(e.message || '추가에 실패했습니다.');
-        });
-    });
+  function initApp() {
+    syncAdminIframes();
+    load();
+    connectWs();
   }
 
   setupStaffTimeDialog();
   setupStaffRoomDialog();
-  wireBranchAdd();
-  initBranchUi();
+  initApp();
 
   /* 자정 이후에도 WebSocket이 어제 목록을 유지하는 문제: 주기·탭 복귀 시 서버와 동기화 */
   setInterval(function () {

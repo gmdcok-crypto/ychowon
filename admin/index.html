@@ -9,24 +9,12 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="admin.css?v=10" />
+  <link rel="stylesheet" href="admin.css?v=11" />
 </head>
 <body>
   <div class="admin admin-with-tabs">
     <header class="admin-header">
       <h1>국제식품 초원농원</h1>
-      <div class="admin-branch-wrap">
-        <label for="admin-branch-select">지점</label>
-        <select id="admin-branch-select" class="admin-branch-select" aria-label="지점"></select>
-        <details class="admin-branch-add">
-          <summary>지점 추가</summary>
-          <div class="admin-branch-add-fields">
-            <input type="text" id="new-branch-id" class="admin-branch-input" placeholder="코드(영문 소문자)" maxlength="32" autocomplete="off" />
-            <input type="text" id="new-branch-name" class="admin-branch-input" placeholder="표시 이름" maxlength="80" autocomplete="off" />
-            <button type="button" class="btn btn-add" id="new-branch-btn">추가</button>
-          </div>
-        </details>
-      </div>
     </header>
 
     <div class="admin-tab-bar" role="tablist" aria-label="예약 종류">
@@ -113,7 +101,7 @@
 
     <div class="admin-tab-panel admin-tab-panel-all hidden" id="panel-all" role="tabpanel" aria-labelledby="tab-btn-all">
       <div class="admin-tel-frame admin-all-frame">
-        <iframe id="iframe-all-admin" class="admin-tel-iframe" title="예약조회" src="/admin/all.html?embed=1&amp;branch=default"></iframe>
+        <iframe id="iframe-all-admin" class="admin-tel-iframe" title="예약조회" src="/admin/all.html?embed=1"></iframe>
       </div>
     </div>
 
@@ -218,7 +206,7 @@
   </div>
 
   <script src="/api/branch-boot.js"></script>
-  <script src="admin.js?v=10"></script>
+  <script src="admin.js?v=11"></script>
   <script src="accounts.js"></script>
 </body>
 </html>

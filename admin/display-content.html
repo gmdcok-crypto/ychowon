@@ -32,38 +32,6 @@
         <label for="dc-default-interval">이미지 기본 표시 시간(초)</label>
         <input type="number" id="dc-default-interval" min="3" max="600" value="8" />
       </div>
-      <div class="dc-toolbar">
-        <button type="button" class="btn btn-add" id="dc-add">항목 추가</button>
-      </div>
-
-      <div id="dc-add-panel" class="dc-add-panel" hidden>
-        <div class="dc-add-panel-head">
-          <h2 class="dc-add-panel-title">컨텐츠 추가</h2>
-          <button type="button" class="btn btn-cancel dc-add-close" id="dc-add-close" title="닫기" aria-label="닫기">닫기</button>
-        </div>
-        <p class="dc-add-panel-hint">파일을 선택하면 목록과 현황판에 바로 반영됩니다. URL만 쓸 때는 입력 후 <kbd>Enter</kbd> 키를 누르세요.</p>
-        <input type="hidden" id="dc-add-name" value="" />
-        <input type="hidden" id="dc-add-url-real" value="" />
-        <div class="dc-row-grid dc-add-grid">
-          <span class="dc-label">종류</span>
-          <select id="dc-add-type" class="dc-type">
-            <option value="image" selected>이미지</option>
-            <option value="video">동영상</option>
-          </select>
-          <span class="dc-label">URL</span>
-          <div class="dc-url-row">
-            <input type="text" id="dc-add-url" class="dc-url" placeholder="파일 선택 또는 http(s):// …" autocomplete="off" spellcheck="false" />
-            <input type="file" id="dc-add-file" class="dc-file" accept="image/*,video/*,.mp4,.webm,.mov,.m4v" tabindex="-1" />
-            <label for="dc-add-file" class="btn dc-file-btn" title="PC에서 파일 선택·업로드" aria-label="파일 선택">
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
-              </svg>
-            </label>
-          </div>
-          <span class="dc-label dc-add-duration-label">표시 시간(초)</span>
-          <input type="number" id="dc-add-duration" class="dc-duration" min="3" max="600" placeholder="비우면 기본값" />
-        </div>
-      </div>
 
     </section>
 
@@ -92,6 +60,6 @@
     <div id="dc-toast" class="toast" aria-live="polite"></div>
   </div>
   <script src="/api/branch-boot.js"></script>
-  <script src="display-content.js"></script>
+  <script src="display-content.js?v=2"></script>
 </body>
 </html>
