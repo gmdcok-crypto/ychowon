@@ -12,6 +12,8 @@ Cloudflare R2 (S3 호환 API) — 현황판 하단 광고 파일 업로드.
 
 선택:
   R2_KEY_PREFIX  — 객체 키 접두사 (기본 display-uploads)
+  R2_S3_ENDPOINT (또는 R2_ENDPOINT_URL) — S3 API 전체 URL (EU 등). 비우면 자동.
+  R2_JURISDICTION=eu — EU 버킷이면 엔드포인트를 *.eu.r2.cloudflarestorage.com 으로 맞춤
 
 버킷·퍼블릭 URL은 Cloudflare 대시보드 R2에서 설정합니다.
 """
@@ -36,14 +38,21 @@ def r2_enabled() -> bool:
     key = (os.environ.get("R2_ACCESS_KEY_ID") or "").strip()
     sec = (os.environ.get("R2_SECRET_ACCESS_KEY") or "").strip()
     bucket = (os.environ.get("R2_BUCKET_NAME") or "").strip()
-    return bool(account_id() and key and sec and bucket and public_base_url())
+    if not (key and sec and bucket and public_base_url()):
+        return False
+    return bool(s3_endpoint_url())
 
 
 def r2_missing_env_hints() -> list[str]:
     """업로드 불가 시 어떤 변수가 비었는지 짧게 나열 (관리자 안내용)."""
     missing: list[str] = []
-    if not account_id():
-        missing.append("R2_ACCOUNT_ID(또는 CLOUDFLARE_ACCOUNT_ID)")
+    explicit_ep = (
+        os.environ.get("R2_S3_ENDPOINT") or os.environ.get("R2_ENDPOINT_URL") or ""
+    ).strip()
+    if not account_id() and not explicit_ep:
+        missing.append(
+            "R2_ACCOUNT_ID(또는 CLOUDFLARE_ACCOUNT_ID) 또는 R2_S3_ENDPOINT(전체 URL)"
+        )
     if not (os.environ.get("R2_ACCESS_KEY_ID") or "").strip():
         missing.append("R2_ACCESS_KEY_ID")
     if not (os.environ.get("R2_SECRET_ACCESS_KEY") or "").strip():
@@ -74,14 +83,33 @@ def key_prefix() -> str:
     return p or "display-uploads"
 
 
+def s3_endpoint_url() -> str:
+    """R2 S3 호환 API URL. EU·커스텀 엔드포인트는 환경 변수로 지정."""
+    explicit = (
+        os.environ.get("R2_S3_ENDPOINT") or os.environ.get("R2_ENDPOINT_URL") or ""
+    ).strip()
+    if explicit:
+        return explicit.rstrip("/")
+    aid = account_id()
+    if not aid:
+        return ""
+    jur = (os.environ.get("R2_JURISDICTION") or "").strip().lower()
+    if jur in ("eu", "europe", "weur"):
+        return f"https://{aid}.eu.r2.cloudflarestorage.com"
+    return f"https://{aid}.r2.cloudflarestorage.com"
+
+
 def _client():
     import boto3
     from botocore.config import Config
 
-    aid = account_id()
+    endpoint = s3_endpoint_url()
+    if not endpoint:
+        raise RuntimeError("R2_ACCOUNT_ID 또는 R2_S3_ENDPOINT 가 필요합니다.")
+
     return boto3.client(
         "s3",
-        endpoint_url=f"https://{aid}.r2.cloudflarestorage.com",
+        endpoint_url=endpoint,
         aws_access_key_id=os.environ["R2_ACCESS_KEY_ID"].strip(),
         aws_secret_access_key=os.environ["R2_SECRET_ACCESS_KEY"].strip(),
         region_name="auto",
