@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import secrets
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any, Optional
 
@@ -16,18 +16,26 @@ from db_models import (
     AccountRow,
     AppKvRow,
     BranchRow,
-    DisplayContentRow,
+    DisplayItemRow,
+    DisplaySettingsRow,
     RoomsConfigRow,
-    StaffTodayRow,
-    TelStoreRow,
+    StaffReservationRow,
+    TelReservationRow,
 )
 
-TEL_STORE_ID = 1
 JWT_KV_KEY = "jwt_secret"
+_DEFAULT_BRANCH = "default"
 
 
 def _today_str() -> str:
     return datetime.now().strftime("%Y-%m-%d")
+
+
+def _parse_ymd(s: str) -> date:
+    try:
+        return datetime.strptime((s or "")[:10], "%Y-%m-%d").date()
+    except ValueError:
+        return date.today()
 
 
 def _session() -> Session:
@@ -114,58 +122,187 @@ def replace_branches(rows: list[dict[str, Any]]) -> None:
 
 def load_branch_today(branch_id: str) -> dict[str, Any]:
     with _session() as s:
-        row = s.get(StaffTodayRow, branch_id)
-        if not row:
+        q = (
+            select(StaffReservationRow)
+            .where(StaffReservationRow.branch_id == branch_id)
+            .order_by(StaffReservationRow.sort_order, StaffReservationRow.id)
+        )
+        rows = s.execute(q).scalars().all()
+        if not rows:
             return {"date": _today_str(), "reservations": []}
-        try:
-            d = json.loads(row.payload_json)
-            return d if isinstance(d, dict) else {"date": _today_str(), "reservations": []}
-        except json.JSONDecodeError:
-            return {"date": _today_str(), "reservations": []}
+        d0 = rows[0].date
+        date_str = d0.isoformat() if isinstance(d0, date) else str(d0)
+        reservations = []
+        for r in rows:
+            reservations.append(
+                {
+                    "id": r.id,
+                    "time": r.time,
+                    "name": r.name,
+                    "room": r.room,
+                }
+            )
+        return {"date": date_str, "reservations": reservations}
 
 
 def save_branch_today(branch_id: str, data: dict[str, Any]) -> None:
-    payload = json.dumps(data, ensure_ascii=False)
+    date_str = str(data.get("date") or _today_str())[:10]
+    d = _parse_ymd(date_str)
+    reservations = data.get("reservations") or []
+    if not isinstance(reservations, list):
+        reservations = []
     with _session() as s:
-        s.merge(StaffTodayRow(branch_id=branch_id, payload_json=payload))
+        s.execute(delete(StaffReservationRow).where(StaffReservationRow.branch_id == branch_id))
+        for i, r in enumerate(reservations):
+            if not isinstance(r, dict):
+                continue
+            s.add(
+                StaffReservationRow(
+                    branch_id=branch_id,
+                    date=d,
+                    time=str(r.get("time") or ""),
+                    name=str(r.get("name") or ""),
+                    room=str(r.get("room") or ""),
+                    sort_order=i,
+                )
+            )
         s.commit()
 
 
 def load_display_content(branch_id: str) -> dict[str, Any]:
     with _session() as s:
-        row = s.get(DisplayContentRow, branch_id)
-        if not row:
+        st = s.get(DisplaySettingsRow, branch_id)
+        default_interval = int(st.default_interval_sec) if st else 8
+        rows = (
+            s.execute(
+                select(DisplayItemRow)
+                .where(DisplayItemRow.branch_id == branch_id)
+                .order_by(DisplayItemRow.sort_order, DisplayItemRow.id)
+            )
+            .scalars()
+            .all()
+        )
+        if not rows and not st:
             return {"items": [], "default_interval_sec": 8}
-        try:
-            d = json.loads(row.payload_json)
-            return d if isinstance(d, dict) else {"items": [], "default_interval_sec": 8}
-        except json.JSONDecodeError:
-            return {"items": [], "default_interval_sec": 8}
+        items: list[dict[str, Any]] = []
+        for r in rows:
+            it: dict[str, Any] = {
+                "id": str(r.id),
+                "type": r.type or "image",
+                "url": r.url or "",
+                "order": r.sort_order,
+            }
+            if (r.name or "").strip():
+                it["name"] = r.name
+            if r.duration_sec is not None:
+                it["duration_sec"] = r.duration_sec
+            items.append(it)
+        return {"items": items, "default_interval_sec": default_interval}
 
 
 def save_display_content(branch_id: str, data: dict[str, Any]) -> None:
-    payload = json.dumps(data, ensure_ascii=False)
+    items = data.get("items") or []
+    if not isinstance(items, list):
+        items = []
+    try:
+        di = int(data.get("default_interval_sec") or 8)
+    except (TypeError, ValueError):
+        di = 8
     with _session() as s:
-        s.merge(DisplayContentRow(branch_id=branch_id, payload_json=payload))
+        s.merge(DisplaySettingsRow(branch_id=branch_id, default_interval_sec=di))
+        s.execute(delete(DisplayItemRow).where(DisplayItemRow.branch_id == branch_id))
+        for i, it in enumerate(items):
+            if not isinstance(it, dict):
+                continue
+            url = str(it.get("url") or "")
+            t = str(it.get("type") or "image").lower()
+            if t not in ("video", "image"):
+                t = "image"
+            nm = str(it.get("name") or "")[:255]
+            dur_raw = it.get("duration_sec")
+            dur: Optional[int] = None
+            if dur_raw is not None and str(dur_raw).strip() != "":
+                try:
+                    dur = int(dur_raw)
+                except (TypeError, ValueError):
+                    dur = None
+            s.add(
+                DisplayItemRow(
+                    branch_id=branch_id,
+                    sort_order=int(it.get("order") or i),
+                    type=t,
+                    url=url,
+                    name=nm,
+                    duration_sec=dur,
+                )
+            )
         s.commit()
 
 
 def load_tel_store() -> dict[str, Any]:
     with _session() as s:
-        row = s.get(TelStoreRow, TEL_STORE_ID)
-        if not row:
-            return {"reservations": []}
-        try:
-            d = json.loads(row.payload_json)
-            return d if isinstance(d, dict) else {"reservations": []}
-        except json.JSONDecodeError:
-            return {"reservations": []}
+        rows = s.execute(select(TelReservationRow).order_by(TelReservationRow.id)).scalars().all()
+        out: list[dict[str, Any]] = []
+        for r in rows:
+            item: dict[str, Any] = {
+                "id": r.id,
+                "branch_id": r.branch_id,
+                "date": r.date,
+                "time": r.time,
+                "slot": r.slot,
+                "phone": r.phone,
+                "name": r.name,
+                "count": r.count,
+                "room": r.room,
+            }
+            if r.adult is not None:
+                item["adult"] = r.adult
+            if r.child is not None:
+                item["child"] = r.child
+            if r.infant is not None:
+                item["infant"] = r.infant
+            out.append(item)
+        return {"reservations": out}
 
 
 def save_tel_store(data: dict[str, Any]) -> None:
-    payload = json.dumps(data, ensure_ascii=False)
+    items = data.get("reservations") or []
+    if not isinstance(items, list):
+        items = []
     with _session() as s:
-        s.merge(TelStoreRow(id=TEL_STORE_ID, payload_json=payload))
+        s.execute(delete(TelReservationRow))
+        for it in items:
+            if not isinstance(it, dict):
+                continue
+            bid = str(it.get("branch_id") or _DEFAULT_BRANCH).strip().lower() or _DEFAULT_BRANCH
+            row_kw: dict[str, Any] = {
+                "branch_id": bid,
+                "date": str(it.get("date") or "")[:10],
+                "time": str(it.get("time") or ""),
+                "slot": str(it.get("slot") or ""),
+                "phone": str(it.get("phone") or ""),
+                "name": str(it.get("name") or ""),
+                "count": int(it.get("count") or 2),
+                "room": str(it.get("room") or ""),
+            }
+            for k in ("adult", "child", "infant"):
+                v = it.get(k)
+                if v is None:
+                    row_kw[k] = None
+                else:
+                    try:
+                        row_kw[k] = int(v)
+                    except (TypeError, ValueError):
+                        row_kw[k] = None
+            tid = it.get("id")
+            if tid is not None:
+                try:
+                    iid = int(tid)
+                    if iid > 0:
+                        row_kw["id"] = iid
+                except (TypeError, ValueError):
+                    pass
+            s.add(TelReservationRow(**row_kw))
         s.commit()
 
 
@@ -290,7 +427,7 @@ def migrate_from_data_dir(data_dir: Path) -> bool:
             pass
 
     # tel (+ branch_id 보강, ensure_migrations 와 동일)
-    if not table_has_rows(TelStoreRow):
+    if not table_has_rows(TelReservationRow):
         tp = data_dir / "tel_reservations.json"
         if tp.is_file():
             try:
@@ -304,7 +441,7 @@ def migrate_from_data_dir(data_dir: Path) -> bool:
                     save_tel_store(data)
             except (OSError, json.JSONDecodeError):
                 pass
-        if not table_has_rows(TelStoreRow):
+        if not table_has_rows(TelReservationRow):
             save_tel_store({"reservations": []})
 
     # rooms_config *.json

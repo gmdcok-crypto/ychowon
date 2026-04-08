@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+from datetime import date
 from typing import Optional
 
-from sqlalchemy import Integer, String, Text
+from sqlalchemy import Date, Integer, String, Text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -16,24 +17,57 @@ class BranchRow(Base):
     name: Mapped[str] = mapped_column(String(255))
 
 
-class StaffTodayRow(Base):
-    __tablename__ = "staff_today"
+class StaffReservationRow(Base):
+    """지점별 당일(또는 저장된 날짜) 직원 입력 예약 한 건."""
+
+    __tablename__ = "staff_reservations"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    # FK 없음: replace_branches() 가 branches 전체 삭제 후 재삽입하므로 CASCADE 시 예약 데이터가 함께 삭제됨
+    branch_id: Mapped[str] = mapped_column(String(64), index=True)
+    date: Mapped[date] = mapped_column(Date, index=True)
+    time: Mapped[str] = mapped_column(String(32))
+    name: Mapped[str] = mapped_column(String(255))
+    room: Mapped[str] = mapped_column(String(255))
+    sort_order: Mapped[int] = mapped_column(Integer, default=0)
+
+
+class TelReservationRow(Base):
+    """전화 예약 한 건 (전 지점 공통 시퀀스 id)."""
+
+    __tablename__ = "tel_reservations"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    branch_id: Mapped[str] = mapped_column(String(64), index=True)
+    date: Mapped[str] = mapped_column(String(10))
+    time: Mapped[str] = mapped_column(String(32))
+    slot: Mapped[str] = mapped_column(String(32))
+    phone: Mapped[str] = mapped_column(String(64))
+    name: Mapped[str] = mapped_column(String(255))
+    count: Mapped[int] = mapped_column(Integer, default=2)
+    room: Mapped[str] = mapped_column(String(255))
+    adult: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    child: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    infant: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+
+
+class DisplaySettingsRow(Base):
+    """지점별 하단 광고 기본 슬라이드 간격(초)."""
+
+    __tablename__ = "display_settings"
     branch_id: Mapped[str] = mapped_column(String(64), primary_key=True)
-    payload_json: Mapped[str] = mapped_column(Text)
+    default_interval_sec: Mapped[int] = mapped_column(Integer, default=8)
 
 
-class DisplayContentRow(Base):
-    __tablename__ = "display_content"
-    branch_id: Mapped[str] = mapped_column(String(64), primary_key=True)
-    payload_json: Mapped[str] = mapped_column(Text)
+class DisplayItemRow(Base):
+    """현황판 하단 광고 슬라이드 한 장."""
 
-
-class TelStoreRow(Base):
-    """전화 예약 전체 JSON {\"reservations\": [...]}"""
-
-    __tablename__ = "tel_store"
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    payload_json: Mapped[str] = mapped_column(Text)
+    __tablename__ = "display_items"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    branch_id: Mapped[str] = mapped_column(String(64), index=True)
+    sort_order: Mapped[int] = mapped_column(Integer, default=0)
+    type: Mapped[str] = mapped_column(String(16), default="image")
+    url: Mapped[str] = mapped_column(Text)
+    name: Mapped[str] = mapped_column(String(255), default="")
+    duration_sec: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
 
 
 class AccountRow(Base):
