@@ -16,15 +16,19 @@ from db_models import (
     AccountRow,
     AppKvRow,
     BranchRow,
+    DisplayContentLegacyRow,
     DisplayItemRow,
     DisplaySettingsRow,
     RoomsConfigRow,
     StaffReservationRow,
+    StaffTodayLegacyRow,
     TelReservationRow,
+    TelStoreLegacyRow,
 )
 
 JWT_KV_KEY = "jwt_secret"
 _DEFAULT_BRANCH = "default"
+TEL_LEGACY_ROW_ID = 1
 
 
 def _today_str() -> str:
@@ -40,6 +44,14 @@ def _parse_ymd(s: str) -> date:
 
 def _session() -> Session:
     return SessionLocal()
+
+
+def _safe_get(session: Session, model, key: Any) -> Any:
+    """구버전 테이블이 없는 DB에서는 예외가 날 수 있음."""
+    try:
+        return session.get(model, key)
+    except Exception:
+        return None
 
 
 def table_has_rows(model) -> bool:
@@ -120,7 +132,9 @@ def replace_branches(rows: list[dict[str, Any]]) -> None:
         s.commit()
 
 
-def load_branch_today(branch_id: str) -> dict[str, Any]:
+def load_branch_today(branch_id: str, *, _retry: bool = True) -> dict[str, Any]:
+    """신규 테이블이 비어 있으면 구 `staff_today.payload_json` 에서 1회 이관."""
+    legacy_data: Optional[dict[str, Any]] = None
     with _session() as s:
         q = (
             select(StaffReservationRow)
@@ -128,21 +142,40 @@ def load_branch_today(branch_id: str) -> dict[str, Any]:
             .order_by(StaffReservationRow.sort_order, StaffReservationRow.id)
         )
         rows = s.execute(q).scalars().all()
-        if not rows:
-            return {"date": _today_str(), "reservations": []}
-        d0 = rows[0].date
-        date_str = d0.isoformat() if isinstance(d0, date) else str(d0)
-        reservations = []
-        for r in rows:
-            reservations.append(
-                {
-                    "id": r.id,
-                    "time": r.time,
-                    "name": r.name,
-                    "room": r.room,
-                }
-            )
-        return {"date": date_str, "reservations": reservations}
+        if rows:
+            d0 = rows[0].date
+            date_str = d0.isoformat() if isinstance(d0, date) else str(d0)
+            reservations = []
+            for r in rows:
+                reservations.append(
+                    {
+                        "id": r.id,
+                        "time": r.time,
+                        "name": r.name,
+                        "room": r.room,
+                    }
+                )
+            return {"date": date_str, "reservations": reservations}
+        if _retry:
+            leg = _safe_get(s, StaffTodayLegacyRow, branch_id)
+            if leg:
+                try:
+                    raw = json.loads(leg.payload_json)
+                    if isinstance(raw, dict):
+                        legacy_data = raw
+                except json.JSONDecodeError:
+                    pass
+
+    if legacy_data is not None and _retry:
+        save_branch_today(branch_id, legacy_data)
+        with _session() as s2:
+            leg2 = _safe_get(s2, StaffTodayLegacyRow, branch_id)
+            if leg2:
+                s2.delete(leg2)
+                s2.commit()
+        return load_branch_today(branch_id, _retry=False)
+
+    return {"date": _today_str(), "reservations": []}
 
 
 def save_branch_today(branch_id: str, data: dict[str, Any]) -> None:
@@ -169,10 +202,14 @@ def save_branch_today(branch_id: str, data: dict[str, Any]) -> None:
         s.commit()
 
 
-def load_display_content(branch_id: str) -> dict[str, Any]:
+def load_display_content(branch_id: str, *, _retry: bool = True) -> dict[str, Any]:
+    """슬라이드가 없으면 구 `display_content.payload_json` 에서 1회 이관."""
+    legacy_migrate: Optional[dict[str, Any]] = None
+    st: Optional[DisplaySettingsRow] = None
+    di = 8
     with _session() as s:
         st = s.get(DisplaySettingsRow, branch_id)
-        default_interval = int(st.default_interval_sec) if st else 8
+        di = int(st.default_interval_sec) if st else 8
         rows = (
             s.execute(
                 select(DisplayItemRow)
@@ -182,22 +219,43 @@ def load_display_content(branch_id: str) -> dict[str, Any]:
             .scalars()
             .all()
         )
-        if not rows and not st:
-            return {"items": [], "default_interval_sec": 8}
-        items: list[dict[str, Any]] = []
-        for r in rows:
-            it: dict[str, Any] = {
-                "id": str(r.id),
-                "type": r.type or "image",
-                "url": r.url or "",
-                "order": r.sort_order,
-            }
-            if (r.name or "").strip():
-                it["name"] = r.name
-            if r.duration_sec is not None:
-                it["duration_sec"] = r.duration_sec
-            items.append(it)
-        return {"items": items, "default_interval_sec": default_interval}
+        if rows:
+            items: list[dict[str, Any]] = []
+            for r in rows:
+                it: dict[str, Any] = {
+                    "id": str(r.id),
+                    "type": r.type or "image",
+                    "url": r.url or "",
+                    "order": r.sort_order,
+                }
+                if (r.name or "").strip():
+                    it["name"] = r.name
+                if r.duration_sec is not None:
+                    it["duration_sec"] = r.duration_sec
+                items.append(it)
+            return {"items": items, "default_interval_sec": di}
+        if _retry:
+            leg = _safe_get(s, DisplayContentLegacyRow, branch_id)
+            if leg:
+                try:
+                    raw = json.loads(leg.payload_json)
+                    if isinstance(raw, dict):
+                        legacy_migrate = raw
+                except json.JSONDecodeError:
+                    pass
+
+    if legacy_migrate is not None and _retry:
+        save_display_content(branch_id, legacy_migrate)
+        with _session() as s2:
+            leg2 = _safe_get(s2, DisplayContentLegacyRow, branch_id)
+            if leg2:
+                s2.delete(leg2)
+                s2.commit()
+        return load_display_content(branch_id, _retry=False)
+
+    if not st:
+        return {"items": [], "default_interval_sec": 8}
+    return {"items": [], "default_interval_sec": di}
 
 
 def save_display_content(branch_id: str, data: dict[str, Any]) -> None:
@@ -240,29 +298,56 @@ def save_display_content(branch_id: str, data: dict[str, Any]) -> None:
 
 
 def load_tel_store() -> dict[str, Any]:
+    """신규 `tel_reservations` 가 비어 있으면 구 `tel_store` JSON 에서 1회 이관."""
+    legacy_migrate: Optional[dict[str, Any]] = None
     with _session() as s:
         rows = s.execute(select(TelReservationRow).order_by(TelReservationRow.id)).scalars().all()
-        out: list[dict[str, Any]] = []
-        for r in rows:
-            item: dict[str, Any] = {
-                "id": r.id,
-                "branch_id": r.branch_id,
-                "date": r.date,
-                "time": r.time,
-                "slot": r.slot,
-                "phone": r.phone,
-                "name": r.name,
-                "count": r.count,
-                "room": r.room,
-            }
-            if r.adult is not None:
-                item["adult"] = r.adult
-            if r.child is not None:
-                item["child"] = r.child
-            if r.infant is not None:
-                item["infant"] = r.infant
-            out.append(item)
-        return {"reservations": out}
+        if rows:
+            out: list[dict[str, Any]] = []
+            for r in rows:
+                item: dict[str, Any] = {
+                    "id": r.id,
+                    "branch_id": r.branch_id,
+                    "date": r.date,
+                    "time": r.time,
+                    "slot": r.slot,
+                    "phone": r.phone,
+                    "name": r.name,
+                    "count": r.count,
+                    "room": r.room,
+                }
+                if r.adult is not None:
+                    item["adult"] = r.adult
+                if r.child is not None:
+                    item["child"] = r.child
+                if r.infant is not None:
+                    item["infant"] = r.infant
+                out.append(item)
+            return {"reservations": out}
+        leg = _safe_get(s, TelStoreLegacyRow, TEL_LEGACY_ROW_ID)
+        if leg:
+            try:
+                raw = json.loads(leg.payload_json)
+                if isinstance(raw, dict):
+                    legacy_migrate = raw
+            except json.JSONDecodeError:
+                pass
+
+    if legacy_migrate is not None:
+        items = legacy_migrate.get("reservations")
+        if isinstance(items, list):
+            for it in items:
+                if isinstance(it, dict) and "branch_id" not in it:
+                    it["branch_id"] = _DEFAULT_BRANCH
+        save_tel_store(legacy_migrate)
+        with _session() as s2:
+            leg2 = _safe_get(s2, TelStoreLegacyRow, TEL_LEGACY_ROW_ID)
+            if leg2:
+                s2.delete(leg2)
+                s2.commit()
+        return load_tel_store()
+
+    return {"reservations": []}
 
 
 def save_tel_store(data: dict[str, Any]) -> None:

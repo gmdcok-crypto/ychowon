@@ -90,3 +90,22 @@ class RoomsConfigRow(Base):
     __tablename__ = "rooms_config"
     file_name: Mapped[str] = mapped_column(String(128), primary_key=True)
     payload_json: Mapped[str] = mapped_column(Text)
+
+
+# --- 구버전 JSON 단일 컬럼 테이블 (스키마 전환 전 DB에만 존재). 이관 후 행 삭제됨. ---
+class StaffTodayLegacyRow(Base):
+    __tablename__ = "staff_today"
+    branch_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    payload_json: Mapped[str] = mapped_column(Text)
+
+
+class DisplayContentLegacyRow(Base):
+    __tablename__ = "display_content"
+    branch_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    payload_json: Mapped[str] = mapped_column(Text)
+
+
+class TelStoreLegacyRow(Base):
+    __tablename__ = "tel_store"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    payload_json: Mapped[str] = mapped_column(Text)
