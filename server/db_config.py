@@ -11,6 +11,7 @@ from __future__ import annotations
 import os
 import sys
 from typing import Optional
+from urllib.parse import quote_plus
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
@@ -19,9 +20,38 @@ _engine = None
 _SessionLocal: Optional[sessionmaker] = None
 
 
+def _mysql_url_from_railway_split_vars() -> str:
+    """Railway MySQL 템플릿: MYSQLHOST / MYSQLUSER / MYSQLPASSWORD / MYSQLPORT / MYSQLDATABASE 만 있을 때."""
+    host = (os.environ.get("MYSQLHOST") or "").strip()
+    user = (os.environ.get("MYSQLUSER") or "").strip()
+    password = os.environ.get("MYSQLPASSWORD")
+    password = password.strip() if isinstance(password, str) else ""
+    port = (os.environ.get("MYSQLPORT") or "3306").strip() or "3306"
+    database = (os.environ.get("MYSQLDATABASE") or "").strip()
+    if not host or not user or not database:
+        return ""
+    # 비밀번호에 @ # 등이 있어도 안전하게 이스케이프
+    u = quote_plus(user)
+    p = quote_plus(password)
+    return f"mysql://{u}:{p}@{host}:{port}/{database}"
+
+
 def database_url_effective() -> str:
-    """Railway/MySQL 플러그인이 ``DATABASE_URL`` 또는 ``MYSQL_URL`` 로 줄 수 있음."""
-    return (os.environ.get("DATABASE_URL") or os.environ.get("MYSQL_URL") or "").strip()
+    """연결 문자열 후보를 순서대로 사용.
+
+    Railway는 웹 서비스에 ``DATABASE_URL`` 을 안 주고 MySQL 서비스 변수만 참조한 경우가 많습니다.
+    그때는 ``MYSQL_URL`` 이 오거나, ``MYSQLHOST`` + ``MYSQLUSER`` + … 조합으로만 옵니다.
+    """
+    for key in (
+        "DATABASE_URL",
+        "MYSQL_URL",
+        "MYSQLDATABASE_URL",
+        "MYSQL_PUBLIC_URL",
+    ):
+        v = (os.environ.get(key) or "").strip()
+        if v:
+            return v
+    return _mysql_url_from_railway_split_vars()
 
 
 def running_on_railway() -> bool:
@@ -43,9 +73,12 @@ def ensure_railway_database_url_or_exit() -> None:
     if database_url_effective():
         return
     print(
-        "오류: Railway 배포에서는 MySQL 연결 URL이 필요합니다.\n"
-        "웹 서비스 Variables에 DATABASE_URL 또는 MYSQL_URL 을 넣으세요.\n"
-        "(MySQL 리소스 → Connect → 웹 서비스에 참조 추가)",
+        "오류: Railway 배포에서는 MySQL 연결 정보가 필요합니다.\n"
+        "아래 중 하나를 웹 서비스 Variables에 넣으세요.\n"
+        "  · DATABASE_URL 또는 MYSQL_URL (= ${{MySQL.MYSQL_URL}} 등으로 참조)\n"
+        "  · 또는 MYSQLHOST, MYSQLUSER, MYSQLPASSWORD, MYSQLDATABASE (및 MYSQLPORT)\n"
+        "    를 MySQL 서비스에서 웹 서비스로 참조 추가\n"
+        "Railway 대시보드: MySQL 서비스 → Connect / Variables → 웹 서비스에 연결",
         file=sys.stderr,
     )
     raise SystemExit(1)
