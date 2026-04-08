@@ -1,4 +1,4 @@
-"""MySQL 저장소 (Railway DATABASE_URL). JSON 파일 폴백 없음."""
+"""DATABASE_URL 사용 시 JSON 파일 대신 MySQL 저장."""
 
 from __future__ import annotations
 

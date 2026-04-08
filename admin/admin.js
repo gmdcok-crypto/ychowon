@@ -551,15 +551,20 @@
       body: JSON.stringify(payload)
     })
       .then(function (r) {
-        if (!r.ok) throw new Error('저장 실패');
+        if (!r.ok) {
+          return r.json().then(function (j) {
+            var d = j && j.detail;
+            throw new Error(typeof d === 'string' ? d : '저장 실패');
+          });
+        }
         return r.json();
       })
       .then(function () {
         showToast(msg || '저장되었습니다. 예약현황판에 바로 반영됩니다.');
         load();
       })
-      .catch(function () {
-        showToast('저장에 실패했습니다.');
+      .catch(function (err) {
+        showToast((err && err.message) || '저장에 실패했습니다.');
       });
   }
 

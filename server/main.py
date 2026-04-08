@@ -413,8 +413,34 @@ def _get_tel_reservations(date_text: Optional[str] = None, branch_id: Optional[s
     return sorted(normalized, key=lambda x: (x.get("date", ""), x.get("time", ""), x.get("room", "")))
 
 
+def _staff_today_items_for_date(date_text: str, branch_id: str) -> list[dict]:
+    """당일 직원 입력 예약을 전화 예약과 동일한 점유 판정에 쓸 형태로 반환."""
+    data = load_branch_today(branch_id)
+    if (data.get("date") or "") != date_text:
+        return []
+    out: list[dict] = []
+    for r in data.get("reservations") or []:
+        if not isinstance(r, dict):
+            continue
+        room = (r.get("room") or "").strip()
+        if not room:
+            continue
+        t = str(r.get("time") or "")
+        out.append(
+            {
+                "time": t,
+                "room": room,
+                "name": str(r.get("name") or ""),
+                "slot": _time_slot(t),
+                "source": "staff",
+            }
+        )
+    return out
+
+
 def _room_status(date_text: str, time_text: str, branch_id: str) -> list:
-    reservations = _get_tel_reservations(date_text, branch_id)
+    reservations = list(_get_tel_reservations(date_text, branch_id))
+    reservations.extend(_staff_today_items_for_date(date_text, branch_id))
     by_room = {}
     for item in reservations:
         room_name = item.get("room")
@@ -571,7 +597,28 @@ async def set_today_reservations(payload: TodayReservations, branch: str = Query
     for i, r in enumerate(items):
         if r.get("id") is None:
             r["id"] = i + 1
-    data = {"date": _today_str(), "reservations": items}
+    date_str = _today_str()
+    tel_day = _get_tel_reservations(date_str, bid)
+    for i, a in enumerate(items):
+        ra = (a.get("room") or "").strip()
+        ta = str(a.get("time") or "")
+        if not ra or not ta:
+            continue
+        for t in tel_day:
+            if (t.get("room") or "").strip() == ra and _times_overlap(str(t.get("time") or ""), ta):
+                raise HTTPException(
+                    status_code=409,
+                    detail="전화 예약과 시간이 겹칩니다. 해당 호실/시간은 전화 예약 화면에서 확인하세요.",
+                )
+        for b in items[i + 1 :]:
+            rb = (b.get("room") or "").strip()
+            tb = str(b.get("time") or "")
+            if ra == rb and tb and _times_overlap(ta, tb):
+                raise HTTPException(
+                    status_code=409,
+                    detail="같은 호실에서 식사 시간(2시간)이 겹치는 예약은 넣을 수 없습니다.",
+                )
+    data = {"date": date_str, "reservations": items}
     save_branch_today(bid, data)
     await broadcast_reservations(bid)
     return {"ok": True, "count": len(items)}
@@ -627,6 +674,13 @@ async def create_tel_reservation(payload: TelReservationItem, branch: str = Quer
             and _times_overlap(item.get("time", ""), payload.time)
         ):
             raise HTTPException(status_code=409, detail="기본 식사시간 2시간 기준으로 이미 예약된 호실/테이블입니다.")
+
+    for s in _staff_today_items_for_date(payload.date, bid):
+        if s.get("room") == payload.room and _times_overlap(s.get("time", ""), payload.time):
+            raise HTTPException(
+                status_code=409,
+                detail="직원 당일 예약과 시간이 겹칩니다. 관리자 화면에서 해당 호실/시간을 확인하세요.",
+            )
 
     next_id = max([int(item.get("id", 0) or 0) for item in items] + [0]) + 1
     new_item = {
@@ -869,6 +923,12 @@ async def patch_tel_reservation(
             continue
         if item.get("date") == date and item.get("room") == new_room and _times_overlap(item.get("time", ""), new_time):
             raise HTTPException(status_code=409, detail="기본 식사시간 2시간 기준으로 이미 예약된 호실/테이블입니다.")
+    for s in _staff_today_items_for_date(date, bid):
+        if s.get("room") == new_room and _times_overlap(s.get("time", ""), new_time):
+            raise HTTPException(
+                status_code=409,
+                detail="직원 당일 예약과 시간이 겹칩니다. 관리자 화면에서 해당 호실/시간을 확인하세요.",
+            )
     cur["time"] = new_time
     cur["room"] = new_room
     cur["name"] = new_name
