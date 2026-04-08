@@ -905,17 +905,10 @@ def _cleanup_removed_display_uploads(old_items: list, new_urls: set) -> None:
 @app.post("/api/display/upload")
 async def api_upload_display_asset(file: UploadFile = File(...)):
     """현황판 하단용 이미지·동영상은 Cloudflare R2에만 저장합니다 (로컬 폴백 없음)."""
-    from r2_storage import r2_enabled, upload_display_bytes
+    from r2_storage import r2_enabled, r2_upload_unavailable_message, upload_display_bytes
 
     if not r2_enabled():
-        raise HTTPException(
-            status_code=503,
-            detail=(
-                "하단광고 파일은 R2에만 저장됩니다. "
-                "R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, "
-                "R2_BUCKET_NAME, R2_PUBLIC_BASE_URL 을 설정하세요."
-            ),
-        )
+        raise HTTPException(status_code=503, detail=r2_upload_unavailable_message())
 
     raw_name = (file.filename or "file").replace("\\", "/").split("/")[-1]
     suffix = Path(raw_name).suffix.lower()

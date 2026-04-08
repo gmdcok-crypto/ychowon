@@ -39,6 +39,36 @@ def r2_enabled() -> bool:
     return bool(account_id() and key and sec and bucket and public_base_url())
 
 
+def r2_missing_env_hints() -> list[str]:
+    """업로드 불가 시 어떤 변수가 비었는지 짧게 나열 (관리자 안내용)."""
+    missing: list[str] = []
+    if not account_id():
+        missing.append("R2_ACCOUNT_ID(또는 CLOUDFLARE_ACCOUNT_ID)")
+    if not (os.environ.get("R2_ACCESS_KEY_ID") or "").strip():
+        missing.append("R2_ACCESS_KEY_ID")
+    if not (os.environ.get("R2_SECRET_ACCESS_KEY") or "").strip():
+        missing.append("R2_SECRET_ACCESS_KEY")
+    if not (os.environ.get("R2_BUCKET_NAME") or "").strip():
+        missing.append("R2_BUCKET_NAME")
+    if not public_base_url():
+        missing.append(
+            "R2_PUBLIC_BASE_URL (R2 버킷 퍼블릭 URL 접두사, https://… , 끝 / 없음)"
+        )
+    return missing
+
+
+def r2_upload_unavailable_message() -> str:
+    """503 응답·토스트용 한 줄 메시지."""
+    parts = r2_missing_env_hints()
+    if not parts:
+        return "R2 설정을 확인할 수 없습니다."
+    return (
+        "하단광고 업로드는 R2만 사용합니다. "
+        "Railway 등에 다음이 비어 있습니다: "
+        + " · ".join(parts)
+    )
+
+
 def key_prefix() -> str:
     p = (os.environ.get("R2_KEY_PREFIX") or "display-uploads").strip().strip("/")
     return p or "display-uploads"
