@@ -166,10 +166,9 @@ body {
 }
 
 .form-block-head {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  justify-content: space-between;
   gap: 0.5rem 1rem;
   margin-bottom: 0.75rem;
 }
@@ -185,9 +184,16 @@ body {
 }
 
 .staff-kst-clock {
+  grid-column: 2;
+  justify-self: center;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
-  align-self: center;
+}
+
+.form-block-head h2 {
+  grid-column: 1;
+  justify-self: start;
+  min-width: 0;
 }
 
 .list-block {
