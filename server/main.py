@@ -72,10 +72,18 @@ def startup():
         print("  룸·홀:    data/%s (지점 설정)" % _room_cfg_ref)
     else:
         print("  룸·홀:    내장 기본값 (ROOMS_CONFIG_FILE 또는 data/%s)" % CONFIG_FILENAME)
-    if running_on_railway():
-        print("  저장소:   Railway MySQL (DATABASE_URL)")
-    elif database_enabled():
-        print("  저장소:   MySQL/MariaDB (DATABASE_URL)")
+    if database_enabled():
+        try:
+            from db_config import mysql_target_summary
+
+            _tgt = mysql_target_summary()
+        except Exception:
+            _tgt = ""
+        _suffix = (" → " + _tgt) if _tgt else ""
+        if running_on_railway():
+            print("  저장소:   Railway MySQL (지점별로 DB 따로 연결 권장)%s" % _suffix)
+        else:
+            print("  저장소:   MySQL/MariaDB%s" % _suffix)
     else:
         print("  저장소:   로컬 data/*.json")
     try:

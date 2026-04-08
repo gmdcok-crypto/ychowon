@@ -4,6 +4,11 @@
 - Railway: 항상 DB만 사용 (아래 URL 중 하나 필수, 없으면 기동 실패)
 
 Railway MySQL은 웹 서비스에 ``DATABASE_URL`` 대신 ``MYSQL_URL`` 만 노출되는 경우가 있어 둘 다 지원합니다.
+
+**지점별 DB 완전 분리 (mchowon / ychowon 등)**  
+한 MySQL을 두 웹 서비스가 같이 쓰지 말고, **웹 서비스마다 MySQL 플러그인을 따로** 두세요.
+각 웹 서비스 Variables에는 **그 MySQL 하나**의 ``DATABASE_URL``(또는 ``${{MySQL.MYSQL_URL}}``)만 연결합니다.
+그러면 스키마·예약·지점·컨텐츠가 서로 섞이지 않습니다. (``DEFAULT_BRANCH_ID`` 는 같은 DB를 쓸 때의 보조용)
 """
 
 from __future__ import annotations
@@ -11,7 +16,7 @@ from __future__ import annotations
 import os
 import sys
 from typing import Optional
-from urllib.parse import quote_plus
+from urllib.parse import quote_plus, urlparse
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
@@ -52,6 +57,23 @@ def database_url_effective() -> str:
         if v:
             return v
     return _mysql_url_from_railway_split_vars()
+
+
+def mysql_target_summary() -> str:
+    """로그용: 연결 대상 호스트·포트·DB 이름 (비밀번호 제외)."""
+    raw = database_url_effective()
+    if not raw:
+        return ""
+    try:
+        if not raw.startswith(("mysql://", "mysql+pymysql://")):
+            return "(MySQL URL 아님)"
+        p = urlparse(raw)
+        host = p.hostname or "?"
+        port = p.port or 3306
+        db = (p.path or "").lstrip("/").split("?")[0] or "?"
+        return f"{host}:{port}/{db}"
+    except Exception:
+        return "(URL 요약 실패)"
 
 
 def running_on_railway() -> bool:

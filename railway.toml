@@ -1,4 +1,9 @@
 # Docker 미사용 — Nixpacks 빌드
+#
+# DB 분리: mchowon / ychowon 처럼 지점마다 웹 서비스를 나눴다면 MySQL 도 서비스마다 하나씩 두고,
+# 각 웹 서비스 Variables 에는 그 MySQL 의 DATABASE_URL(또는 MYSQL_URL) 만 연결합니다.
+# 한 MySQL 을 두 웹 서비스가 공유하면 데이터가 섞입니다.
+#
 [build]
 builder = "nixpacks"
 
