@@ -66,7 +66,9 @@ def startup():
     print("  예약접수: http://%s:8000/tel/   (태블릿)" % ip)
     from room_config import ACTIVE_ROOMS_CONFIG_REF as _room_cfg_ref
 
-    if _room_cfg_ref:
+    if database_enabled() and _room_cfg_ref:
+        print("  룸·홀:    MySQL — %s" % _room_cfg_ref)
+    elif _room_cfg_ref:
         print("  룸·홀:    data/%s (지점 설정)" % _room_cfg_ref)
     else:
         print("  룸·홀:    내장 기본값 (ROOMS_CONFIG_FILE 또는 data/%s)" % CONFIG_FILENAME)

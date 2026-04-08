@@ -1,7 +1,8 @@
 """
 지점별 룸·홀 구성.
 
-- 우선순위: ROOMS_CONFIG_FILE → (mchowon 컨텍스트면) rooms_config.mchowon.json →
+- DATABASE_URL 등으로 DB가 켜지면 룸·홀 목록은 MySQL만 사용 (로컬 rooms_config.json 미사용).
+- DB 없음(로컬 개발 등): ROOMS_CONFIG_FILE → (mchowon) rooms_config.mchowon.json →
   rooms_config.json → 없으면 내장 기본값.
 - mchowon: USE_MCHOWON_ROOMS=1, SITE=mchowon, 또는 Railway 이름/도메인에 mchowon 포함.
 - data/rooms_config.example.json 은 참고용 복사 템플릿입니다.
@@ -158,45 +159,36 @@ def _is_mchowon_context() -> bool:
     return "mchowon" in (os.environ.get("HOSTNAME") or "").lower()
 
 
+MCHOWON_ROOMS_FILE = "rooms_config.mchowon.json"
+
+
 def _pick_rooms_config_filename(data_dir: Path) -> str:
     """
-    어떤 JSON을 쓸지 결정 (우선순위).
+    어떤 논리 파일명( DB 키 / data/*.json )을 쓸지 결정.
 
-    1) ROOMS_CONFIG_FILE=파일명
-    2) mchowon 컨텍스트이고 data/rooms_config.mchowon.json 이 있으면 그것
-       (볼륨에 예전 rooms_config.json 이 남아 있어도 mchowon 설정이 우선)
-    3) data/rooms_config.json
-    4) rooms_config.json (없으면 load_room_options 에서 내장 기본값)
+    DB 모드: 디스크 존재 여부는 보지 않음 — ROOMS_CONFIG_FILE → mchowon 이면 mchowon 키 → 기본 키.
+    파일 모드: ROOMS_CONFIG_FILE → data 의 mchowon.json 존재 → rooms_config.json 존재 → 기본 키.
     """
     env_raw = os.environ.get("ROOMS_CONFIG_FILE")
     if env_raw and str(env_raw).strip():
         return _safe_rooms_config_filename(env_raw, CONFIG_FILENAME)
 
-    mchowon_file = "rooms_config.mchowon.json"
-    mchowon_path = data_dir / mchowon_file
-    if _is_mchowon_context():
-        try:
-            from db_config import database_enabled
-            from db_repo import load_rooms_config_file
-
-            if database_enabled() and load_rooms_config_file(mchowon_file) is not None:
-                return mchowon_file
-        except Exception:
-            pass
-        if mchowon_path.exists():
-            return mchowon_file
-
-    if (data_dir / CONFIG_FILENAME).exists():
-        return CONFIG_FILENAME
-
     try:
         from db_config import database_enabled
-        from db_repo import load_rooms_config_file
 
-        if database_enabled() and load_rooms_config_file(CONFIG_FILENAME) is not None:
+        if database_enabled():
+            if _is_mchowon_context():
+                return MCHOWON_ROOMS_FILE
             return CONFIG_FILENAME
     except Exception:
         pass
+
+    mchowon_path = data_dir / MCHOWON_ROOMS_FILE
+    if _is_mchowon_context() and mchowon_path.exists():
+        return MCHOWON_ROOMS_FILE
+
+    if (data_dir / CONFIG_FILENAME).exists():
+        return CONFIG_FILENAME
 
     return CONFIG_FILENAME
 
@@ -207,17 +199,32 @@ def load_room_options(data_dir: Path) -> list[dict[str, Any]]:
     path = data_dir / fname
     ACTIVE_ROOMS_CONFIG_REF = None
 
+    from db_config import database_enabled
+    from db_repo import load_rooms_config_file
+
     data = None
-    try:
-        from db_config import database_enabled
-        from db_repo import load_rooms_config_file
-
-        if database_enabled():
+    if database_enabled():
+        picked = fname
+        try:
             data = load_rooms_config_file(fname)
-    except Exception:
-        pass
-
-    if data is None:
+            if data is None and fname == MCHOWON_ROOMS_FILE:
+                data = load_rooms_config_file(CONFIG_FILENAME)
+                if data is not None:
+                    fname = CONFIG_FILENAME
+        except Exception:
+            data = None
+        if data is None:
+            if picked == MCHOWON_ROOMS_FILE:
+                print(
+                    "  경고: MySQL에 룸·홀 설정 없음 (%s 또는 %s) — 내장 기본 룸 구성 사용"
+                    % (MCHOWON_ROOMS_FILE, CONFIG_FILENAME)
+                )
+            else:
+                print(
+                    "  경고: MySQL에 룸·홀 설정 없음 (%s) — 내장 기본 룸 구성 사용" % picked
+                )
+            return build_default_room_options()
+    else:
         if not path.exists():
             if os.environ.get("ROOMS_CONFIG_FILE"):
                 print("  경고: data/%s 없음 — 내장 기본 룸 구성 사용" % fname)
