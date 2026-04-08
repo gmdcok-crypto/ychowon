@@ -174,16 +174,20 @@ body {
   margin-bottom: 0.75rem;
 }
 
-.form-block-head h2 {
-  margin-bottom: 0;
+.form-block-head h2,
+.staff-kst-clock {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--gold);
+  line-height: 1.3;
+  margin: 0;
+  font-family: var(--font);
 }
 
 .staff-kst-clock {
-  font-size: 0.82rem;
-  font-weight: 400;
-  color: var(--cream-dim);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+  align-self: center;
 }
 
 .list-block {
