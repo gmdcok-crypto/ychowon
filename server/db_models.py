@@ -84,8 +84,31 @@ class AppKvRow(Base):
     v: Mapped[str] = mapped_column(Text)
 
 
-class RoomsConfigRow(Base):
-    """rooms_config.json 등 파일명별 전체 JSON"""
+class RoomsConfigSetRow(Base):
+    """룸 설정 파일(논리 키)별 메타: rooms_config.json, rooms_config.mchowon.json 등."""
+
+    __tablename__ = "rooms_config_sets"
+    file_name: Mapped[str] = mapped_column(String(128), primary_key=True)
+    version: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+
+class RoomOptionRow(Base):
+    """한 파일 안의 룸·테이블 한 칸."""
+
+    __tablename__ = "room_options"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    file_name: Mapped[str] = mapped_column(String(128), index=True)
+    sort_order: Mapped[int] = mapped_column(Integer, default=0)
+    room_id: Mapped[str] = mapped_column(String(64))
+    label: Mapped[str] = mapped_column(String(255))
+    display_label: Mapped[str] = mapped_column(String(255))
+    type: Mapped[str] = mapped_column(String(32), default="table")
+    section: Mapped[str] = mapped_column(String(128), default="기타")
+
+
+class RoomsConfigLegacyBlobRow(Base):
+    """구버전: 파일명당 JSON 한 덩어리. 이관 후 행 삭제."""
 
     __tablename__ = "rooms_config"
     file_name: Mapped[str] = mapped_column(String(128), primary_key=True)

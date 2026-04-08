@@ -19,7 +19,9 @@ from db_models import (
     DisplayContentLegacyRow,
     DisplayItemRow,
     DisplaySettingsRow,
-    RoomsConfigRow,
+    RoomOptionRow,
+    RoomsConfigLegacyBlobRow,
+    RoomsConfigSetRow,
     StaffReservationRow,
     StaffTodayLegacyRow,
     TelReservationRow,
@@ -391,22 +393,102 @@ def save_tel_store(data: dict[str, Any]) -> None:
         s.commit()
 
 
-def load_rooms_config_file(file_name: str) -> Optional[dict[str, Any]]:
-    with _session() as s:
-        row = s.get(RoomsConfigRow, file_name)
-        if not row:
-            return None
+def _rooms_dict_from_rows(
+    file_name: str,
+    meta: Optional[RoomsConfigSetRow],
+    rows: list[RoomOptionRow],
+) -> dict[str, Any]:
+    ver = 1
+    if meta and meta.version is not None:
         try:
-            d = json.loads(row.payload_json)
-            return d if isinstance(d, dict) else None
-        except json.JSONDecodeError:
-            return None
+            ver = int(meta.version)
+        except (TypeError, ValueError):
+            ver = 1
+    desc = (meta.description or "") if meta else ""
+    rooms: list[dict[str, Any]] = []
+    for r in rows:
+        rooms.append(
+            {
+                "id": r.room_id,
+                "label": r.label,
+                "display_label": r.display_label,
+                "type": r.type,
+                "section": r.section,
+            }
+        )
+    return {"version": ver, "description": desc, "rooms": rooms}
+
+
+def load_rooms_config_file(file_name: str, *, _migrate_legacy: bool = True) -> Optional[dict[str, Any]]:
+    """룸 설정: 정규화 테이블. 구 `rooms_config.payload_json` 은 1회 이관."""
+    with _session() as s:
+        meta = s.get(RoomsConfigSetRow, file_name)
+        q = (
+            select(RoomOptionRow)
+            .where(RoomOptionRow.file_name == file_name)
+            .order_by(RoomOptionRow.sort_order, RoomOptionRow.id)
+        )
+        rows = s.execute(q).scalars().all()
+        if rows:
+            return _rooms_dict_from_rows(file_name, meta, list(rows))
+        if meta is not None:
+            return _rooms_dict_from_rows(file_name, meta, [])
+        if _migrate_legacy:
+            leg = _safe_get(s, RoomsConfigLegacyBlobRow, file_name)
+            if leg:
+                try:
+                    d = json.loads(leg.payload_json)
+                    if isinstance(d, dict) and isinstance(d.get("rooms"), list):
+                        save_rooms_config_file(file_name, d)
+                        return load_rooms_config_file(file_name, _migrate_legacy=False)
+                except json.JSONDecodeError:
+                    pass
+    return None
 
 
 def save_rooms_config_file(file_name: str, data: dict[str, Any]) -> None:
-    payload = json.dumps(data, ensure_ascii=False)
+    from room_config import _normalize_room_entry
+
+    rooms_raw = data.get("rooms") if isinstance(data, dict) else None
+    if not isinstance(rooms_raw, list):
+        rooms_raw = []
+    ver_raw = data.get("version") if isinstance(data, dict) else None
+    ver: Optional[int] = None
+    if isinstance(ver_raw, int):
+        ver = ver_raw
+    elif ver_raw is not None and str(ver_raw).strip().isdigit():
+        try:
+            ver = int(ver_raw)
+        except (TypeError, ValueError):
+            ver = None
+    desc_val = data.get("description") if isinstance(data, dict) else None
+    desc: Optional[str] = str(desc_val) if desc_val is not None else None
+
     with _session() as s:
-        s.merge(RoomsConfigRow(file_name=file_name, payload_json=payload))
+        s.merge(RoomsConfigSetRow(file_name=file_name, version=ver, description=desc))
+        s.execute(delete(RoomOptionRow).where(RoomOptionRow.file_name == file_name))
+        pos = 0
+        for i, raw in enumerate(rooms_raw):
+            if not isinstance(raw, dict):
+                continue
+            norm = _normalize_room_entry(raw, i)
+            if not norm:
+                continue
+            s.add(
+                RoomOptionRow(
+                    file_name=file_name,
+                    sort_order=pos,
+                    room_id=str(norm["id"]),
+                    label=str(norm["label"]),
+                    display_label=str(norm["display_label"]),
+                    type=str(norm["type"]),
+                    section=str(norm["section"]),
+                )
+            )
+            pos += 1
+        leg = _safe_get(s, RoomsConfigLegacyBlobRow, file_name)
+        if leg:
+            s.delete(leg)
         s.commit()
 
 
