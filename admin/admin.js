@@ -64,6 +64,10 @@
   const staffRoomGrid = document.getElementById('staff-room-grid');
   const staffTimeBackdrop = document.getElementById('staff-time-dialog-backdrop');
   const staffTimeClose = document.getElementById('staff-time-dialog-close');
+  const staffPartyDialog = document.getElementById('staff-party-dialog');
+  const staffPartyBackdrop = document.getElementById('staff-party-dialog-backdrop');
+  const staffPartyClose = document.getElementById('staff-party-dialog-close');
+  const partyDisplayInput = document.getElementById('party-display');
 
   function staffTimeDialogEl() {
     return document.getElementById('staff-time-dialog');
@@ -76,6 +80,16 @@
     openStaffTimeDialog();
     setTimeout(function () {
       staffTimeOpenLock = false;
+    }, 450);
+  }
+
+  var staffPartyTapLock = false;
+  function openStaffPartyDialogGuarded() {
+    if (staffPartyTapLock) return;
+    staffPartyTapLock = true;
+    openStaffPartyDialog();
+    setTimeout(function () {
+      staffPartyTapLock = false;
     }, 450);
   }
 
@@ -229,6 +243,69 @@
     document.querySelectorAll('.staff-time-btn').forEach(function (btn) {
       btn.addEventListener('click', function () {
         applyStaffTimeChoice(btn.getAttribute('data-time') || '');
+      });
+    });
+  }
+
+  function openStaffPartyDialog() {
+    if (!staffPartyDialog) return;
+    syncPartyDisplayFromInputs();
+    staffPartyDialog.classList.remove('hidden');
+    staffPartyDialog.setAttribute('aria-hidden', 'false');
+  }
+
+  function closeStaffPartyDialog() {
+    if (!staffPartyDialog) return;
+    staffPartyDialog.classList.add('hidden');
+    staffPartyDialog.setAttribute('aria-hidden', 'true');
+    syncPartyDisplayFromInputs();
+  }
+
+  function setupStaffPartyDialog() {
+    if (partyDisplayInput) {
+      bindTapOpen(partyDisplayInput, openStaffPartyDialogGuarded);
+      partyDisplayInput.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          openStaffPartyDialogGuarded();
+        }
+      });
+    }
+    var partyLabel = document.querySelector('label[for="party-display"]');
+    if (partyLabel) {
+      partyLabel.addEventListener('click', function (e) {
+        e.preventDefault();
+        openStaffPartyDialogGuarded();
+      });
+    }
+    if (staffPartyClose) staffPartyClose.addEventListener('click', closeStaffPartyDialog);
+    if (staffPartyBackdrop) staffPartyBackdrop.addEventListener('click', closeStaffPartyDialog);
+    document.querySelectorAll('#staff-party-dialog .step[data-target]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var targetId = btn.getAttribute('data-target');
+        var input = targetId ? document.getElementById(targetId) : null;
+        if (!input) return;
+        var delta = parseInt(btn.getAttribute('data-delta'), 10) || 0;
+        var cur = parseInt(input.value, 10) || 0;
+        cur += delta;
+        if (cur < 0) cur = 0;
+        if (cur > 99) cur = 99;
+        input.value = String(cur);
+        syncPartyDisplayFromInputs();
+      });
+    });
+    ['staff-count-adult', 'staff-count-child', 'staff-count-infant'].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      el.addEventListener('input', function () {
+        syncPartyDisplayFromInputs();
+      });
+      el.addEventListener('blur', function () {
+        var n = parseInt(el.value, 10);
+        if (isNaN(n) || n < 0) n = 0;
+        if (n > 99) n = 99;
+        el.value = String(n);
+        syncPartyDisplayFromInputs();
       });
     });
   }
@@ -393,6 +470,11 @@
         closeStaffTimeDialog();
         return;
       }
+      if (staffPartyDialog && !staffPartyDialog.classList.contains('hidden')) {
+        ev.preventDefault();
+        closeStaffPartyDialog();
+        return;
+      }
       if (!staffRoomDialog || staffRoomDialog.classList.contains('hidden')) return;
       ev.preventDefault();
       closeStaffRoomDialog();
@@ -430,6 +512,72 @@
     if (c) parts.push('어린이 ' + c);
     if (i) parts.push('유아 ' + i);
     return parts.length ? parts.join(', ') : (r.count != null ? String(r.count) + '명' : '—');
+  }
+
+  function parseStaffCount(id) {
+    var el = document.getElementById(id);
+    var n = parseInt(el && el.value, 10);
+    if (isNaN(n) || n < 0) return 0;
+    if (n > 99) return 99;
+    return n;
+  }
+
+  function syncPartyDisplayFromInputs() {
+    if (!partyDisplayInput) return;
+    var adult = parseStaffCount('staff-count-adult');
+    var child = parseStaffCount('staff-count-child');
+    var infant = parseStaffCount('staff-count-infant');
+    partyDisplayInput.value = partyLine({
+      adult: adult,
+      child: child,
+      infant: infant,
+      count: adult + child + infant
+    });
+  }
+
+  function partyFromItem(item) {
+    var a = item.adult;
+    var c = item.child;
+    var i = item.infant;
+    if (a == null && c == null && i == null) {
+      var cnt = item.count != null ? parseInt(item.count, 10) : 2;
+      if (isNaN(cnt) || cnt < 1) cnt = 2;
+      return { adult: cnt, child: 0, infant: 0 };
+    }
+    return {
+      adult: a != null ? a : 0,
+      child: c != null ? c : 0,
+      infant: i != null ? i : 0
+    };
+  }
+
+  function applyPartyFromItem(item) {
+    var p = partyFromItem(item);
+    var ad = document.getElementById('staff-count-adult');
+    var ch = document.getElementById('staff-count-child');
+    var inf = document.getElementById('staff-count-infant');
+    if (ad) ad.value = String(p.adult);
+    if (ch) ch.value = String(p.child);
+    if (inf) inf.value = String(p.infant);
+    syncPartyDisplayFromInputs();
+  }
+
+  function resetPartyInputs() {
+    var ad = document.getElementById('staff-count-adult');
+    var ch = document.getElementById('staff-count-child');
+    var inf = document.getElementById('staff-count-infant');
+    if (ad) ad.value = '2';
+    if (ch) ch.value = '0';
+    if (inf) inf.value = '0';
+    syncPartyDisplayFromInputs();
+  }
+
+  function getStaffPartyPayload() {
+    var adult = parseStaffCount('staff-count-adult');
+    var child = parseStaffCount('staff-count-child');
+    var infant = parseStaffCount('staff-count-infant');
+    var total = adult + child + infant;
+    return { adult: adult, child: child, infant: infant, count: total };
   }
 
   function normalizeRow(r) {
@@ -521,6 +669,7 @@
         document.getElementById('time').value = normalizeTimeValue(item.time || '');
         document.getElementById('name').value = item.name || '';
         document.getElementById('room').value = item.room || '';
+        applyPartyFromItem(item);
         editingIndex = i;
         if (formTitle) formTitle.textContent = '예약 수정';
         if (submitBtn) { submitBtn.textContent = '수정'; submitBtn.classList.add('btn-edit-submit'); }
@@ -535,6 +684,7 @@
     document.getElementById('time').value = '';
     document.getElementById('name').value = '';
     document.getElementById('room').value = '';
+    resetPartyInputs();
     if (formTitle) formTitle.textContent = '예약 추가';
     if (submitBtn) { submitBtn.textContent = '추가'; submitBtn.classList.remove('btn-edit-submit'); }
     if (cancelEditBtn) cancelEditBtn.style.display = 'none';
@@ -545,7 +695,18 @@
     var payload = {
       reservations: adminOnly.map(function (r, i) {
         var id = typeof r.id === 'number' ? r.id : (i + 1);
-        return { id: id, time: r.time || '', name: r.name || '', room: r.room || '' };
+        var p = partyFromItem(r);
+        var total = p.adult + p.child + p.infant;
+        return {
+          id: id,
+          time: r.time || '',
+          name: r.name || '',
+          room: r.room || '',
+          count: total > 0 ? total : (r.count != null ? r.count : 2),
+          adult: p.adult,
+          child: p.child,
+          infant: p.infant
+        };
       })
     };
     fetch(withBranch(API), {
@@ -581,6 +742,11 @@
       showToast('시간, 이름, 호실을 모두 입력하세요.');
       return;
     }
+    var partyP = getStaffPartyPayload();
+    if (partyP.count < 1) {
+      showToast('인원은 1명 이상이어야 합니다.');
+      return;
+    }
     if (!staffTimeOk(time)) {
       showToast('예약 시간을 선택하세요.');
       return;
@@ -598,7 +764,15 @@
           method: 'PATCH',
           credentials: 'same-origin',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ time: time, name: name, room: room })
+          body: JSON.stringify({
+            time: time,
+            name: name,
+            room: room,
+            count: partyP.count,
+            adult: partyP.adult,
+            child: partyP.child,
+            infant: partyP.infant
+          })
         })
           .then(function (r) {
             if (!r.ok) return r.json().then(function (j) { throw new Error(j.detail || '수정 실패'); });
@@ -614,19 +788,39 @@
           });
         return;
       }
-      list[editingIndex] = { time: time, name: name, room: room, id: list[editingIndex].id, source: 'admin' };
+      list[editingIndex] = {
+        time: time,
+        name: name,
+        room: room,
+        id: list[editingIndex].id,
+        source: 'admin',
+        count: partyP.count,
+        adult: partyP.adult,
+        child: partyP.child,
+        infant: partyP.infant
+      };
       list.sort(function (a, b) { return (a.time || '').localeCompare(b.time || ''); });
       cancelEdit();
       render();
       showToast('수정했습니다. 현황판에 반영 중…');
       saveAndNotify('수정되었습니다. 예약현황판에 바로 반영됩니다.');
     } else {
-      list.push({ time: time, name: name, room: room, source: 'admin' });
+      list.push({
+        time: time,
+        name: name,
+        room: room,
+        source: 'admin',
+        count: partyP.count,
+        adult: partyP.adult,
+        child: partyP.child,
+        infant: partyP.infant
+      });
       list.sort(function (a, b) { return (a.time || '').localeCompare(b.time || ''); });
       render();
       document.getElementById('time').value = '';
       document.getElementById('name').value = '';
       document.getElementById('room').value = '';
+      resetPartyInputs();
       document.getElementById('time').focus();
       showToast('추가했습니다. 현황판에 반영 중…');
       saveAndNotify('추가되었습니다. 예약현황판에 바로 반영됩니다.');
@@ -706,7 +900,9 @@
   }
 
   setupStaffTimeDialog();
+  setupStaffPartyDialog();
   setupStaffRoomDialog();
+  resetPartyInputs();
   initApp();
 
   /* 자정 이후에도 WebSocket이 어제 목록을 유지하는 문제: 주기·탭 복귀 시 서버와 동기화 */

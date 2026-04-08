@@ -261,6 +261,10 @@ def _get_board_today_merged(branch_id: str) -> list:
             "name": r.get("name", ""),
             "room": r.get("room", ""),
             "source": "admin",
+            "count": r.get("count"),
+            "adult": r.get("adult"),
+            "child": r.get("child"),
+            "infant": r.get("infant"),
         })
     for r in _get_tel_reservations(_today_str(), branch_id):
         tid = r.get("id")
@@ -538,6 +542,10 @@ class ReservationItem(BaseModel):
     time: str
     name: str
     room: str
+    count: int = 2
+    adult: Optional[int] = None
+    child: Optional[int] = None
+    infant: Optional[int] = None
 
 
 class TodayReservations(BaseModel):
@@ -726,6 +734,10 @@ class TelReservationPatch(BaseModel):
     name: Optional[str] = None
     room: Optional[str] = None
     phone: Optional[str] = None
+    count: Optional[int] = None
+    adult: Optional[int] = None
+    child: Optional[int] = None
+    infant: Optional[int] = None
 
 
 class DisplayContentItemIn(BaseModel):
@@ -979,6 +991,27 @@ async def patch_tel_reservation(
     cur["room"] = new_room
     cur["name"] = new_name
     cur["phone"] = new_phone
+    if payload.count is not None:
+        cur["count"] = int(payload.count)
+    if payload.adult is not None:
+        cur["adult"] = payload.adult
+    if payload.child is not None:
+        cur["child"] = payload.child
+    if payload.infant is not None:
+        cur["infant"] = payload.infant
+    if any(
+        x is not None
+        for x in (payload.count, payload.adult, payload.child, payload.infant)
+    ):
+        a = cur.get("adult")
+        c = cur.get("child")
+        i = cur.get("infant")
+        try:
+            total = (int(a) if a is not None else 0) + (int(c) if c is not None else 0) + (int(i) if i is not None else 0)
+        except (TypeError, ValueError):
+            total = int(cur.get("count") or 0)
+        if total > 0:
+            cur["count"] = total
     cur["slot"] = _time_slot(new_time)
     items[idx] = cur
     _save_tel({"reservations": items})

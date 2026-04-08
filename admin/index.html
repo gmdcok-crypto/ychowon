@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="admin.css?v=13" />
+  <link rel="stylesheet" href="admin.css?v=14" />
 </head>
 <body>
   <div class="admin admin-with-tabs">
@@ -64,6 +64,18 @@
                 placeholder="탭하여 선택"
                 title="탭하면 룸·테이블을 고를 수 있습니다"
                 required
+                readonly
+                autocomplete="off"
+              />
+            </div>
+            <div class="field field-party">
+              <label for="party-display">인원</label>
+              <input
+                type="text"
+                id="party-display"
+                name="party_display"
+                placeholder="탭하여 선택"
+                title="탭하면 어른·어린이·유아 인원을 고를 수 있습니다"
                 readonly
                 autocomplete="off"
               />
@@ -185,6 +197,48 @@
     </div>
   </div>
 
+  <div class="room-dialog staff-party-dialog hidden" id="staff-party-dialog" aria-hidden="true">
+    <div class="room-dialog-backdrop" id="staff-party-dialog-backdrop"></div>
+    <div class="room-dialog-panel staff-party-dialog-panel" role="dialog" aria-modal="true" aria-labelledby="staff-party-dialog-title">
+      <div class="room-dialog-head">
+        <div>
+          <h2 id="staff-party-dialog-title">인원</h2>
+          <p class="room-dialog-meta">전화 예약 화면과 동일하게 어른·어린이·유아를 선택합니다.</p>
+        </div>
+        <button type="button" class="room-dialog-close" id="staff-party-dialog-close">닫기</button>
+      </div>
+      <div class="field count-row staff-party-count">
+        <label>인원</label>
+        <div class="count-grid">
+          <div class="field inline">
+            <label class="count-label" for="staff-count-adult">어른</label>
+            <div class="counter">
+              <button type="button" class="step" data-delta="-1" data-target="staff-count-adult">-</button>
+              <input type="text" id="staff-count-adult" value="2" inputmode="numeric" autocomplete="off" />
+              <button type="button" class="step" data-delta="1" data-target="staff-count-adult">+</button>
+            </div>
+          </div>
+          <div class="field inline">
+            <label class="count-label" for="staff-count-child">어린이</label>
+            <div class="counter">
+              <button type="button" class="step" data-delta="-1" data-target="staff-count-child">-</button>
+              <input type="text" id="staff-count-child" value="0" inputmode="numeric" autocomplete="off" />
+              <button type="button" class="step" data-delta="1" data-target="staff-count-child">+</button>
+            </div>
+          </div>
+          <div class="field inline">
+            <label class="count-label" for="staff-count-infant">유아</label>
+            <div class="counter">
+              <button type="button" class="step" data-delta="-1" data-target="staff-count-infant">-</button>
+              <input type="text" id="staff-count-infant" value="0" inputmode="numeric" autocomplete="off" />
+              <button type="button" class="step" data-delta="1" data-target="staff-count-infant">+</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="room-dialog hidden" id="staff-room-dialog" aria-hidden="true">
     <div class="room-dialog-backdrop" id="staff-room-dialog-backdrop"></div>
     <div class="room-dialog-panel" role="dialog" aria-modal="true" aria-labelledby="staff-room-dialog-title">
@@ -206,7 +260,7 @@
   </div>
 
   <script src="/api/branch-boot.js"></script>
-  <script src="admin.js?v=11"></script>
+  <script src="admin.js?v=12"></script>
   <script src="accounts.js"></script>
 </body>
 </html>

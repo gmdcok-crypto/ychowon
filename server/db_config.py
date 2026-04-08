@@ -167,7 +167,41 @@ def SessionLocal() -> Session:
     return _SessionLocal()
 
 
+def _ensure_staff_reservation_party_columns() -> None:
+    """기존 DB에 staff_reservations 인원 컬럼이 없으면 추가 (create_all 은 컬럼 추가를 안 함)."""
+    from sqlalchemy import inspect, text
+
+    eng = get_engine()
+    insp = inspect(eng)
+    try:
+        if not insp.has_table("staff_reservations"):
+            return
+    except Exception:
+        return
+    try:
+        cols = {c["name"] for c in insp.get_columns("staff_reservations")}
+    except Exception:
+        return
+    alters: list[str] = []
+    if "count" not in cols:
+        alters.append(
+            "ALTER TABLE staff_reservations ADD COLUMN count INT NOT NULL DEFAULT 2"
+        )
+    if "adult" not in cols:
+        alters.append("ALTER TABLE staff_reservations ADD COLUMN adult INT NULL")
+    if "child" not in cols:
+        alters.append("ALTER TABLE staff_reservations ADD COLUMN child INT NULL")
+    if "infant" not in cols:
+        alters.append("ALTER TABLE staff_reservations ADD COLUMN infant INT NULL")
+    if not alters:
+        return
+    with eng.begin() as conn:
+        for sql in alters:
+            conn.execute(text(sql))
+
+
 def init_db() -> None:
     from db_models import Base
 
     Base.metadata.create_all(bind=get_engine())
+    _ensure_staff_reservation_party_columns()

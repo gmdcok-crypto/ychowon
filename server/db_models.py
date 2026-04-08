@@ -28,6 +28,10 @@ class StaffReservationRow(Base):
     time: Mapped[str] = mapped_column(String(32))
     name: Mapped[str] = mapped_column(String(255))
     room: Mapped[str] = mapped_column(String(255))
+    count: Mapped[int] = mapped_column(Integer, default=2)
+    adult: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    child: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    infant: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
 
 

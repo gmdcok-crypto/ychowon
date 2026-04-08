@@ -156,6 +156,10 @@ def load_branch_today(branch_id: str, *, _retry: bool = True) -> dict[str, Any]:
                         "time": r.time,
                         "name": r.name,
                         "room": r.room,
+                        "count": int(r.count),
+                        "adult": r.adult,
+                        "child": r.child,
+                        "infant": r.infant,
                     }
                 )
             return {"date": date_str, "reservations": reservations}
@@ -181,6 +185,15 @@ def load_branch_today(branch_id: str, *, _retry: bool = True) -> dict[str, Any]:
     return {"date": _today_str(), "reservations": []}
 
 
+def _opt_party_int(v: Any) -> Optional[int]:
+    if v is None:
+        return None
+    try:
+        return int(v)
+    except (TypeError, ValueError):
+        return None
+
+
 def save_branch_today(branch_id: str, data: dict[str, Any]) -> None:
     date_str = str(data.get("date") or _today_str())[:10]
     d = _parse_ymd(date_str)
@@ -192,6 +205,16 @@ def save_branch_today(branch_id: str, data: dict[str, Any]) -> None:
         for i, r in enumerate(reservations):
             if not isinstance(r, dict):
                 continue
+            adult = _opt_party_int(r.get("adult"))
+            child = _opt_party_int(r.get("child"))
+            infant = _opt_party_int(r.get("infant"))
+            if adult is None and child is None and infant is None:
+                try:
+                    count = max(1, int(r.get("count") or 2))
+                except (TypeError, ValueError):
+                    count = 2
+            else:
+                count = max(1, (adult or 0) + (child or 0) + (infant or 0))
             s.add(
                 StaffReservationRow(
                     branch_id=branch_id,
@@ -199,6 +222,10 @@ def save_branch_today(branch_id: str, data: dict[str, Any]) -> None:
                     time=str(r.get("time") or ""),
                     name=str(r.get("name") or ""),
                     room=str(r.get("room") or ""),
+                    count=count,
+                    adult=adult,
+                    child=child,
+                    infant=infant,
                     sort_order=i,
                 )
             )
