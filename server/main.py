@@ -1,5 +1,5 @@
 """
-초원농원 예약 현황판 - 당일 전용, MySQL(Railway DATABASE_URL) 저장
+초원농원 예약 현황판 - 당일 전용, DB 없이 JSON 파일만 사용
 
 로그·Invalid HTTP request 관련 (참고):
 - favicon /sw.js 404 는 아래 고정 라우트로 완화.
@@ -11,6 +11,8 @@
 import asyncio
 import json
 import socket
+import sys
+import traceback
 import uuid
 from collections import defaultdict
 from pathlib import Path
@@ -67,7 +69,12 @@ def startup():
         print("  룸·홀:    data/%s (지점 설정)" % _room_cfg_ref)
     else:
         print("  룸·홀:    내장 기본값 (ROOMS_CONFIG_FILE 또는 data/%s)" % CONFIG_FILENAME)
-    print("  저장소:   MySQL/MariaDB (DATABASE_URL 필수)")
+    if running_on_railway():
+        print("  저장소:   Railway MySQL (DATABASE_URL)")
+    elif database_enabled():
+        print("  저장소:   MySQL/MariaDB (DATABASE_URL)")
+    else:
+        print("  저장소:   로컬 data/*.json")
     print("")
 
 
@@ -132,7 +139,7 @@ app.add_middleware(
 async def _auth_middleware_layer(request: Request, call_next):
     return await auth_middleware(request, call_next)
 
-# 마이그레이션·룸 JSON·업로드 등에 사용하는 data/ (저장은 MySQL)
+# 당일 예약 저장 파일 (DB 대신 단일 JSON)
 DATA_DIR = Path(__file__).resolve().parent / "data"
 DATA_DIR.mkdir(exist_ok=True)
 
@@ -164,6 +171,7 @@ auth_configure(DATA_DIR)
 from branch_data import (
     append_branch,
     configure as branch_configure,
+    ensure_migrations,
     load_branch_today,
     load_branches,
     load_display_content,
@@ -174,12 +182,32 @@ from branch_data import (
 )
 
 branch_configure(DATA_DIR)
+TEL_FILE = DATA_DIR / "tel_reservations.json"
 
-from db_config import init_db
+from db_config import (
+    database_enabled,
+    ensure_railway_database_url_or_exit,
+    init_db,
+    running_on_railway,
+    validate_mysql_database_url_or_exit,
+)
 from db_repo import migrate_from_data_dir
 
-init_db()
-migrate_from_data_dir(DATA_DIR)
+ensure_railway_database_url_or_exit()
+
+if database_enabled():
+    try:
+        validate_mysql_database_url_or_exit()
+        init_db()
+        migrate_from_data_dir(DATA_DIR)
+    except SystemExit:
+        raise
+    except BaseException:
+        print("--- DB 초기화 실패 (아래 스택을 Railway Deploy Logs 에서 확인하세요) ---", file=sys.stderr)
+        traceback.print_exc()
+        raise
+else:
+    ensure_migrations(TEL_FILE)
 
 MEAL_DURATION_MINUTES = 120
 
@@ -194,7 +222,7 @@ def _today_str() -> str:
 
 
 def _get_admin_today_list(branch_id: str) -> list:
-    """직원(admin)이 저장한 당일 목록만 (DB staff_reservations)."""
+    """직원(admin)이 저장한 당일 목록만 (지점별 today/{id}.json)."""
     data = load_branch_today(branch_id)
     if data.get("date") != _today_str():
         return []
@@ -303,15 +331,30 @@ def _times_overlap(time_a: str, time_b: str) -> bool:
 
 
 def _load_tel() -> dict:
-    from db_repo import load_tel_store
+    if database_enabled():
+        from db_repo import load_tel_store
 
-    return load_tel_store()
+        return load_tel_store()
+    if not TEL_FILE.exists():
+        return {"reservations": []}
+    try:
+        with open(TEL_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            if isinstance(data, dict):
+                return data
+    except (json.JSONDecodeError, OSError):
+        pass
+    return {"reservations": []}
 
 
 def _save_tel(data: dict) -> None:
-    from db_repo import save_tel_store
+    if database_enabled():
+        from db_repo import save_tel_store
 
-    save_tel_store(data)
+        save_tel_store(data)
+        return
+    with open(TEL_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
 
 
 def _active_display_slides(branch_id: str) -> list:
