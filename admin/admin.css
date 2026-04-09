@@ -11,8 +11,8 @@
   --touch-min: 44px;
   /* 예약 추가: 이름 입력 가로, 호실 입력은 이름의 2배, 인원은 고정 폭 */
   --add-form-name-width: 3cm;
-  --add-form-room-input-width: calc(var(--add-form-name-width) * 2);
-  --add-form-party-width: 4.25rem;
+  --add-form-room-input-width: var(--add-form-name-width);
+  --add-form-party-width: var(--add-form-name-width);
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -312,13 +312,15 @@ body {
   display: flex;
   align-items: stretch;
   gap: 0.5rem;
-  max-width: 16rem;
+  width: var(--add-form-name-width);
+  max-width: var(--add-form-name-width);
 }
 
 .staff-time-field-row .input-time-24 {
   flex: 1;
   min-width: 4.5rem;
   width: 100%;
+  max-width: var(--add-form-name-width);
   min-height: var(--touch-min);
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.03em;
@@ -817,6 +819,14 @@ body {
   color: var(--gold-light);
 }
 
+.staff-room-assignment {
+  margin-bottom: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.18);
+}
+
 .room-group-tabs {
   display: flex;
   flex-wrap: wrap;
@@ -908,6 +918,10 @@ body {
   }
   .add-form .field-time {
     grid-column: 1;
+  }
+  .staff-time-field-row {
+    width: 100%;
+    max-width: none;
   }
   .add-form-name-room {
     grid-column: 1;
