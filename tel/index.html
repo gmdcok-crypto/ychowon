@@ -11,7 +11,7 @@
   <title>전화 예약 접수 · 초원농원</title>
   <link rel="manifest" href="manifest.json" />
   <link rel="apple-touch-icon" href="/display/icon-192.png" />
-  <link rel="stylesheet" href="tel.css?v=10" />
+  <link rel="stylesheet" href="tel.css?v=11" />
 </head>
 <body>
   <div class="tel-root">
@@ -192,8 +192,21 @@
     </div>
   </div>
 
+  <div class="room-dialog tel-confirm-dialog hidden" id="delete-confirm-dialog" aria-hidden="true">
+    <div class="room-dialog-backdrop" id="delete-confirm-backdrop"></div>
+    <div class="room-dialog-panel tel-confirm-dialog-panel" role="dialog" aria-modal="true" aria-labelledby="delete-confirm-message">
+      <div class="tel-confirm-body">
+        <p class="tel-confirm-message" id="delete-confirm-message">삭제하시겠습니까 ?</p>
+      </div>
+      <div class="tel-confirm-actions">
+        <button type="button" class="picker-btn" id="delete-confirm-cancel">취소</button>
+        <button type="button" class="submit-btn" id="delete-confirm-ok">삭제</button>
+      </div>
+    </div>
+  </div>
+
   <script src="/api/branch-boot.js"></script>
-  <script src="tel.js?v=13"></script>
+  <script src="tel.js?v=14"></script>
   <script>
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/tel/sw.js', { scope: '/tel/' }).catch(function () {});

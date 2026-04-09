@@ -519,6 +519,18 @@
     font-size: 1rem;
     font-weight: 600;
     cursor: pointer;
+  transition: transform 0.14s ease, box-shadow 0.14s ease, filter 0.14s ease;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.18);
+}
+
+.submit-btn:not(:disabled):hover {
+  filter: brightness(1.03);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.24);
+}
+
+.submit-btn:not(:disabled):active {
+  transform: translateY(2px) scale(0.99);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.2);
   }
 
 .form-submit-row {
@@ -536,11 +548,43 @@
 .form-submit-row .submit-btn:disabled {
   opacity: 0.45;
   cursor: default;
+  transform: none;
+  filter: none;
+  box-shadow: none;
 }
 
 .form-submit-row .picker-btn {
   margin-top: 0;
   white-space: nowrap;
+}
+
+.tel-confirm-dialog-panel {
+  width: min(360px, 100%);
+  max-width: 360px;
+}
+
+.tel-confirm-body {
+  padding: 0.6rem 0 0.25rem;
+}
+
+.tel-confirm-message {
+  text-align: center;
+  color: var(--gold-light);
+  font-size: 1.05rem;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.tel-confirm-actions {
+  display: flex;
+  gap: 0.6rem;
+  margin-top: 1rem;
+}
+
+.tel-confirm-actions .picker-btn,
+.tel-confirm-actions .submit-btn {
+  margin-top: 0;
+  flex: 1;
 }
   
   .toast {

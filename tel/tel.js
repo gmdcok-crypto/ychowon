@@ -69,6 +69,10 @@
   var roomGrid = document.getElementById('room-grid');
   var timeDialog = document.getElementById('time-dialog');
   var partyDialog = document.getElementById('party-dialog');
+  var deleteConfirmDialog = document.getElementById('delete-confirm-dialog');
+  var deleteConfirmBackdrop = document.getElementById('delete-confirm-backdrop');
+  var deleteConfirmCancelBtn = document.getElementById('delete-confirm-cancel');
+  var deleteConfirmOkBtn = document.getElementById('delete-confirm-ok');
 
   function formatDate(d) {
     var y = d.getFullYear();
@@ -473,6 +477,18 @@
     partyDialog.setAttribute('aria-hidden', 'true');
   }
 
+  function openDeleteConfirmDialog() {
+    if (!deleteConfirmDialog) return;
+    deleteConfirmDialog.classList.remove('hidden');
+    deleteConfirmDialog.setAttribute('aria-hidden', 'false');
+  }
+
+  function closeDeleteConfirmDialog() {
+    if (!deleteConfirmDialog) return;
+    deleteConfirmDialog.classList.add('hidden');
+    deleteConfirmDialog.setAttribute('aria-hidden', 'true');
+  }
+
   function setupTime() {
     var tabs = document.querySelectorAll('.time-tab');
     var lunchBox = document.getElementById('time-buttons-lunch');
@@ -674,7 +690,6 @@
       showToast('먼저 삭제할 예약을 선택하세요.');
       return;
     }
-    if (!confirm('이 예약을 삭제할까요?')) return;
     var delId = editingReservationId;
     fetch(withBranch(API_TEL_RESERVATIONS + '/' + encodeURIComponent(delId)), {
       method: 'DELETE',
@@ -716,6 +731,21 @@
     bindTapOpen(partyDisplayInput, openPartyDialog);
     document.getElementById('party-dialog-close').addEventListener('click', closePartyDialog);
     document.getElementById('party-dialog-backdrop').addEventListener('click', closePartyDialog);
+  }
+
+  function setupDeleteConfirmDialog() {
+    if (deleteConfirmCancelBtn) {
+      deleteConfirmCancelBtn.addEventListener('click', closeDeleteConfirmDialog);
+    }
+    if (deleteConfirmBackdrop) {
+      deleteConfirmBackdrop.addEventListener('click', closeDeleteConfirmDialog);
+    }
+    if (deleteConfirmOkBtn) {
+      deleteConfirmOkBtn.addEventListener('click', function () {
+        closeDeleteConfirmDialog();
+        deleteSelectedReservation();
+      });
+    }
   }
 
   function requestFullscreenOn(el) {
@@ -858,7 +888,11 @@
 
   if (deleteBtn) {
     deleteBtn.addEventListener('click', function () {
-      deleteSelectedReservation();
+      if (editingReservationId == null) {
+        showToast('먼저 삭제할 예약을 선택하세요.');
+        return;
+      }
+      openDeleteConfirmDialog();
     });
   }
 
@@ -890,6 +924,7 @@
   setupTimeDialog();
   setupPartyDialog();
   setupRoomDialog();
+  setupDeleteConfirmDialog();
   setupFullscreen();
   fetchTelReservations();
 })();
