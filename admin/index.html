@@ -18,14 +18,14 @@
     </header>
 
     <div class="admin-tab-bar" role="tablist" aria-label="예약 종류">
-      <button type="button" class="admin-tab active" data-tab="staff" role="tab" id="tab-btn-staff" aria-controls="panel-staff" aria-selected="true">당일예약 및 현황</button>
-      <button type="button" class="admin-tab" data-tab="tel" role="tab" id="tab-btn-tel" aria-controls="panel-tel" aria-selected="false">전화 예약</button>
+      <button type="button" class="admin-tab hidden" data-tab="staff" role="tab" id="tab-btn-staff" aria-controls="panel-staff" aria-selected="false">당일예약 및 현황</button>
+      <button type="button" class="admin-tab active" data-tab="tel" role="tab" id="tab-btn-tel" aria-controls="panel-tel" aria-selected="true">전화 예약</button>
       <button type="button" class="admin-tab" data-tab="all" role="tab" id="tab-btn-all" aria-controls="panel-all" aria-selected="false">예약조회</button>
       <button type="button" class="admin-tab" data-tab="display" role="tab" id="tab-btn-display" aria-controls="panel-display" aria-selected="false">컨텐츠관리</button>
       <button type="button" class="admin-tab" data-tab="accounts" role="tab" id="tab-btn-accounts" aria-controls="panel-accounts" aria-selected="false">계정 관리</button>
     </div>
 
-    <section class="main-section admin-tab-panel" id="panel-staff" role="tabpanel" aria-labelledby="tab-btn-staff">
+    <section class="main-section admin-tab-panel hidden" id="panel-staff" role="tabpanel" aria-labelledby="tab-btn-staff">
       <div class="form-block">
         <div class="form-block-head">
           <h2 id="form-title">예약 추가</h2>
@@ -105,7 +105,7 @@
       </div>
     </section>
 
-    <div class="admin-tab-panel admin-tab-panel-tel hidden" id="panel-tel" role="tabpanel" aria-labelledby="tab-btn-tel">
+    <div class="admin-tab-panel admin-tab-panel-tel" id="panel-tel" role="tabpanel" aria-labelledby="tab-btn-tel">
       <div class="admin-tel-frame">
         <iframe id="iframe-tel-admin" class="admin-tel-iframe" title="전화 예약 접수" src="/tel/"></iframe>
       </div>

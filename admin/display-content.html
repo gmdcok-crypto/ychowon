@@ -32,14 +32,10 @@
         <label for="dc-default-interval">이미지 기본 표시 시간(초)</label>
         <input type="number" id="dc-default-interval" min="3" max="600" value="8" />
       </div>
-      <div class="dc-toolbar">
-        <button type="button" class="btn btn-add" id="dc-add">컨텐츠 추가</button>
-      </div>
 
-      <div id="dc-add-panel" class="dc-add-panel" hidden>
+      <div id="dc-add-panel" class="dc-add-panel">
         <div class="dc-add-panel-head">
           <h2 class="dc-add-panel-title">컨텐츠 추가</h2>
-          <button type="button" class="btn btn-cancel dc-add-close" id="dc-add-close" title="닫기" aria-label="닫기">닫기</button>
         </div>
         <p class="dc-add-panel-hint">이미지 또는 동영상을 선택해 업로드하면 목록과 현황판에 바로 반영됩니다. URL만 직접 넣을 때는 입력 후 Enter를 누르세요.</p>
         <input type="hidden" id="dc-add-name" value="" />
