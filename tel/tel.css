@@ -545,6 +545,16 @@
   flex: 1;
 }
 
+.form-submit-row .submit-btn:not(:disabled):hover {
+  background: var(--gold-light);
+  color: #120f0b;
+  box-shadow: 0 10px 20px rgba(201, 169, 98, 0.28);
+}
+
+.form-submit-row .submit-btn:not(:disabled):active {
+  background: #d7bc79;
+}
+
 .form-submit-row .submit-btn:disabled {
   opacity: 0.45;
   cursor: default;
