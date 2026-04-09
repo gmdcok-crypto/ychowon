@@ -270,6 +270,11 @@
     overflow: auto;
   }
 
+.tel-time-dialog-panel,
+.tel-party-dialog-panel {
+  max-width: 420px;
+}
+
   .room-dialog-head {
     display: flex;
     align-items: flex-start;
