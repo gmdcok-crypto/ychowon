@@ -9,7 +9,7 @@
   --border: rgba(201, 169, 98, 0.3);
   --font: "Noto Sans KR", sans-serif;
   --touch-min: 44px;
-  /* 예약 추가: 이름 입력 가로, 호실 입력은 이름의 2배, 인원은 고정 폭 */
+  /* 당일예약 입력칸 폭 기준 */
   --add-form-name-width: 3cm;
   --add-form-room-input-width: var(--add-form-name-width);
   --add-form-party-width: var(--add-form-name-width);
@@ -294,7 +294,6 @@ body {
   display: grid;
   grid-template-columns:
     var(--add-form-name-width)
-    minmax(0, var(--add-form-room-input-width))
     var(--add-form-party-width)
     auto;
   gap: 0.75rem 1rem;
@@ -471,24 +470,19 @@ body {
   box-sizing: border-box;
 }
 
-.add-form .field-room {
-  min-width: 0;
-  max-width: 100%;
-  overflow: hidden;
-}
-
-.add-form .field input#room,
-.add-form .field input#party-display {
+.add-form .field input#party-display,
+.staff-room-assignment .field-room input#room {
   cursor: pointer;
   min-width: 0;
   width: 100%;
-  max-width: var(--add-form-room-input-width);
+  max-width: var(--add-form-name-width);
   min-height: var(--touch-min);
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .add-form .field-party {
+  width: var(--add-form-party-width);
   max-width: var(--add-form-party-width);
 }
 
@@ -820,11 +814,23 @@ body {
 }
 
 .staff-room-assignment {
-  margin-bottom: 1rem;
-  padding: 1rem;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: rgba(0, 0, 0, 0.18);
+  margin-bottom: 0.85rem;
+}
+
+.staff-room-assignment-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--gold);
+  margin: 0 0 0.5rem;
+}
+
+.staff-room-assignment .field-room {
+  width: var(--add-form-name-width);
+  max-width: var(--add-form-name-width);
+}
+
+.staff-room-assignment .field-room input#room {
+  box-sizing: border-box;
 }
 
 .room-group-tabs {
@@ -925,8 +931,8 @@ body {
   }
   .add-form-name-room {
     grid-column: 1;
-    grid-template-columns: 1fr 1fr;
-    grid-template-rows: auto auto auto;
+    grid-template-columns: 1fr auto;
+    grid-template-rows: auto auto;
     gap: 0.5rem 0.65rem;
   }
   .add-form .field-name {
@@ -937,25 +943,28 @@ body {
     max-width: none;
     width: 100%;
   }
-  .add-form .field-room {
+  .add-form .field-party {
     grid-column: 2;
     grid-row: 1;
-    max-width: 100%;
-  }
-  .add-form .field-party {
-    grid-column: 1 / -1;
-    grid-row: 2;
-    max-width: none;
-  }
-  .add-form .field-party input#party-display {
     max-width: none;
     width: 100%;
+  }
+  .add-form .field-party input#party-display {
+    width: 100%;
+    max-width: none;
   }
   .add-form .form-actions-inline {
     grid-column: 1 / -1;
-    grid-row: 3;
+    grid-row: 2;
     justify-content: flex-end;
     width: 100%;
+  }
+  .staff-room-assignment .field-room {
+    width: 100%;
+    max-width: none;
+  }
+  .staff-room-assignment .field-room input#room {
+    max-width: none;
   }
   .add-form .form-actions-refresh {
     grid-column: 1;

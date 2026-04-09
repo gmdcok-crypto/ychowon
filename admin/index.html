@@ -55,19 +55,6 @@
               <label for="name">이름</label>
               <input type="text" id="name" name="name" placeholder="홍길동" required />
             </div>
-            <div class="field field-room">
-              <label for="room">호실</label>
-              <input
-                type="text"
-                id="room"
-                name="room"
-                placeholder="탭하여 선택"
-                title="탭하면 룸·테이블을 고를 수 있습니다"
-                required
-                readonly
-                autocomplete="off"
-              />
-            </div>
             <div class="field field-party">
               <label for="party-display">인원</label>
               <input
@@ -92,20 +79,26 @@
       </div>
       <div class="list-block">
         <div class="reservation-table">
-          <div class="staff-room-assignment" id="staff-room-dialog" aria-labelledby="staff-room-dialog-title">
-            <div class="room-dialog-head">
-              <div>
-                <h2 id="staff-room-dialog-title">위치 배정</h2>
-                <p class="room-dialog-meta" id="staff-room-dialog-meta">시간을 먼저 입력하세요.</p>
-              </div>
+          <div class="staff-room-assignment">
+            <h2 class="staff-room-assignment-title">위치 배정</h2>
+            <div class="field field-room field-room-assignment">
+              <label for="room">호실</label>
+              <input
+                type="text"
+                id="room"
+                name="room"
+                placeholder="탭하여 선택"
+                title="탭하면 룸·테이블을 고를 수 있습니다"
+                required
+                readonly
+                autocomplete="off"
+              />
             </div>
             <div class="room-dialog-legend">
               <span class="legend available">선택 가능</span>
               <span class="legend reserved">예약 완료</span>
               <span class="legend selected">현재 선택</span>
             </div>
-            <div class="room-group-tabs" id="staff-room-group-tabs"></div>
-            <div class="room-grid" id="staff-room-grid"></div>
           </div>
           <div class="list-table-header" role="row" aria-label="예약 목록 열 제목">
             <span class="list-h-col list-h-no">No</span>
@@ -218,7 +211,6 @@
       <div class="room-dialog-head">
         <div>
           <h2 id="staff-party-dialog-title">인원</h2>
-          <p class="room-dialog-meta">전화 예약 화면과 동일하게 어른·어린이·유아를 선택합니다.</p>
         </div>
         <button type="button" class="room-dialog-close" id="staff-party-dialog-close">닫기</button>
       </div>
@@ -251,6 +243,26 @@
           </div>
         </div>
       </div>
+    </div>
+  </div>
+
+  <div class="room-dialog hidden" id="staff-room-dialog" aria-hidden="true">
+    <div class="room-dialog-backdrop" id="staff-room-dialog-backdrop"></div>
+    <div class="room-dialog-panel" role="dialog" aria-modal="true" aria-labelledby="staff-room-dialog-title">
+      <div class="room-dialog-head">
+        <div>
+          <h2 id="staff-room-dialog-title">룸 / 테이블 선택</h2>
+          <p class="room-dialog-meta" id="staff-room-dialog-meta">시간을 먼저 입력하세요.</p>
+        </div>
+        <button type="button" class="room-dialog-close" id="staff-room-dialog-close">닫기</button>
+      </div>
+      <div class="room-dialog-legend">
+        <span class="legend available">선택 가능</span>
+        <span class="legend reserved">예약 완료</span>
+        <span class="legend selected">현재 선택</span>
+      </div>
+      <div class="room-group-tabs" id="staff-room-group-tabs"></div>
+      <div class="room-grid" id="staff-room-grid"></div>
     </div>
   </div>
 
