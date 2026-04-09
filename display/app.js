@@ -260,7 +260,8 @@
 
     function syncVisibility() {
       var hasReservationData = Array.isArray(reservations);
-      var showTopContent = hasReservationData && !reservations.length && slides.length > 0;
+      // 예약이 없으면 상단 콘텐츠가 비어 있어도 테이블 대신 상단 영역을 보여준다.
+      var showTopContent = hasReservationData && !reservations.length;
       blocksEl.hidden = showTopContent;
       topContentAreaEl.hidden = !showTopContent;
       if (!showTopContent) {
