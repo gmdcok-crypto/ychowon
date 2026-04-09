@@ -819,14 +819,6 @@ body {
   color: var(--gold-light);
 }
 
-.staff-room-assignment {
-  margin-bottom: 1rem;
-  padding: 1rem;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: rgba(0, 0, 0, 0.18);
-}
-
 .room-group-tabs {
   display: flex;
   flex-wrap: wrap;

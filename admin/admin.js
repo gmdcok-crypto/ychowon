@@ -57,7 +57,9 @@
   const timeInput = document.getElementById('time');
   const roomInput = document.getElementById('room');
   const staffRoomDialog = document.getElementById('staff-room-dialog');
+  const staffRoomBackdrop = document.getElementById('staff-room-dialog-backdrop');
   const staffRoomMeta = document.getElementById('staff-room-dialog-meta');
+  const staffRoomClose = document.getElementById('staff-room-dialog-close');
   const staffRoomGroupTabs = document.getElementById('staff-room-group-tabs');
   const staffRoomGrid = document.getElementById('staff-room-grid');
   const staffTimeBackdrop = document.getElementById('staff-time-dialog-backdrop');
@@ -426,22 +428,29 @@
       openStaffTimeDialog();
       return;
     }
-    refreshStaffRoomAvailability(true).then(function () {
-      if (staffRoomDialog && typeof staffRoomDialog.scrollIntoView === 'function') {
-        staffRoomDialog.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
-    });
+    if (staffRoomDialog) {
+      staffRoomDialog.classList.remove('hidden');
+      staffRoomDialog.setAttribute('aria-hidden', 'false');
+    }
+    refreshStaffRoomAvailability(true);
   }
 
   function closeStaffRoomDialog() {
-    if (staffRoomDialog && typeof staffRoomDialog.scrollIntoView === 'function') {
-      staffRoomDialog.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (staffRoomDialog) {
+      staffRoomDialog.classList.add('hidden');
+      staffRoomDialog.setAttribute('aria-hidden', 'true');
     }
   }
 
   function setupStaffRoomDialog() {
     if (roomInput) {
       bindTapOpen(roomInput, openStaffRoomDialogGuarded);
+    }
+    if (staffRoomClose) {
+      staffRoomClose.addEventListener('click', closeStaffRoomDialog);
+    }
+    if (staffRoomBackdrop) {
+      staffRoomBackdrop.addEventListener('click', closeStaffRoomDialog);
     }
     if (timeInput) {
       timeInput.addEventListener('change', function () {
@@ -466,6 +475,9 @@
         closeStaffPartyDialog();
         return;
       }
+      if (!staffRoomDialog || staffRoomDialog.classList.contains('hidden')) return;
+      ev.preventDefault();
+      closeStaffRoomDialog();
     });
   }
 
