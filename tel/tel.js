@@ -41,6 +41,7 @@
   var selectedRoomSection = 'all';
   var telReservations = [];
   var roomStatus = [];
+  var editingReservationId = null;
 
   var monthLabel = document.getElementById('month-label');
   var calGrid = document.getElementById('calendar-grid');
@@ -49,6 +50,9 @@
   var toastEl = document.getElementById('tel-toast');
   var reserveListEl = document.getElementById('reserve-list');
   var formEl = document.getElementById('tel-form');
+  var editStatusEl = document.getElementById('tel-edit-status');
+  var submitBtn = document.getElementById('tel-submit-btn');
+  var editCancelBtn = document.getElementById('tel-edit-cancel');
   var roomInput = document.getElementById('tel-room');
   var timeInput = document.getElementById('tel-time');
   var partyDisplayInput = document.getElementById('tel-party-display');
@@ -124,6 +128,62 @@
     }, 2200);
   }
 
+  function findReservationById(id) {
+    return telReservations.filter(function (item) {
+      return String(item.id || '') === String(id || '');
+    })[0] || null;
+  }
+
+  function updateEditUi() {
+    var editing = editingReservationId != null;
+    if (editStatusEl) editStatusEl.classList.toggle('hidden', !editing);
+    if (submitBtn) submitBtn.textContent = editing ? '수정' : '예약등록';
+    if (editCancelBtn) editCancelBtn.classList.toggle('hidden', !editing);
+  }
+
+  function resetFormFields() {
+    phoneInput.value = '';
+    nameInput.value = '';
+    roomInput.value = '';
+    adultInput.value = '2';
+    childInput.value = '0';
+    infantInput.value = '0';
+    syncPartyDisplay();
+    syncTimeQuickDisplay();
+  }
+
+  function clearEditingReservation(resetForm) {
+    editingReservationId = null;
+    updateEditUi();
+    if (resetForm) resetFormFields();
+    renderReserveList();
+  }
+
+  function fillFormFromReservation(item) {
+    if (!item) return;
+    phoneInput.value = item.phone || '';
+    nameInput.value = item.name || '';
+    timeInput.value = item.time || '';
+    roomInput.value = item.room || '';
+    adultInput.value = String(item.adult != null ? item.adult : 0);
+    childInput.value = String(item.child != null ? item.child : 0);
+    infantInput.value = String(item.infant != null ? item.infant : 0);
+    if ((parseInt(adultInput.value, 10) || 0) + (parseInt(childInput.value, 10) || 0) + (parseInt(infantInput.value, 10) || 0) === 0) {
+      adultInput.value = String(item.count != null ? item.count : 2);
+    }
+    syncPartyDisplay();
+    syncTimeQuickDisplay();
+  }
+
+  function startEditingReservation(item) {
+    if (!item) return;
+    editingReservationId = item.id;
+    fillFormFromReservation(item);
+    updateEditUi();
+    renderReserveList();
+    if (phoneInput && typeof phoneInput.focus === 'function') phoneInput.focus();
+  }
+
   function bindTapOpen(el, fn) {
     if (!el) return;
     function go(e) {
@@ -143,6 +203,23 @@
     var c = parseInt(childInput.value, 10) || 0;
     var i = parseInt(infantInput.value, 10) || 0;
     partyDisplayInput.value = partyLine({ adult: a, child: c, infant: i, count: a + c + i });
+  }
+
+  function syncTimeQuickDisplay() {
+    var current = String(timeInput.value || '').trim();
+    var slot = timeSlot(current) === 'dinner' ? 'dinner' : 'lunch';
+    document.querySelectorAll('.time-tab').forEach(function (tab) {
+      tab.classList.toggle('active', tab.getAttribute('data-slot') === slot);
+    });
+    var lunchBox = document.getElementById('time-buttons-lunch');
+    var dinnerBox = document.getElementById('time-buttons-dinner');
+    if (lunchBox && dinnerBox) {
+      lunchBox.classList.toggle('hidden', slot !== 'lunch');
+      dinnerBox.classList.toggle('hidden', slot !== 'dinner');
+    }
+    document.querySelectorAll('.time-btn').forEach(function (btn) {
+      btn.classList.toggle('active', btn.getAttribute('data-time') === current);
+    });
   }
 
   function updateDateLabels() {
@@ -209,14 +286,20 @@
         '<span class="col-name">이름</span>' +
         '<span class="col-room">룸/테이블</span>' +
         '<span class="col-party">인원</span>' +
+        '<span class="col-actions">관리</span>' +
       '</div>';
     reserveListEl.innerHTML = head + list.map(function (item) {
+      var selectedClass = String(editingReservationId || '') === String(item.id || '') ? ' selected' : '';
       return (
-        '<div class="reserve-row">' +
+        '<div class="reserve-row reserve-item' + selectedClass + '" data-id="' + escapeHtml(item.id) + '">' +
           '<span class="time col-time">' + escapeHtml(item.time) + '</span>' +
           '<span class="name col-name">' + escapeHtml(item.name) + '</span>' +
           '<span class="room col-room">' + escapeHtml(item.room) + '</span>' +
           '<span class="party col-party">' + escapeHtml(partyLine(item)) + '</span>' +
+          '<span class="col-actions">' +
+            '<button type="button" class="row-action-btn row-edit" data-action="edit" data-id="' + escapeHtml(item.id) + '">수정</button>' +
+            '<button type="button" class="row-action-btn row-del" data-action="delete" data-id="' + escapeHtml(item.id) + '">삭제</button>' +
+          '</span>' +
         '</div>'
       );
     }).join('');
@@ -227,6 +310,9 @@
       .then(function (r) { return r.json(); })
       .then(function (data) {
         telReservations = Array.isArray(data) ? data : [];
+        if (editingReservationId != null && !findReservationById(editingReservationId)) {
+          clearEditingReservation(true);
+        }
         renderReserveList();
       })
       .catch(function () {
@@ -365,6 +451,7 @@
       showToast('먼저 예약 날짜를 선택하세요.');
       return;
     }
+    syncTimeQuickDisplay();
     timeDialog.classList.remove('hidden');
     timeDialog.setAttribute('aria-hidden', 'false');
   }
@@ -430,7 +517,7 @@
     });
 
     if (!timeInput.value) setTime('12:00');
-    setTab('lunch');
+    syncTimeQuickDisplay();
   }
 
   function setupCount() {
@@ -497,6 +584,58 @@
         });
         renderReserveList();
       });
+    });
+  }
+
+  function setupReserveListActions() {
+    if (!reserveListEl) return;
+    reserveListEl.addEventListener('click', function (e) {
+      var delBtn = e.target.closest('.row-del');
+      if (delBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        var delId = delBtn.getAttribute('data-id');
+        var delItem = findReservationById(delId);
+        if (!delItem) return;
+        if (!confirm('이 예약을 삭제할까요?')) return;
+        fetch(withBranch(API_TEL_RESERVATIONS + '/' + encodeURIComponent(delId)), {
+          method: 'DELETE',
+          credentials: 'same-origin'
+        })
+          .then(function (r) {
+            return r.json().then(function (data) {
+              return { ok: r.ok, data: data };
+            });
+          })
+          .then(function (result) {
+            if (!result.ok) {
+              throw new Error(result.data.detail || '예약 삭제에 실패했습니다.');
+            }
+            if (String(editingReservationId || '') === String(delId || '')) {
+              clearEditingReservation(true);
+            }
+            showToast('예약이 취소되었습니다.');
+            return fetchTelReservations().then(function () {
+              return refreshRoomAvailability(false);
+            });
+          })
+          .catch(function (err) {
+            showToast(err.message || '예약 삭제에 실패했습니다.');
+          });
+        return;
+      }
+
+      var editBtn = e.target.closest('.row-edit');
+      if (editBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        startEditingReservation(findReservationById(editBtn.getAttribute('data-id')));
+        return;
+      }
+
+      var row = e.target.closest('.reserve-item');
+      if (!row) return;
+      startEditingReservation(findReservationById(row.getAttribute('data-id')));
     });
   }
 
@@ -673,8 +812,10 @@
       return;
     }
 
-    fetch(withBranch(API_TEL_RESERVATIONS), {
-      method: 'POST',
+    var isEditing = editingReservationId != null;
+    var requestUrl = withBranch(API_TEL_RESERVATIONS + (isEditing ? '/' + encodeURIComponent(editingReservationId) : ''));
+    fetch(requestUrl, {
+      method: isEditing ? 'PATCH' : 'POST',
       credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
@@ -686,23 +827,24 @@
       })
       .then(function (result) {
         if (!result.ok) {
-          throw new Error(result.data.detail || '예약 저장에 실패했습니다.');
+          throw new Error(result.data.detail || (isEditing ? '예약 수정에 실패했습니다.' : '예약 저장에 실패했습니다.'));
         }
-        phoneInput.value = '';
-        nameInput.value = '';
-        roomInput.value = '';
-        adultInput.value = '2';
-        childInput.value = '0';
-        infantInput.value = '0';
-        showToast('예약이 등록되었습니다.');
+        clearEditingReservation(true);
+        showToast(isEditing ? '예약이 수정되었습니다.' : '예약이 등록되었습니다.');
         return fetchTelReservations().then(function () {
           return refreshRoomAvailability(false);
         });
       })
       .catch(function (err) {
-        showToast(err.message || '예약 저장에 실패했습니다.');
+        showToast(err.message || (isEditing ? '예약 수정에 실패했습니다.' : '예약 저장에 실패했습니다.'));
       });
   });
+
+  if (editCancelBtn) {
+    editCancelBtn.addEventListener('click', function () {
+      clearEditingReservation(true);
+    });
+  }
 
   document.getElementById('month-prev').addEventListener('click', function () {
     currentMonth--;
@@ -722,6 +864,7 @@
   setupCount();
   setupFocusScroll();
   setupFilters();
+  setupReserveListActions();
   setupTimeDialog();
   setupPartyDialog();
   setupRoomDialog();

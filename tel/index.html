@@ -58,6 +58,7 @@
           <div class="panel-head">
             <div class="form-date" id="form-date-label">예약 일자를 먼저 선택하세요</div>
           </div>
+          <div class="form-edit-status hidden" id="tel-edit-status">선택한 예약 수정 중</div>
           <form id="tel-form" autocomplete="off">
             <div class="field">
               <label for="tel-phone">전화번호</label>
@@ -83,7 +84,10 @@
               <input type="text" id="tel-room" placeholder="탭하여 선택" autocomplete="off" readonly />
             </div>
 
-            <button type="submit" class="submit-btn">예약등록</button>
+            <div class="form-submit-row">
+              <button type="submit" class="submit-btn" id="tel-submit-btn">예약등록</button>
+              <button type="button" class="picker-btn hidden" id="tel-edit-cancel">선택해제</button>
+            </div>
           </form>
         </div>
       </section>
