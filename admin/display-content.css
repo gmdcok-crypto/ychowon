@@ -64,28 +64,6 @@ body.embed .display-content-page {
   background: rgba(0, 0, 0, 0.28);
 }
 
-.dc-add-panel-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 0.75rem;
-  margin-bottom: 0.5rem;
-}
-
-.dc-add-panel-title {
-  margin: 0;
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--gold-light);
-}
-
-.dc-add-panel-hint {
-  margin: 0 0 0.85rem;
-  font-size: 0.82rem;
-  color: var(--cream-dim);
-  line-height: 1.45;
-}
-
 .dc-add-grid {
   margin-bottom: 0.85rem;
 }
@@ -176,6 +154,7 @@ body.embed .display-content-page {
   background: rgba(0, 0, 0, 0.35);
   color: var(--cream);
   font-family: var(--font);
+  width: 8rem;
   max-width: 8rem;
 }
 
@@ -203,9 +182,15 @@ body.embed .display-content-page {
 }
 
 .dc-url-row .dc-url {
-  flex: 1;
-  min-width: 0;
-  width: auto;
+  flex: 0 0 8rem;
+  min-width: 8rem;
+  width: 8rem;
+  max-width: 8rem;
+}
+
+.dc-add-grid .dc-duration {
+  width: 8rem;
+  max-width: 8rem;
 }
 
 .dc-file-btn {

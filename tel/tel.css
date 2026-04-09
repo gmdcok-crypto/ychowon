@@ -298,7 +298,8 @@
 }
 
 .tel-party-count > label {
-  text-align: center;
+  text-align: left;
+  padding-left: 1.5cm;
 }
 
 .tel-party-count .field.inline {
@@ -306,11 +307,12 @@
 }
 
 .tel-party-count .count-label {
-  min-width: 5rem;
+  min-width: 6.5rem;
   display: flex;
   align-items: center;
-  justify-content: center;
-  text-align: center;
+  justify-content: flex-start;
+  text-align: left;
+  padding-left: 1.5cm;
 }
 
   .room-dialog-meta {
