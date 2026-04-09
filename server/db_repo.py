@@ -237,9 +237,11 @@ def load_display_content(branch_id: str, *, _retry: bool = True) -> dict[str, An
     legacy_migrate: Optional[dict[str, Any]] = None
     st: Optional[DisplaySettingsRow] = None
     di = 8
+    top_di = 8
     with _session() as s:
         st = s.get(DisplaySettingsRow, branch_id)
         di = int(st.default_interval_sec) if st else 8
+        top_di = int(getattr(st, "top_default_interval_sec", 8) or 8) if st else 8
         rows = (
             s.execute(
                 select(DisplayItemRow)
@@ -251,6 +253,7 @@ def load_display_content(branch_id: str, *, _retry: bool = True) -> dict[str, An
         )
         if rows:
             items: list[dict[str, Any]] = []
+            top_items: list[dict[str, Any]] = []
             for r in rows:
                 it: dict[str, Any] = {
                     "id": str(r.id),
@@ -262,8 +265,17 @@ def load_display_content(branch_id: str, *, _retry: bool = True) -> dict[str, An
                     it["name"] = r.name
                 if r.duration_sec is not None:
                     it["duration_sec"] = r.duration_sec
-                items.append(it)
-            return {"items": items, "default_interval_sec": di}
+                placement = str(getattr(r, "placement", "bottom") or "bottom").strip().lower()
+                if placement == "top":
+                    top_items.append(it)
+                else:
+                    items.append(it)
+            return {
+                "items": items,
+                "default_interval_sec": di,
+                "top_items": top_items,
+                "top_default_interval_sec": top_di,
+            }
         if _retry:
             leg = _safe_get(s, DisplayContentLegacyRow, branch_id)
             if leg:
@@ -284,46 +296,61 @@ def load_display_content(branch_id: str, *, _retry: bool = True) -> dict[str, An
         return load_display_content(branch_id, _retry=False)
 
     if not st:
-        return {"items": [], "default_interval_sec": 8}
-    return {"items": [], "default_interval_sec": di}
+        return {"items": [], "default_interval_sec": 8, "top_items": [], "top_default_interval_sec": 8}
+    return {"items": [], "default_interval_sec": di, "top_items": [], "top_default_interval_sec": top_di}
 
 
 def save_display_content(branch_id: str, data: dict[str, Any]) -> None:
     items = data.get("items") or []
+    top_items = data.get("top_items") or []
     if not isinstance(items, list):
         items = []
+    if not isinstance(top_items, list):
+        top_items = []
     try:
         di = int(data.get("default_interval_sec") or 8)
     except (TypeError, ValueError):
         di = 8
+    try:
+        top_di = int(data.get("top_default_interval_sec") or 8)
+    except (TypeError, ValueError):
+        top_di = 8
     with _session() as s:
-        s.merge(DisplaySettingsRow(branch_id=branch_id, default_interval_sec=di))
-        s.execute(delete(DisplayItemRow).where(DisplayItemRow.branch_id == branch_id))
-        for i, it in enumerate(items):
-            if not isinstance(it, dict):
-                continue
-            url = str(it.get("url") or "")
-            t = str(it.get("type") or "image").lower()
-            if t not in ("video", "image"):
-                t = "image"
-            nm = str(it.get("name") or "")[:255]
-            dur_raw = it.get("duration_sec")
-            dur: Optional[int] = None
-            if dur_raw is not None and str(dur_raw).strip() != "":
-                try:
-                    dur = int(dur_raw)
-                except (TypeError, ValueError):
-                    dur = None
-            s.add(
-                DisplayItemRow(
-                    branch_id=branch_id,
-                    sort_order=int(it.get("order") or i),
-                    type=t,
-                    url=url,
-                    name=nm,
-                    duration_sec=dur,
-                )
+        s.merge(
+            DisplaySettingsRow(
+                branch_id=branch_id,
+                default_interval_sec=di,
+                top_default_interval_sec=top_di,
             )
+        )
+        s.execute(delete(DisplayItemRow).where(DisplayItemRow.branch_id == branch_id))
+        for placement, rows in (("top", top_items), ("bottom", items)):
+            for i, it in enumerate(rows):
+                if not isinstance(it, dict):
+                    continue
+                url = str(it.get("url") or "")
+                t = str(it.get("type") or "image").lower()
+                if t not in ("video", "image"):
+                    t = "image"
+                nm = str(it.get("name") or "")[:255]
+                dur_raw = it.get("duration_sec")
+                dur: Optional[int] = None
+                if dur_raw is not None and str(dur_raw).strip() != "":
+                    try:
+                        dur = int(dur_raw)
+                    except (TypeError, ValueError):
+                        dur = None
+                s.add(
+                    DisplayItemRow(
+                        branch_id=branch_id,
+                        placement=placement,
+                        sort_order=int(it.get("order") or i),
+                        type=t,
+                        url=url,
+                        name=nm,
+                        duration_sec=dur,
+                    )
+                )
         s.commit()
 
 
@@ -659,4 +686,4 @@ def migrate_from_data_dir(data_dir: Path) -> bool:
 
 def seed_new_branch(branch_id: str, name: str) -> None:
     save_branch_today(branch_id, {"date": _today_str(), "reservations": []})
-    save_display_content(branch_id, {"items": [], "default_interval_sec": 8})
+    save_display_content(branch_id, {"items": [], "default_interval_sec": 8, "top_items": [], "top_default_interval_sec": 8})

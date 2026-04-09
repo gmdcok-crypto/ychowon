@@ -327,15 +327,21 @@ def load_display_content(branch_id: str) -> dict:
 
     p = display_content_path(branch_id)
     if not p.exists():
-        return {"items": [], "default_interval_sec": 8}
+        return {"items": [], "default_interval_sec": 8, "top_items": [], "top_default_interval_sec": 8}
     try:
         with open(p, "r", encoding="utf-8") as f:
             data = json.load(f)
             if isinstance(data, dict):
+                if not isinstance(data.get("top_items"), list):
+                    data["top_items"] = []
+                try:
+                    data["top_default_interval_sec"] = int(data.get("top_default_interval_sec") or 8)
+                except (TypeError, ValueError):
+                    data["top_default_interval_sec"] = 8
                 return data
     except (json.JSONDecodeError, OSError):
         pass
-    return {"items": [], "default_interval_sec": 8}
+    return {"items": [], "default_interval_sec": 8, "top_items": [], "top_default_interval_sec": 8}
 
 
 def save_display_content(branch_id: str, data: dict) -> None:
@@ -371,4 +377,4 @@ def append_branch(branch_id: str, name: str) -> None:
         encoding="utf-8",
     )
     save_branch_today(bid, {"date": today_str(), "reservations": []})
-    save_display_content(bid, {"items": [], "default_interval_sec": 8})
+    save_display_content(bid, {"items": [], "default_interval_sec": 8, "top_items": [], "top_default_interval_sec": 8})

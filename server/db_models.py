@@ -54,19 +54,21 @@ class TelReservationRow(Base):
 
 
 class DisplaySettingsRow(Base):
-    """지점별 하단 광고 기본 슬라이드 간격(초)."""
+    """지점별 상단/하단 콘텐츠 기본 슬라이드 간격(초)."""
 
     __tablename__ = "display_settings"
     branch_id: Mapped[str] = mapped_column(String(64), primary_key=True)
     default_interval_sec: Mapped[int] = mapped_column(Integer, default=8)
+    top_default_interval_sec: Mapped[int] = mapped_column(Integer, default=8)
 
 
 class DisplayItemRow(Base):
-    """현황판 하단 광고 슬라이드 한 장."""
+    """현황판 상단/하단 콘텐츠 슬라이드 한 장."""
 
     __tablename__ = "display_items"
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     branch_id: Mapped[str] = mapped_column(String(64), index=True)
+    placement: Mapped[str] = mapped_column(String(16), default="bottom")
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
     type: Mapped[str] = mapped_column(String(16), default="image")
     url: Mapped[str] = mapped_column(Text)

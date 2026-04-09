@@ -397,6 +397,36 @@ def _active_display_slides(branch_id: str, data: Optional[dict[str, Any]] = None
     return out
 
 
+def _active_top_display_slides(branch_id: str, data: Optional[dict[str, Any]] = None) -> list:
+    if data is None:
+        data = load_display_content(branch_id)
+    try:
+        default_dur = int(data.get("top_default_interval_sec") or 8)
+    except (TypeError, ValueError):
+        default_dur = 8
+    default_dur = max(3, min(600, default_dur))
+    items = list(data.get("top_items") or [])
+    items.sort(key=lambda x: (int(x.get("order") or 0), str(x.get("id", ""))))
+    out = []
+    for it in items:
+        url = (it.get("url") or "").strip()
+        if not url:
+            continue
+        t = (it.get("type") or "image").lower()
+        if t not in ("video", "image"):
+            t = "image"
+        if t == "video":
+            out.append({"type": "video", "url": url})
+            continue
+        try:
+            dur_raw = it.get("duration_sec")
+            dur_i = max(3, min(600, int(dur_raw))) if dur_raw is not None and str(dur_raw).strip() != "" else default_dur
+        except (TypeError, ValueError):
+            dur_i = default_dur
+        out.append({"type": "image", "url": url, "duration_sec": dur_i})
+    return out
+
+
 def _display_content_push_payload(branch_id: str) -> dict[str, Any]:
     """WS·푸시용: active_slides + items(클라이언트 폴백) + default_interval_sec."""
     data = load_display_content(branch_id)
@@ -405,11 +435,19 @@ def _display_content_push_payload(branch_id: str) -> dict[str, Any]:
     except (TypeError, ValueError):
         di = 8
     di = max(3, min(600, di))
+    try:
+        top_di = int(data.get("top_default_interval_sec") or 8)
+    except (TypeError, ValueError):
+        top_di = 8
+    top_di = max(3, min(600, top_di))
     return {
         "type": "display_content",
         "active_slides": _active_display_slides(branch_id, data),
+        "active_top_slides": _active_top_display_slides(branch_id, data),
         "items": list(data.get("items") or []),
+        "top_items": list(data.get("top_items") or []),
         "default_interval_sec": di,
+        "top_default_interval_sec": top_di,
     }
 
 
@@ -752,6 +790,8 @@ class DisplayContentItemIn(BaseModel):
 class DisplayContentIn(BaseModel):
     items: list[DisplayContentItemIn] = []
     default_interval_sec: int = 8
+    top_items: list[DisplayContentItemIn] = []
+    top_default_interval_sec: int = 8
 
 
 @app.get("/api/display/content")
@@ -762,7 +802,12 @@ def api_get_display_content(request: Request, branch: str = Query(default="defau
         di = int(data.get("default_interval_sec") or 8)
     except (TypeError, ValueError):
         di = 8
+    try:
+        top_di = int(data.get("top_default_interval_sec") or 8)
+    except (TypeError, ValueError):
+        top_di = 8
     raw_items = data.get("items") or []
+    raw_top_items = data.get("top_items") or []
     items_out = []
     for it in raw_items:
         row = dict(it)
@@ -771,11 +816,22 @@ def api_get_display_content(request: Request, branch: str = Query(default="defau
         if filled:
             row["name"] = filled
         items_out.append(row)
+    top_items_out = []
+    for it in raw_top_items:
+        row = dict(it)
+        url = str(row.get("url") or "")
+        filled = _fill_display_name_from_upload_meta(url, str(row.get("name") or ""))
+        if filled:
+            row["name"] = filled
+        top_items_out.append(row)
     return JSONResponse(
         content={
             "items": items_out,
+            "top_items": top_items_out,
             "default_interval_sec": max(3, min(600, di)),
+            "top_default_interval_sec": max(3, min(600, top_di)),
             "active_slides": _active_display_slides(bid),
+            "active_top_slides": _active_top_display_slides(bid),
         },
         headers={
             "Cache-Control": "no-store, no-cache, must-revalidate",
@@ -791,42 +847,62 @@ async def api_set_display_content(
     branch: str = Query(default="default"),
 ):
     bid = resolve_effective_branch(branch, request.headers.get("host"))
-    old_items = list(load_display_content(bid).get("items") or [])
-    normalized: list = []
-    for it in payload.items:
-        d = it.model_dump()
-        url = (d.get("url") or "").strip()
-        if not url:
-            continue
-        if not url.startswith(("http://", "https://", "/")):
-            raise HTTPException(
-                status_code=400,
-                detail="URL은 http(s) 또는 / 로 시작하는 경로만 가능합니다.",
-            )
-        t = (d.get("type") or "image").lower()
-        is_video = t == "video"
-        entry: dict = {
-            "type": "video" if is_video else "image",
-            "url": url,
-        }
-        nm = str(d.get("name") or "").strip()[:200]
-        nm = _fill_display_name_from_upload_meta(url, nm)
-        if nm:
-            entry["name"] = nm
-        if not is_video and d.get("duration_sec") is not None:
-            entry["duration_sec"] = d.get("duration_sec")
-        normalized.append(entry)
-    for idx, d in enumerate(normalized):
-        d["id"] = str(idx + 1)
-        d["order"] = idx
+    old_data = load_display_content(bid)
+
+    def _normalize_display_items(raw_items: list[DisplayContentItemIn]) -> list[dict[str, Any]]:
+        normalized: list[dict[str, Any]] = []
+        for it in raw_items:
+            d = it.model_dump()
+            url = (d.get("url") or "").strip()
+            if not url:
+                continue
+            if not url.startswith(("http://", "https://", "/")):
+                raise HTTPException(
+                    status_code=400,
+                    detail="URL은 http(s) 또는 / 로 시작하는 경로만 가능합니다.",
+                )
+            t = (d.get("type") or "image").lower()
+            is_video = t == "video"
+            entry: dict[str, Any] = {
+                "type": "video" if is_video else "image",
+                "url": url,
+            }
+            nm = str(d.get("name") or "").strip()[:200]
+            nm = _fill_display_name_from_upload_meta(url, nm)
+            if nm:
+                entry["name"] = nm
+            if not is_video and d.get("duration_sec") is not None:
+                entry["duration_sec"] = d.get("duration_sec")
+            normalized.append(entry)
+        for idx, row in enumerate(normalized):
+            row["id"] = str(idx + 1)
+            row["order"] = idx
+        return normalized
+
+    normalized = _normalize_display_items(payload.items)
+    top_normalized = _normalize_display_items(payload.top_items)
     try:
         di = int(payload.default_interval_sec)
         di = max(3, min(600, di))
     except (TypeError, ValueError):
         di = 8
-    new_urls = {str(d.get("url") or "").strip() for d in normalized}
+    try:
+        top_di = int(payload.top_default_interval_sec)
+        top_di = max(3, min(600, top_di))
+    except (TypeError, ValueError):
+        top_di = 8
+    new_urls = {str(d.get("url") or "").strip() for d in (normalized + top_normalized)}
+    old_items = list(old_data.get("items") or []) + list(old_data.get("top_items") or [])
     _cleanup_removed_display_uploads(old_items, new_urls)
-    save_display_content(bid, {"items": normalized, "default_interval_sec": di})
+    save_display_content(
+        bid,
+        {
+            "items": normalized,
+            "default_interval_sec": di,
+            "top_items": top_normalized,
+            "top_default_interval_sec": top_di,
+        },
+    )
     await broadcast_display_content(bid)
     return {"ok": True, "active_slides": _active_display_slides(bid)}
 

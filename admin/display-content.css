@@ -1,4 +1,4 @@
-/* 컨텐츠관리 (현황판 하단 슬라이드) */
+/* 컨텐츠관리 (현황판 상단/하단 콘텐츠) */
 html.embed,
 body.embed {
   min-height: 0;
@@ -23,6 +23,29 @@ body.embed .display-content-page {
   color: var(--cream-dim);
   margin-bottom: 1rem;
   line-height: 1.5;
+}
+
+.dc-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.dc-content-group {
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.dc-group-head {
+  margin-bottom: 0.85rem;
+}
+
+.dc-group-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--gold-light);
 }
 
 .dc-default {

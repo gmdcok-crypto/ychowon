@@ -27,63 +27,123 @@
       <h1>컨텐츠관리</h1>
     </header>
 
-    <section class="main-section dc-section">
-      <div class="dc-default">
-        <label for="dc-default-interval">이미지 기본 표시 시간(초)</label>
-        <input type="number" id="dc-default-interval" min="3" max="600" value="8" />
-      </div>
-
-      <div id="dc-add-panel" class="dc-add-panel">
-        <input type="hidden" id="dc-add-name" value="" />
-        <input type="hidden" id="dc-add-url-real" value="" />
-        <div class="dc-row-grid dc-add-grid">
-          <span class="dc-label">종류</span>
-          <select id="dc-add-type" class="dc-type">
-            <option value="image" selected>이미지</option>
-            <option value="video">동영상</option>
-          </select>
-          <span class="dc-label">URL</span>
-          <div class="dc-url-row">
-            <input type="text" id="dc-add-url" class="dc-url" placeholder="파일 선택 또는 http(s):// …" autocomplete="off" spellcheck="false" />
-            <input type="file" id="dc-add-file" class="dc-file" accept="image/*,video/*,.mp4,.webm,.mov,.m4v" tabindex="-1" />
-            <label for="dc-add-file" class="btn dc-file-btn" title="PC에서 파일 선택·업로드" aria-label="파일 선택">
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
-              </svg>
-            </label>
-          </div>
-          <span class="dc-label dc-add-duration-label">표시 시간(초)</span>
-          <input type="number" id="dc-add-duration" class="dc-duration" min="3" max="600" placeholder="비우면 기본값" />
+    <section class="main-section dc-section dc-stack">
+      <section class="dc-content-group" aria-labelledby="dc-top-title">
+        <div class="dc-group-head">
+          <h2 id="dc-top-title" class="dc-group-title">상단 콘텐츠</h2>
         </div>
-      </div>
+        <div class="dc-default">
+          <label for="dc-top-default-interval">이미지 기본 표시 시간(초)</label>
+          <input type="number" id="dc-top-default-interval" min="3" max="600" value="8" />
+        </div>
 
-    </section>
+        <div id="dc-top-add-panel" class="dc-add-panel">
+          <input type="hidden" id="dc-top-add-name" value="" />
+          <input type="hidden" id="dc-top-add-url-real" value="" />
+          <div class="dc-row-grid dc-add-grid">
+            <span class="dc-label">종류</span>
+            <select id="dc-top-add-type" class="dc-type">
+              <option value="image" selected>이미지</option>
+              <option value="video">동영상</option>
+            </select>
+            <span class="dc-label">URL</span>
+            <div class="dc-url-row">
+              <input type="text" id="dc-top-add-url" class="dc-url" placeholder="파일 선택 또는 http(s):// …" autocomplete="off" spellcheck="false" />
+              <input type="file" id="dc-top-add-file" class="dc-file" accept="image/*,video/*,.mp4,.webm,.mov,.m4v" tabindex="-1" />
+              <label for="dc-top-add-file" class="btn dc-file-btn" title="PC에서 파일 선택·업로드" aria-label="파일 선택">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                </svg>
+              </label>
+            </div>
+            <span class="dc-label dc-add-duration-label" data-section="top">표시 시간(초)</span>
+            <input type="number" id="dc-top-add-duration" class="dc-duration" min="3" max="600" placeholder="비우면 기본값" />
+          </div>
+        </div>
 
-    <section class="main-section dc-summary-section" id="dc-summary-wrap">
-      <div class="dc-summary-toolbar">
-        <button type="button" class="btn btn-del dc-summary-clear" id="dc-summary-clear">전체 삭제</button>
-      </div>
-      <div class="dc-summary-table-wrap">
-        <table class="dc-summary-table">
-          <thead>
-            <tr>
-              <th scope="col">순서</th>
-              <th scope="col">종류</th>
-              <th scope="col">표시 시간</th>
-              <th scope="col">컨텐츠 이름</th>
-              <th scope="col" class="col-move">이동</th>
-              <th scope="col" class="col-del">삭제</th>
-            </tr>
-          </thead>
-          <tbody id="dc-summary-body"></tbody>
-        </table>
-      </div>
-      <p class="dc-summary-empty" id="dc-summary-empty" hidden>등록된 항목이 없습니다.</p>
+        <section class="dc-summary-section" id="dc-top-summary-wrap">
+          <div class="dc-summary-toolbar">
+            <button type="button" class="btn btn-del dc-summary-clear" id="dc-top-summary-clear">전체 삭제</button>
+          </div>
+          <div class="dc-summary-table-wrap">
+            <table class="dc-summary-table">
+              <thead>
+                <tr>
+                  <th scope="col">순서</th>
+                  <th scope="col">종류</th>
+                  <th scope="col">표시 시간</th>
+                  <th scope="col">컨텐츠 이름</th>
+                  <th scope="col" class="col-move">이동</th>
+                  <th scope="col" class="col-del">삭제</th>
+                </tr>
+              </thead>
+              <tbody id="dc-top-summary-body"></tbody>
+            </table>
+          </div>
+          <p class="dc-summary-empty" id="dc-top-summary-empty" hidden>등록된 항목이 없습니다.</p>
+        </section>
+      </section>
+
+      <section class="dc-content-group" aria-labelledby="dc-bottom-title">
+        <div class="dc-group-head">
+          <h2 id="dc-bottom-title" class="dc-group-title">하단 콘텐츠</h2>
+        </div>
+        <div class="dc-default">
+          <label for="dc-bottom-default-interval">이미지 기본 표시 시간(초)</label>
+          <input type="number" id="dc-bottom-default-interval" min="3" max="600" value="8" />
+        </div>
+
+        <div id="dc-bottom-add-panel" class="dc-add-panel">
+          <input type="hidden" id="dc-bottom-add-name" value="" />
+          <input type="hidden" id="dc-bottom-add-url-real" value="" />
+          <div class="dc-row-grid dc-add-grid">
+            <span class="dc-label">종류</span>
+            <select id="dc-bottom-add-type" class="dc-type">
+              <option value="image" selected>이미지</option>
+              <option value="video">동영상</option>
+            </select>
+            <span class="dc-label">URL</span>
+            <div class="dc-url-row">
+              <input type="text" id="dc-bottom-add-url" class="dc-url" placeholder="파일 선택 또는 http(s):// …" autocomplete="off" spellcheck="false" />
+              <input type="file" id="dc-bottom-add-file" class="dc-file" accept="image/*,video/*,.mp4,.webm,.mov,.m4v" tabindex="-1" />
+              <label for="dc-bottom-add-file" class="btn dc-file-btn" title="PC에서 파일 선택·업로드" aria-label="파일 선택">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                </svg>
+              </label>
+            </div>
+            <span class="dc-label dc-add-duration-label" data-section="bottom">표시 시간(초)</span>
+            <input type="number" id="dc-bottom-add-duration" class="dc-duration" min="3" max="600" placeholder="비우면 기본값" />
+          </div>
+        </div>
+
+        <section class="dc-summary-section" id="dc-bottom-summary-wrap">
+          <div class="dc-summary-toolbar">
+            <button type="button" class="btn btn-del dc-summary-clear" id="dc-bottom-summary-clear">전체 삭제</button>
+          </div>
+          <div class="dc-summary-table-wrap">
+            <table class="dc-summary-table">
+              <thead>
+                <tr>
+                  <th scope="col">순서</th>
+                  <th scope="col">종류</th>
+                  <th scope="col">표시 시간</th>
+                  <th scope="col">컨텐츠 이름</th>
+                  <th scope="col" class="col-move">이동</th>
+                  <th scope="col" class="col-del">삭제</th>
+                </tr>
+              </thead>
+              <tbody id="dc-bottom-summary-body"></tbody>
+            </table>
+          </div>
+          <p class="dc-summary-empty" id="dc-bottom-summary-empty" hidden>등록된 항목이 없습니다.</p>
+        </section>
+      </section>
     </section>
 
     <div id="dc-toast" class="toast" aria-live="polite"></div>
   </div>
   <script src="/api/branch-boot.js"></script>
-  <script src="display-content.js?v=3"></script>
+  <script src="display-content.js?v=4"></script>
 </body>
 </html>

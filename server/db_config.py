@@ -200,8 +200,49 @@ def _ensure_staff_reservation_party_columns() -> None:
             conn.execute(text(sql))
 
 
+def _ensure_display_content_columns() -> None:
+    """기존 DB에 상단 콘텐츠 관련 컬럼이 없으면 추가."""
+    from sqlalchemy import inspect, text
+
+    eng = get_engine()
+    insp = inspect(eng)
+    try:
+        has_settings = insp.has_table("display_settings")
+        has_items = insp.has_table("display_items")
+    except Exception:
+        return
+
+    with eng.begin() as conn:
+        if has_settings:
+            try:
+                settings_cols = {c["name"] for c in insp.get_columns("display_settings")}
+            except Exception:
+                settings_cols = set()
+            if "top_default_interval_sec" not in settings_cols:
+                conn.execute(
+                    text(
+                        "ALTER TABLE display_settings "
+                        "ADD COLUMN top_default_interval_sec INT NOT NULL DEFAULT 8"
+                    )
+                )
+
+        if has_items:
+            try:
+                item_cols = {c["name"] for c in insp.get_columns("display_items")}
+            except Exception:
+                item_cols = set()
+            if "placement" not in item_cols:
+                conn.execute(
+                    text(
+                        "ALTER TABLE display_items "
+                        "ADD COLUMN placement VARCHAR(16) NOT NULL DEFAULT 'bottom'"
+                    )
+                )
+
+
 def init_db() -> None:
     from db_models import Base
 
     Base.metadata.create_all(bind=get_engine())
     _ensure_staff_reservation_party_columns()
+    _ensure_display_content_columns()
