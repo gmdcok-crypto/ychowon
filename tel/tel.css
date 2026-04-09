@@ -527,34 +527,20 @@
   align-items: stretch;
 }
 
-.form-submit-row .picker-btn {
+.form-submit-row .submit-btn {
   margin-top: 0;
-  white-space: nowrap;
-  min-height: 38px;
-  padding: 0.35rem 0.7rem;
-  font-size: 0.85rem;
+  width: auto;
+  flex: 1;
 }
 
-.form-submit-row .picker-btn:disabled {
+.form-submit-row .submit-btn:disabled {
   opacity: 0.45;
   cursor: default;
 }
 
-.form-submit-row .form-action-btn {
-  flex: 1;
-}
-
-#tel-add-btn {
-  color: var(--gold-light);
-}
-
-#tel-update-btn {
-  color: var(--cream);
-}
-
-#tel-delete-btn {
-  color: #f0b1b1;
-  border-color: rgba(200,80,80,0.35);
+.form-submit-row .picker-btn {
+  margin-top: 0;
+  white-space: nowrap;
 }
   
   .toast {
