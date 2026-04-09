@@ -239,22 +239,9 @@
     scroll-margin-top: 1rem;
   }
 
-  .room-picker {
-    display: grid;
-    grid-template-columns: 1fr auto;
-    gap: 0.5rem;
-  }
-
-  .picker-btn {
-    min-height: var(--touch-min);
-    padding: 0.5rem 0.85rem;
-    border-radius: 8px;
-    border: 1px solid var(--border);
-    background: rgba(201,169,98,0.18);
-    color: var(--gold-light);
-    font-size: 0.9rem;
-    cursor: pointer;
-  }
+.field input[readonly] {
+  cursor: pointer;
+}
 
   .room-dialog {
     position: fixed;

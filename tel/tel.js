@@ -51,6 +51,7 @@
   var formEl = document.getElementById('tel-form');
   var roomInput = document.getElementById('tel-room');
   var timeInput = document.getElementById('tel-time');
+  var partyDisplayInput = document.getElementById('tel-party-display');
   var phoneInput = document.getElementById('tel-phone');
   var nameInput = document.getElementById('tel-name');
   var adultInput = document.getElementById('tel-count-adult');
@@ -60,6 +61,8 @@
   var roomDialogMeta = document.getElementById('room-dialog-meta');
   var roomGroupTabs = document.getElementById('room-group-tabs');
   var roomGrid = document.getElementById('room-grid');
+  var timeDialog = document.getElementById('time-dialog');
+  var partyDialog = document.getElementById('party-dialog');
 
   function formatDate(d) {
     var y = d.getFullYear();
@@ -119,6 +122,27 @@
     toastEl._t = setTimeout(function () {
       toastEl.classList.remove('show');
     }, 2200);
+  }
+
+  function bindTapOpen(el, fn) {
+    if (!el) return;
+    function go(e) {
+      if (e) {
+        if (e.type === 'touchend') e.preventDefault();
+        e.stopPropagation();
+      }
+      fn();
+    }
+    el.addEventListener('click', go);
+    el.addEventListener('touchend', go, { passive: false });
+  }
+
+  function syncPartyDisplay() {
+    if (!partyDisplayInput) return;
+    var a = parseInt(adultInput.value, 10) || 0;
+    var c = parseInt(childInput.value, 10) || 0;
+    var i = parseInt(infantInput.value, 10) || 0;
+    partyDisplayInput.value = partyLine({ adult: a, child: c, infant: i, count: a + c + i });
   }
 
   function updateDateLabels() {
@@ -336,6 +360,34 @@
     roomDialog.setAttribute('aria-hidden', 'true');
   }
 
+  function openTimeDialog() {
+    if (!selectedDate) {
+      showToast('먼저 예약 날짜를 선택하세요.');
+      return;
+    }
+    timeDialog.classList.remove('hidden');
+    timeDialog.setAttribute('aria-hidden', 'false');
+  }
+
+  function closeTimeDialog() {
+    timeDialog.classList.add('hidden');
+    timeDialog.setAttribute('aria-hidden', 'true');
+  }
+
+  function openPartyDialog() {
+    if (!selectedDate) {
+      showToast('먼저 예약 날짜를 선택하세요.');
+      return;
+    }
+    partyDialog.classList.remove('hidden');
+    partyDialog.setAttribute('aria-hidden', 'false');
+  }
+
+  function closePartyDialog() {
+    partyDialog.classList.add('hidden');
+    partyDialog.setAttribute('aria-hidden', 'true');
+  }
+
   function setupTime() {
     var tabs = document.querySelectorAll('.time-tab');
     var lunchBox = document.getElementById('time-buttons-lunch');
@@ -362,6 +414,7 @@
       });
       refreshRoomAvailability(false);
       renderReserveList();
+      closeTimeDialog();
     }
 
     tabs.forEach(function (tab) {
@@ -392,8 +445,24 @@
         if (cur < 0) cur = 0;
         if (cur > 99) cur = 99;
         input.value = String(cur);
+        syncPartyDisplay();
       });
     });
+
+    [adultInput, childInput, infantInput].forEach(function (input) {
+      input.addEventListener('input', function () {
+        syncPartyDisplay();
+      });
+      input.addEventListener('blur', function () {
+        var cur = parseInt(input.value, 10);
+        if (isNaN(cur) || cur < 0) cur = 0;
+        if (cur > 99) cur = 99;
+        input.value = String(cur);
+        syncPartyDisplay();
+      });
+    });
+
+    syncPartyDisplay();
   }
 
   function setupFocusScroll() {
@@ -432,10 +501,21 @@
   }
 
   function setupRoomDialog() {
-    document.getElementById('tel-room-open').addEventListener('click', openRoomDialog);
-    roomInput.addEventListener('click', openRoomDialog);
+    bindTapOpen(roomInput, openRoomDialog);
     document.getElementById('room-dialog-close').addEventListener('click', closeRoomDialog);
     document.getElementById('room-dialog-backdrop').addEventListener('click', closeRoomDialog);
+  }
+
+  function setupTimeDialog() {
+    bindTapOpen(timeInput, openTimeDialog);
+    document.getElementById('time-dialog-close').addEventListener('click', closeTimeDialog);
+    document.getElementById('time-dialog-backdrop').addEventListener('click', closeTimeDialog);
+  }
+
+  function setupPartyDialog() {
+    bindTapOpen(partyDisplayInput, openPartyDialog);
+    document.getElementById('party-dialog-close').addEventListener('click', closePartyDialog);
+    document.getElementById('party-dialog-backdrop').addEventListener('click', closePartyDialog);
   }
 
   function requestFullscreenOn(el) {
@@ -642,6 +722,8 @@
   setupCount();
   setupFocusScroll();
   setupFilters();
+  setupTimeDialog();
+  setupPartyDialog();
   setupRoomDialog();
   setupFullscreen();
   fetchTelReservations();
