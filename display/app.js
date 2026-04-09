@@ -258,16 +258,17 @@
       });
     }
 
-    function syncVisibility() {
+    function syncVisibility(restartRotation) {
       var hasReservationData = Array.isArray(reservations);
       // 예약이 없으면 상단 콘텐츠가 비어 있어도 테이블 대신 상단 영역을 보여준다.
       var showTopContent = hasReservationData && !reservations.length;
+      var wasHidden = !!topContentAreaEl.hidden;
       blocksEl.hidden = showTopContent;
       topContentAreaEl.hidden = !showTopContent;
       if (!showTopContent) {
         clearRotation();
         pauseAllVideos();
-      } else if (slides.length) {
+      } else if (slides.length && (restartRotation || wasHidden)) {
         showCurrent();
       }
     }
@@ -346,7 +347,7 @@
       slides = list && list.length ? list.slice() : [];
       idx = 0;
       buildElements(slides);
-      syncVisibility();
+      syncVisibility(true);
     }
 
     function applyPayload(data, force) {
