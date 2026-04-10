@@ -458,6 +458,10 @@ def _display_content_push_payload(branch_id: str) -> dict[str, Any]:
     }
 
 
+def _display_version_push_payload() -> dict[str, str]:
+    return {"type": "display_version", "version": DISPLAY_BUILD_VERSION}
+
+
 def _get_tel_reservations(date_text: Optional[str] = None, branch_id: Optional[str] = None) -> list:
     data = _load_tel()
     items = data.get("reservations") or []
@@ -572,6 +576,7 @@ async def websocket_display(websocket: WebSocket, branch: str = Query(default="d
     await websocket.accept()
     ws_by_branch[bid].add(websocket)
     try:
+        await websocket.send_text(json.dumps(_display_version_push_payload(), ensure_ascii=False))
         await websocket.send_text(json.dumps(_get_board_today_merged(bid), ensure_ascii=False))
         await websocket.send_text(json.dumps(_display_content_push_payload(bid), ensure_ascii=False))
         while True:
@@ -1290,14 +1295,6 @@ def branch_boot_js(request: Request):
 @app.get("/api/health")
 def health():
     return {"status": "ok"}
-
-
-@app.get("/api/display/version")
-def display_version():
-    return JSONResponse(
-        content={"version": DISPLAY_BUILD_VERSION},
-        headers={"Cache-Control": "no-store, no-cache, must-revalidate", "Pragma": "no-cache"},
-    )
 
 
 if DISPLAY_DIR.exists():

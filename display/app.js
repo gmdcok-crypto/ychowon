@@ -8,7 +8,6 @@
 
   const API_BASE = '';
   const BRANCH_KEY = 'reserve_branch_id';
-  const DISPLAY_VERSION_POLL_MS = 30 * 1000;
   let knownDisplayVersion = null;
 
   function getDisplayBranch() {
@@ -37,24 +36,6 @@
   function withBranch(url) {
     var sep = url.indexOf('?') >= 0 ? '&' : '?';
     return url + sep + branchQuery();
-  }
-
-  function fetchDisplayVersion() {
-    var url = (API_BASE || '') + '/api/display/version?_=' + Date.now();
-    return fetch(url, { credentials: 'same-origin', cache: 'no-store' })
-      .then(function (r) { return r.ok ? r.json() : null; })
-      .then(function (data) {
-        var v = data && data.version != null ? String(data.version).trim() : '';
-        if (!v) return;
-        if (knownDisplayVersion === null) {
-          knownDisplayVersion = v;
-          return;
-        }
-        if (knownDisplayVersion !== v) {
-          window.location.reload();
-        }
-      })
-      .catch(function () {});
   }
 
   const ROWS_PER_BLOCK = 15;
@@ -164,6 +145,18 @@
           renderList(data);
           return;
         }
+        if (data && data.type === 'display_version') {
+          var v = data.version != null ? String(data.version).trim() : '';
+          if (!v) return;
+          if (knownDisplayVersion === null) {
+            knownDisplayVersion = v;
+            return;
+          }
+          if (knownDisplayVersion !== v) {
+            window.location.reload();
+          }
+          return;
+        }
         if (data && data.type === 'display_content') {
           if (typeof window.__displayApplyTopContentPayload === 'function') {
             window.__displayApplyTopContentPayload(data);
@@ -186,8 +179,6 @@
   setInterval(updateClock, 1000);
   fetchReservations();
   setInterval(fetchReservations, 5 * 1000);
-  fetchDisplayVersion();
-  setInterval(fetchDisplayVersion, DISPLAY_VERSION_POLL_MS);
 
   /* 전체화면: 브라우저 정책상 사용자 클릭/터치 후에만 대부분 허용 → pointerdown으로 유도 */
   (function () {
