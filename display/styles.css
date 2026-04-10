@@ -225,6 +225,10 @@ body {
   background: transparent;
 }
 
+.top-content-area[hidden] {
+  display: none;
+}
+
 .top-content-media {
   position: relative;
   width: 100%;
