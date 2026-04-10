@@ -363,6 +363,8 @@ def api_allows(path: str, method: str, role: Optional[str]) -> bool:
         return True
     if method == "GET" and p == "/api/display/content":
         return True
+    if method == "GET" and p == "/api/display/version":
+        return True
 
     if p == "/api/branches":
         if method == "GET":

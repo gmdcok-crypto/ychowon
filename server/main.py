@@ -10,8 +10,10 @@
 """
 import asyncio
 import json
+import os
 import socket
 import sys
+import time
 import traceback
 import uuid
 from collections import defaultdict
@@ -38,6 +40,11 @@ from sqlalchemy.exc import OperationalError
 app = FastAPI(title="초원농원 예약 현황 API")
 
 ws_by_branch: dict[str, set[WebSocket]] = defaultdict(set)
+DISPLAY_BUILD_VERSION = (
+    (os.environ.get("RAILWAY_GIT_COMMIT_SHA") or "").strip()
+    or (os.environ.get("RAILWAY_DEPLOYMENT_ID") or "").strip()
+    or str(int(time.time()))
+)
 
 
 def _local_ip() -> str:
@@ -1283,6 +1290,14 @@ def branch_boot_js(request: Request):
 @app.get("/api/health")
 def health():
     return {"status": "ok"}
+
+
+@app.get("/api/display/version")
+def display_version():
+    return JSONResponse(
+        content={"version": DISPLAY_BUILD_VERSION},
+        headers={"Cache-Control": "no-store, no-cache, must-revalidate", "Pragma": "no-cache"},
+    )
 
 
 if DISPLAY_DIR.exists():
