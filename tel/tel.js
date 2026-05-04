@@ -73,6 +73,7 @@
   var deleteConfirmBackdrop = document.getElementById('delete-confirm-backdrop');
   var deleteConfirmCancelBtn = document.getElementById('delete-confirm-cancel');
   var deleteConfirmOkBtn = document.getElementById('delete-confirm-ok');
+  var fullscreenBtn = document.getElementById('tel-fullscreen-btn');
 
   function formatDate(d) {
     var y = d.getFullYear();
@@ -767,6 +768,43 @@
     });
   }
 
+  function exitFullscreenDoc() {
+    var exit =
+      document.exitFullscreen ||
+      document.webkitExitFullscreen ||
+      document.webkitCancelFullScreen ||
+      document.mozCancelFullScreen ||
+      document.msExitFullscreen;
+    if (exit) return exit.call(document);
+    return Promise.reject(new Error('no exit fullscreen'));
+  }
+
+  function syncFullscreenButton() {
+    if (!fullscreenBtn) return;
+    var active = !!document.fullscreenElement;
+    fullscreenBtn.classList.toggle('is-active', active);
+    fullscreenBtn.setAttribute('aria-pressed', active ? 'true' : 'false');
+    fullscreenBtn.setAttribute('aria-label', active ? '전체화면 끄기' : '전체화면 켜기');
+    fullscreenBtn.title = active ? '전체화면 끄기' : '전체화면';
+    var icon = fullscreenBtn.querySelector('.tel-fullscreen-icon');
+    if (icon) icon.textContent = active ? '⛶' : '⛶';
+    var label = fullscreenBtn.querySelector('.tel-fullscreen-label');
+    if (label) label.textContent = active ? '전체화면 해제' : '전체화면';
+  }
+
+  function setupFullscreenButton() {
+    if (!fullscreenBtn) return;
+    fullscreenBtn.addEventListener('click', function () {
+      var action = document.fullscreenElement ? exitFullscreenDoc() : tryEnterFullscreen();
+      Promise.resolve(action).catch(function () {
+        showToast('전체화면 전환을 지원하지 않는 브라우저입니다.');
+      });
+    });
+    document.addEventListener('fullscreenchange', syncFullscreenButton);
+    document.addEventListener('webkitfullscreenchange', syncFullscreenButton);
+    syncFullscreenButton();
+  }
+
   /**
    * HTTPS + 크롬/파이어폭스: 전체화면 API.
    * iOS Safari 일반 탭: 문서 전체 전체화면 미지원 → 주소창 유지. 홈 화면 추가 후 아이콘 실행이 가장 확실.
@@ -926,5 +964,6 @@
   setupRoomDialog();
   setupDeleteConfirmDialog();
   setupFullscreen();
+  setupFullscreenButton();
   fetchTelReservations();
 })();

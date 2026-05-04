@@ -32,12 +32,46 @@
     border-bottom: 1px solid var(--border);
     padding-bottom: 0.5rem;
   }
+
+.tel-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
   
   .tel-header h1 {
     font-size: 1.4rem;
     color: var(--gold);
     margin-bottom: 0;
   }
+
+.tel-fullscreen-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  min-height: var(--touch-min);
+  padding: 0.45rem 0.8rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.28);
+  color: var(--gold-light);
+  font: inherit;
+  font-size: 0.88rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.tel-fullscreen-btn.is-active {
+  border-color: var(--gold);
+  background: rgba(201, 169, 98, 0.2);
+}
+
+.tel-fullscreen-icon {
+  font-size: 1rem;
+  line-height: 1;
+}
   
   .tel-header .sub {
     font-size: 0.9rem;
@@ -645,6 +679,7 @@
     .tel-main { min-height: 30dvh; gap: 0.4rem; }
     .tel-header { padding-bottom: 0.35rem; }
     .tel-header h1 { font-size: 1.15rem; }
+  .tel-fullscreen-btn { padding: 0.35rem 0.65rem; font-size: 0.8rem; }
     .tel-header .sub { display: none; }
     .panel { padding: 0.5rem; }
     .field { margin-bottom: 0.4rem; }
