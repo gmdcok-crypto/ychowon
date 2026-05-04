@@ -176,8 +176,6 @@ from auth_service import (
     auth_middleware,
     configure as auth_configure,
     create_token,
-    decode_token,
-    extract_token,
     first_account_needing_setup,
     list_accounts_needing_setup,
     list_accounts_public,
@@ -1212,7 +1210,7 @@ def api_auth_login_options(request: Request, role: str, branch: str = Query(defa
 @app.get("/api/auth/session")
 def api_auth_session(request: Request, branch: str = Query(default="default")):
     """유효한 access_token 쿠키가 있으면 역할·계정 정보 반환. 로그인 페이지에서 이미 로그인된 경우 바로 이동할 때 사용."""
-    payload = decode_token(extract_token(request))
+    payload = request_payload(request)
     if not payload:
         raise HTTPException(status_code=401, detail="인증되지 않았습니다.")
     bid = _request_branch(request, branch)

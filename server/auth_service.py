@@ -194,8 +194,30 @@ def account_branch_from_payload(payload: Optional[dict[str, Any]]) -> Optional[s
     return _normalize_branch_id(payload.get("branch_id"))
 
 
+def _validated_payload(payload: Optional[dict[str, Any]]) -> Optional[dict[str, Any]]:
+    if not isinstance(payload, dict):
+        return None
+    aid = str(payload.get("sub") or "").strip()
+    role = str(payload.get("role") or "").strip()
+    if not aid or role not in ROLES:
+        return None
+    account = _find_account_by_id(aid)
+    if not account:
+        return None
+    if str(account.get("role") or "").strip() != role:
+        return None
+    if _account_branch_id(account) != account_branch_from_payload(payload):
+        return None
+    if not account.get("password_hash"):
+        return None
+    merged = dict(payload)
+    merged["name"] = str(account.get("name") or aid)
+    merged["branch_id"] = _account_branch_id(account)
+    return merged
+
+
 def request_payload(request: Request) -> Optional[dict[str, Any]]:
-    return decode_token(extract_token(request))
+    return _validated_payload(decode_token(extract_token(request)))
 
 
 def branch_allows_request(payload: Optional[dict[str, Any]], branch: Optional[str], host: Optional[str]) -> bool:
@@ -535,7 +557,7 @@ async def auth_middleware(request: Request, call_next) -> Response:
 
 def ws_role_allowed(websocket, branch_id: Optional[str] = None) -> bool:
     token = websocket.cookies.get(COOKIE_NAME)
-    payload = decode_token(token)
+    payload = _validated_payload(decode_token(token))
     if not payload:
         return True
     role = payload.get("role")
