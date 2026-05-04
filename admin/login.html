@@ -38,6 +38,7 @@
     </div>
     <div id="err" class="err"></div>
   </div>
+  <script src="/api/branch-boot.js"></script>
   <script>
 (function () {
   var ROLE = 'admin';
@@ -56,7 +57,29 @@
   function escapeAttr(s) {
     return escapeHtml(s).replace(/'/g, '&#39;');
   }
-  fetch('/api/auth/session', { credentials: 'same-origin' })
+  function getBranch() {
+    try {
+      var u = new URL(window.location.href);
+      var b = u.searchParams.get('branch');
+      if (b && String(b).trim()) {
+        var id = String(b).trim().toLowerCase();
+        try {
+          localStorage.setItem('reserve_branch_id', id);
+        } catch (e2) {}
+        return id;
+      }
+    } catch (e) {}
+    try {
+      var saved = localStorage.getItem('reserve_branch_id');
+      if (saved && String(saved).trim()) return String(saved).trim().toLowerCase();
+    } catch (e3) {}
+    return typeof reserveInferDefaultBranch === 'function' ? reserveInferDefaultBranch() : 'default';
+  }
+  function withBranch(url) {
+    var sep = url.indexOf('?') >= 0 ? '&' : '?';
+    return url + sep + 'branch=' + encodeURIComponent(getBranch());
+  }
+  fetch(withBranch('/api/auth/session'), { credentials: 'same-origin' })
     .then(function (r) {
       if (r.status === 401) return null;
       if (!r.ok) return null;
@@ -73,7 +96,7 @@
     .catch(function () { startLoginFlow(); });
 
   function startLoginFlow() {
-    fetch('/api/auth/status?role=' + encodeURIComponent(ROLE), { credentials: 'same-origin' })
+    fetch(withBranch('/api/auth/status?role=' + encodeURIComponent(ROLE)), { credentials: 'same-origin' })
       .then(function (r) { return r.json(); })
       .then(function (data) {
         if (data.needs_setup) {
@@ -91,7 +114,7 @@
           document.getElementById('setupBlock').hidden = false;
           return;
         }
-        return fetch('/api/auth/login-options?role=' + encodeURIComponent(ROLE), { credentials: 'same-origin' })
+        return fetch(withBranch('/api/auth/login-options?role=' + encodeURIComponent(ROLE)), { credentials: 'same-origin' })
           .then(function (r) { return r.json(); })
           .then(function (lo) {
             var accounts = lo.accounts || [];
@@ -114,7 +137,7 @@
     var accountId = document.getElementById('accountSetup').value;
     if (a !== b) { showError('비밀번호가 일치하지 않습니다.'); return; }
     showError('');
-    fetch('/api/auth/setup', {
+    fetch(withBranch('/api/auth/setup'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'same-origin',
@@ -131,7 +154,7 @@
     var p = document.getElementById('pw').value;
     var accountId = document.getElementById('accountLogin').value;
     showError('');
-    fetch('/api/auth/login', {
+    fetch(withBranch('/api/auth/login'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'same-origin',

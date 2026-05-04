@@ -81,6 +81,7 @@ class AccountRow(Base):
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
     name: Mapped[str] = mapped_column(String(255))
     role: Mapped[str] = mapped_column(String(32))
+    branch_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True, index=True)
     password_hash: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
 

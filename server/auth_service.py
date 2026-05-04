@@ -142,6 +142,84 @@ def _accounts_list(store: Optional[dict[str, Any]] = None) -> list[dict[str, Any
     return accs
 
 
+def _normalize_branch_id(branch_id: Optional[str]) -> Optional[str]:
+    bid = (branch_id or "").strip().lower()
+    return bid or None
+
+
+def _account_branch_id(account: dict[str, Any]) -> Optional[str]:
+    return _normalize_branch_id(account.get("branch_id") if isinstance(account, dict) else None)
+
+
+def _same_branch(account: dict[str, Any], branch_id: Optional[str]) -> bool:
+    return _account_branch_id(account) == _normalize_branch_id(branch_id)
+
+
+def _global_account(account: dict[str, Any]) -> bool:
+    return _account_branch_id(account) is None
+
+
+def _known_branch_ids() -> set[str]:
+    try:
+        from branch_data import load_branches
+
+        return {str(b.get("id") or "").strip().lower() for b in load_branches() if isinstance(b, dict)}
+    except Exception:
+        return set()
+
+
+def _ensure_known_branch(branch_id: Optional[str]) -> str:
+    bid = _normalize_branch_id(branch_id)
+    if not bid:
+        raise ValueError("지점 코드가 필요합니다.")
+    ids = _known_branch_ids()
+    if ids and bid not in ids:
+        raise ValueError(f"등록되지 않은 지점입니다: {bid}")
+    return bid
+
+
+def resolve_request_branch(branch: Optional[str], host: Optional[str]) -> Optional[str]:
+    try:
+        from branch_data import resolve_effective_branch
+
+        requested = _normalize_branch_id(branch) or "default"
+        return _normalize_branch_id(resolve_effective_branch(requested, host))
+    except Exception:
+        return None
+
+
+def account_branch_from_payload(payload: Optional[dict[str, Any]]) -> Optional[str]:
+    if not isinstance(payload, dict):
+        return None
+    return _normalize_branch_id(payload.get("branch_id"))
+
+
+def request_payload(request: Request) -> Optional[dict[str, Any]]:
+    return decode_token(extract_token(request))
+
+
+def branch_allows_request(payload: Optional[dict[str, Any]], branch: Optional[str], host: Optional[str]) -> bool:
+    token_branch = account_branch_from_payload(payload)
+    if not token_branch:
+        return True
+    req_branch = resolve_request_branch(branch, host)
+    return bool(req_branch and req_branch == token_branch)
+
+
+def _role_accounts(role: str, branch_id: Optional[str]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    scoped: list[dict[str, Any]] = []
+    global_accs: list[dict[str, Any]] = []
+    bid = _normalize_branch_id(branch_id)
+    for a in _accounts_list():
+        if a.get("role") != role:
+            continue
+        if bid and _same_branch(a, bid):
+            scoped.append(a)
+        elif _global_account(a):
+            global_accs.append(a)
+    return scoped, global_accs
+
+
 def _find_account_by_id(aid: str) -> Optional[dict[str, Any]]:
     for a in _accounts_list():
         if str(a.get("id")) == aid:
@@ -167,20 +245,23 @@ def _jwt_secret() -> str:
     return s
 
 
-def needs_setup(role: str) -> bool:
+def needs_setup(role: str, branch_id: Optional[str] = None) -> bool:
     """해당 역할로 로그인 가능한 계정이 하나도 없으면 True (비밀번호 설정 전)."""
     if role not in ROLES:
         return False
-    for a in _accounts_list():
-        if a.get("role") == role and a.get("password_hash"):
+    scoped, global_accs = _role_accounts(role, branch_id)
+    for a in (scoped or global_accs):
+        if a.get("password_hash"):
             return False
     return True
 
 
-def list_accounts_public() -> list[dict[str, Any]]:
+def list_accounts_public(branch_id: Optional[str] = None) -> list[dict[str, Any]]:
     """관리 화면용: 해시 제외."""
+    bid = _normalize_branch_id(branch_id)
     out = []
-    for i, a in enumerate(_accounts_list()):
+    rows = [a for a in _accounts_list() if _same_branch(a, bid)]
+    for i, a in enumerate(rows):
         h = a.get("password_hash")
         out.append(
             {
@@ -188,27 +269,38 @@ def list_accounts_public() -> list[dict[str, Any]]:
                 "id": a.get("id"),
                 "name": a.get("name") or "",
                 "role": a.get("role"),
+                "branch_id": _account_branch_id(a),
                 "authenticated": bool(h),
             }
         )
     return out
 
 
-def list_login_options(role: str) -> list[dict[str, str]]:
+def list_login_options(role: str, branch_id: Optional[str] = None) -> list[dict[str, str]]:
     """로그인 선택용: 비밀번호가 있는 계정만."""
     if role not in ROLES:
         return []
+    scoped, global_accs = _role_accounts(role, branch_id)
+    rows = scoped if scoped else global_accs
     return [
-        {"id": str(a.get("id")), "name": str(a.get("name") or a.get("id"))}
-        for a in _accounts_list()
-        if a.get("role") == role and a.get("password_hash")
+        {
+            "id": str(a.get("id")),
+            "name": str(a.get("name") or a.get("id")),
+            "branch_id": _account_branch_id(a),
+        }
+        for a in rows
+        if a.get("password_hash")
     ]
 
 
-def set_password_first_time(account_id: str, password: str) -> dict[str, str]:
+def set_password_first_time(account_id: str, password: str, branch_id: Optional[str] = None) -> dict[str, Any]:
     a = _find_account_by_id(account_id)
     if not a:
         raise ValueError("계정을 찾을 수 없습니다.")
+    acc_branch = _account_branch_id(a)
+    bid = _normalize_branch_id(branch_id)
+    if acc_branch and acc_branch != bid:
+        raise ValueError("다른 지점 계정입니다.")
     if a.get("password_hash"):
         raise ValueError("이미 비밀번호가 설정되었습니다.")
     store = _load_store()
@@ -227,47 +319,61 @@ def set_password_first_time(account_id: str, password: str) -> dict[str, str]:
         "id": str(out["id"]),
         "role": str(out["role"]),
         "name": str(out.get("name") or out["id"]),
+        "branch_id": _account_branch_id(out),
     }
 
 
-def first_account_needing_setup(role: str) -> Optional[str]:
+def first_account_needing_setup(role: str, branch_id: Optional[str] = None) -> Optional[str]:
     """해당 역할에서 비밀번호가 없는 첫 계정 id (로그인 화면 기본 선택)."""
-    for a in _accounts_list():
+    scoped, global_accs = _role_accounts(role, branch_id)
+    for a in (scoped or global_accs):
         if a.get("role") == role and not a.get("password_hash"):
             return str(a.get("id"))
     return None
 
 
-def list_accounts_needing_setup(role: str) -> list[dict[str, str]]:
+def list_accounts_needing_setup(role: str, branch_id: Optional[str] = None) -> list[dict[str, str]]:
     """해당 역할에서 비밀번호 미설정 계정 (최초 설정 화면 드롭다운용)."""
     if role not in ROLES:
         return []
+    scoped, global_accs = _role_accounts(role, branch_id)
+    rows = scoped if scoped else global_accs
     out = []
-    for a in _accounts_list():
+    for a in rows:
         if a.get("role") == role and not a.get("password_hash"):
             aid = str(a.get("id"))
-            out.append({"id": aid, "name": str(a.get("name") or aid)})
+            out.append({"id": aid, "name": str(a.get("name") or aid), "branch_id": _account_branch_id(a) or ""})
     return out
 
 
-def verify_login_account(account_id: str, password: str) -> Optional[dict[str, Any]]:
+def verify_login_account(account_id: str, password: str, branch_id: Optional[str] = None) -> Optional[dict[str, Any]]:
     a = _find_account_by_id(account_id)
     if not a:
+        return None
+    acc_branch = _account_branch_id(a)
+    bid = _normalize_branch_id(branch_id)
+    if acc_branch and acc_branch != bid:
         return None
     h = a.get("password_hash")
     if not h:
         return None
     if not _verify_password(password, h):
         return None
-    return {"id": str(a["id"]), "role": str(a["role"]), "name": str(a.get("name") or a["id"])}
+    return {
+        "id": str(a["id"]),
+        "role": str(a["role"]),
+        "name": str(a.get("name") or a["id"]),
+        "branch_id": acc_branch,
+    }
 
 
-def create_token(account_id: str, role: str, name: str) -> str:
+def create_token(account_id: str, role: str, name: str, branch_id: Optional[str] = None) -> str:
     now = datetime.now(timezone.utc)
     payload = {
         "sub": account_id,
         "role": role,
         "name": name,
+        "branch_id": _normalize_branch_id(branch_id),
         "iat": now,
         "exp": now + timedelta(days=JWT_EXPIRE_DAYS),
     }
@@ -294,7 +400,7 @@ def extract_token(request: Request) -> Optional[str]:
 
 
 def role_from_request(request: Request) -> Optional[str]:
-    payload = decode_token(extract_token(request))
+    payload = request_payload(request)
     if not payload:
         return None
     r = payload.get("role")
@@ -397,13 +503,16 @@ async def auth_middleware(request: Request, call_next) -> Response:
         return await call_next(request)
 
     path = request.url.path
-    token_role = role_from_request(request)
+    payload = request_payload(request)
+    token_role = str(payload.get("role")).strip() if isinstance(payload, dict) and payload.get("role") in ROLES else None
 
     if is_public_path(path):
         return await call_next(request)
 
     if path.startswith("/api/"):
         if api_allows(path, request.method, token_role):
+            if not branch_allows_request(payload, request.query_params.get("branch"), request.headers.get("host")):
+                return JSONResponse({"detail": "다른 지점에는 접근할 수 없습니다."}, status_code=403)
             return await call_next(request)
         return JSONResponse({"detail": "인증이 필요합니다."}, status_code=401)
 
@@ -424,13 +533,15 @@ async def auth_middleware(request: Request, call_next) -> Response:
     return await call_next(request)
 
 
-def ws_role_allowed(websocket) -> bool:
+def ws_role_allowed(websocket, branch_id: Optional[str] = None) -> bool:
     token = websocket.cookies.get(COOKIE_NAME)
     payload = decode_token(token)
     if not payload:
         return True
     role = payload.get("role")
-    return role in ("admin", "display")
+    if role not in ("admin", "display"):
+        return False
+    return branch_allows_request(payload, branch_id, websocket.headers.get("host"))
 
 
 def auth_cookie_response(token: str, request: Request) -> dict[str, Any]:
@@ -456,13 +567,14 @@ def logout_response(request: Request) -> JSONResponse:
 # --- 계정 CRUD (관리자 전용, main에서 호출) ---
 
 
-def account_create(aid: str, name: str, role: str, password: str) -> dict[str, Any]:
+def account_create(aid: str, name: str, role: str, password: str, branch_id: Optional[str]) -> dict[str, Any]:
     if not ID_RE.match(aid):
         raise ValueError("계정 ID는 영문 시작, 영숫자·_- 만 2~64자")
     if role not in ROLES:
         raise ValueError("잘못된 역할")
     if _find_account_by_id(aid):
         raise ValueError("이미 있는 계정 ID입니다.")
+    bid = _ensure_known_branch(branch_id)
     store = _load_store()
     accs = _accounts_list(store)
     accs.append(
@@ -470,19 +582,21 @@ def account_create(aid: str, name: str, role: str, password: str) -> dict[str, A
             "id": aid,
             "name": name.strip() or aid,
             "role": role,
+            "branch_id": bid,
             "password_hash": _hash_password(password),
         }
     )
     store["accounts"] = accs
     _save_store(store)
-    return {"id": aid, "name": name, "role": role}
+    return {"id": aid, "name": name, "role": role, "branch_id": bid}
 
 
-def account_update(aid: str, name: Optional[str] = None, password: Optional[str] = None) -> None:
+def account_update(aid: str, branch_id: Optional[str], name: Optional[str] = None, password: Optional[str] = None) -> None:
+    bid = _ensure_known_branch(branch_id)
     store = _load_store()
     accs = _accounts_list(store)
     for row in accs:
-        if str(row.get("id")) == aid:
+        if str(row.get("id")) == aid and _same_branch(row, bid):
             if name is not None:
                 row["name"] = name.strip() or row.get("id")
             if password is not None:
@@ -493,23 +607,26 @@ def account_update(aid: str, name: Optional[str] = None, password: Optional[str]
     raise ValueError("계정을 찾을 수 없습니다.")
 
 
-def account_delete(aid: str) -> None:
+def account_delete(aid: str, branch_id: Optional[str]) -> None:
     if aid in SYSTEM_IDS:
         raise ValueError("기본 계정(admin, display, tel)은 삭제할 수 없습니다. 인증 취소만 가능합니다.")
+    bid = _ensure_known_branch(branch_id)
     store = _load_store()
-    accs = [a for a in _accounts_list(store) if str(a.get("id")) != aid]
-    if len(accs) == len(_accounts_list(store)):
+    rows = _accounts_list(store)
+    accs = [a for a in rows if not (str(a.get("id")) == aid and _same_branch(a, bid))]
+    if len(accs) == len(rows):
         raise ValueError("계정을 찾을 수 없습니다.")
     store["accounts"] = accs
     _save_store(store)
 
 
-def account_revoke(aid: str) -> None:
+def account_revoke(aid: str, branch_id: Optional[str]) -> None:
     """비밀번호 제거 → 다음 로그인 시 재설정(또는 관리자가 비번 재설정)."""
+    bid = _ensure_known_branch(branch_id)
     store = _load_store()
     accs = _accounts_list(store)
     for row in accs:
-        if str(row.get("id")) == aid:
+        if str(row.get("id")) == aid and _same_branch(row, bid):
             row["password_hash"] = None
             store["accounts"] = accs
             _save_store(store)

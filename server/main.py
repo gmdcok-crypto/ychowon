@@ -166,11 +166,13 @@ DATA_DIR.mkdir(exist_ok=True)
 
 from auth_service import (
     ROLES,
+    account_branch_from_payload,
     account_create,
     account_delete,
     account_revoke,
     account_update,
     auth_cookie_response,
+    branch_allows_request,
     auth_middleware,
     configure as auth_configure,
     create_token,
@@ -182,6 +184,8 @@ from auth_service import (
     list_login_options,
     logout_response,
     needs_setup,
+    request_payload,
+    resolve_request_branch,
     set_password_first_time,
     verify_login_account,
     ws_role_allowed,
@@ -202,6 +206,22 @@ from branch_data import (
 )
 
 branch_configure(DATA_DIR)
+
+
+def _request_branch(request: Request, branch: Optional[str] = None) -> str:
+    bid = resolve_request_branch(branch, request.headers.get("host"))
+    if not bid:
+        raise HTTPException(status_code=400, detail="지점을 확인할 수 없습니다.")
+    return bid
+
+
+def _scoped_payload_or_401(request: Request, branch: Optional[str] = None) -> dict[str, Any]:
+    payload = request_payload(request)
+    if not payload:
+        raise HTTPException(status_code=401, detail="인증되지 않았습니다.")
+    if not branch_allows_request(payload, branch, request.headers.get("host")):
+        raise HTTPException(status_code=403, detail="다른 지점에는 접근할 수 없습니다.")
+    return payload
 
 from db_config import (
     ensure_database_url_or_exit,
@@ -563,13 +583,13 @@ async def broadcast_display_content(branch_id: str) -> None:
 
 @app.websocket("/ws")
 async def websocket_display(websocket: WebSocket, branch: str = Query(default="default")):
-    if not ws_role_allowed(websocket):
-        await websocket.close(code=4401)
-        return
     try:
         bid = resolve_effective_branch(branch, websocket.headers.get("host"))
     except HTTPException:
         await websocket.close(code=4400)
+        return
+    if not ws_role_allowed(websocket, bid):
+        await websocket.close(code=4401)
         return
     if _rollover_branch_today_if_stale(bid):
         await broadcast_reservations(bid)
@@ -622,14 +642,22 @@ class BranchCreateIn(BaseModel):
 
 
 @app.get("/api/branches")
-def api_get_branches():
+def api_get_branches(request: Request, branch: str = Query(default="default")):
     """등록된 지점 목록 (현황·예약·광고 구분용)."""
+    payload = _scoped_payload_or_401(request, branch)
+    acc_branch = account_branch_from_payload(payload)
+    if acc_branch:
+        rows = [b for b in load_branches() if str(b.get("id") or "").strip().lower() == acc_branch]
+        return {"branches": rows}
     return {"branches": load_branches()}
 
 
 @app.post("/api/branches")
-def api_post_branches(body: BranchCreateIn):
+def api_post_branches(body: BranchCreateIn, request: Request):
     """관리자: 지점 추가 (당일·하단 광고 파일이 함께 생성됨)."""
+    payload = _scoped_payload_or_401(request, None)
+    if account_branch_from_payload(payload):
+        raise HTTPException(status_code=403, detail="지점 전용 관리자 계정은 지점을 추가할 수 없습니다.")
     try:
         append_branch(body.id.strip(), (body.name or "").strip())
     except ValueError as e:
@@ -1157,33 +1185,39 @@ class AccountPatchIn(BaseModel):
 
 
 @app.get("/api/auth/status")
-def api_auth_status(role: str):
+def api_auth_status(request: Request, role: str, branch: str = Query(default="default")):
     if role not in ROLES:
         raise HTTPException(status_code=400, detail="잘못된 역할입니다.")
-    ns = needs_setup(role)
-    needing = list_accounts_needing_setup(role) if ns else []
-    fac = first_account_needing_setup(role) if ns else None
+    bid = _request_branch(request, branch)
+    ns = needs_setup(role, bid)
+    needing = list_accounts_needing_setup(role, bid) if ns else []
+    fac = first_account_needing_setup(role, bid) if ns else None
     return {
         "needs_setup": ns,
         "role": role,
+        "branch_id": bid,
         "default_account_id": fac,
         "accounts_needing_setup": needing,
     }
 
 
 @app.get("/api/auth/login-options")
-def api_auth_login_options(role: str):
+def api_auth_login_options(request: Request, role: str, branch: str = Query(default="default")):
     if role not in ROLES:
         raise HTTPException(status_code=400, detail="잘못된 역할입니다.")
-    return {"accounts": list_login_options(role)}
+    bid = _request_branch(request, branch)
+    return {"accounts": list_login_options(role, bid), "branch_id": bid}
 
 
 @app.get("/api/auth/session")
-def api_auth_session(request: Request):
+def api_auth_session(request: Request, branch: str = Query(default="default")):
     """유효한 access_token 쿠키가 있으면 역할·계정 정보 반환. 로그인 페이지에서 이미 로그인된 경우 바로 이동할 때 사용."""
     payload = decode_token(extract_token(request))
     if not payload:
         raise HTTPException(status_code=401, detail="인증되지 않았습니다.")
+    bid = _request_branch(request, branch)
+    if not branch_allows_request(payload, bid, request.headers.get("host")):
+        raise HTTPException(status_code=403, detail="다른 지점에는 접근할 수 없습니다.")
     role = payload.get("role")
     if role not in ROLES:
         raise HTTPException(status_code=401, detail="인증되지 않았습니다.")
@@ -1192,28 +1226,31 @@ def api_auth_session(request: Request):
         "role": role,
         "account_id": payload.get("sub"),
         "name": payload.get("name"),
+        "branch_id": account_branch_from_payload(payload),
     }
 
 
 @app.post("/api/auth/setup")
-def api_auth_setup(body: AuthSetupBody, request: Request):
+def api_auth_setup(body: AuthSetupBody, request: Request, branch: str = Query(default="default")):
+    bid = _request_branch(request, branch)
     try:
-        u = set_password_first_time(body.account_id.strip(), body.password)
+        u = set_password_first_time(body.account_id.strip(), body.password, bid)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
-    token = create_token(u["id"], u["role"], u["name"])
-    r = JSONResponse({"ok": True, "account_id": u["id"], "role": u["role"]})
+    token = create_token(u["id"], u["role"], u["name"], u.get("branch_id"))
+    r = JSONResponse({"ok": True, "account_id": u["id"], "role": u["role"], "branch_id": u.get("branch_id")})
     r.set_cookie(**auth_cookie_response(token, request))
     return r
 
 
 @app.post("/api/auth/login")
-def api_auth_login(body: AuthLoginBody, request: Request):
-    u = verify_login_account(body.account_id.strip(), body.password)
+def api_auth_login(body: AuthLoginBody, request: Request, branch: str = Query(default="default")):
+    bid = _request_branch(request, branch)
+    u = verify_login_account(body.account_id.strip(), body.password, bid)
     if not u:
         raise HTTPException(status_code=401, detail="비밀번호가 올바르지 않습니다.")
-    token = create_token(u["id"], u["role"], u["name"])
-    r = JSONResponse({"ok": True, "account_id": u["id"], "role": u["role"]})
+    token = create_token(u["id"], u["role"], u["name"], u.get("branch_id"))
+    r = JSONResponse({"ok": True, "account_id": u["id"], "role": u["role"], "branch_id": u.get("branch_id")})
     r.set_cookie(**auth_cookie_response(token, request))
     return r
 
@@ -1224,41 +1261,51 @@ def api_auth_logout(request: Request):
 
 
 @app.get("/api/auth/accounts")
-def api_auth_accounts_list():
-    return {"accounts": list_accounts_public()}
+def api_auth_accounts_list(request: Request, branch: str = Query(default="default")):
+    bid = _request_branch(request, branch)
+    _scoped_payload_or_401(request, bid)
+    return {"accounts": list_accounts_public(bid), "branch_id": bid}
 
 
 @app.post("/api/auth/accounts")
-def api_auth_accounts_create(body: AccountCreateIn):
+def api_auth_accounts_create(body: AccountCreateIn, request: Request, branch: str = Query(default="default")):
+    bid = _request_branch(request, branch)
+    _scoped_payload_or_401(request, bid)
     try:
-        account_create(body.id.strip(), body.name, body.role, body.password)
+        account_create(body.id.strip(), body.name, body.role, body.password, bid)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     return {"ok": True}
 
 
 @app.patch("/api/auth/accounts/{account_id}")
-def api_auth_accounts_patch(account_id: str, body: AccountPatchIn):
+def api_auth_accounts_patch(account_id: str, body: AccountPatchIn, request: Request, branch: str = Query(default="default")):
+    bid = _request_branch(request, branch)
+    _scoped_payload_or_401(request, bid)
     try:
-        account_update(account_id.strip(), name=body.name, password=body.password)
+        account_update(account_id.strip(), bid, name=body.name, password=body.password)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     return {"ok": True}
 
 
 @app.delete("/api/auth/accounts/{account_id}")
-def api_auth_accounts_delete(account_id: str):
+def api_auth_accounts_delete(account_id: str, request: Request, branch: str = Query(default="default")):
+    bid = _request_branch(request, branch)
+    _scoped_payload_or_401(request, bid)
     try:
-        account_delete(account_id.strip())
+        account_delete(account_id.strip(), bid)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     return {"ok": True}
 
 
 @app.post("/api/auth/accounts/{account_id}/revoke")
-def api_auth_accounts_revoke(account_id: str):
+def api_auth_accounts_revoke(account_id: str, request: Request, branch: str = Query(default="default")):
+    bid = _request_branch(request, branch)
+    _scoped_payload_or_401(request, bid)
     try:
-        account_revoke(account_id.strip())
+        account_revoke(account_id.strip(), bid)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     return {"ok": True}

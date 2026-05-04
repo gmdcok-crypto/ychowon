@@ -72,6 +72,7 @@ def load_auth_store() -> dict[str, Any]:
                     "id": r.id,
                     "name": r.name,
                     "role": r.role,
+                    "branch_id": r.branch_id,
                     "password_hash": r.password_hash,
                 }
             )
@@ -95,6 +96,7 @@ def save_auth_store(data: dict[str, Any]) -> None:
                     id=aid,
                     name=str(a.get("name") or ""),
                     role=str(a.get("role") or ""),
+                    branch_id=(str(a.get("branch_id") or "").strip().lower() or None),
                     password_hash=a.get("password_hash") if isinstance(a.get("password_hash"), (str, type(None))) else None,
                 )
             )

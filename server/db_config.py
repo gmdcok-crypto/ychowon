@@ -240,9 +240,31 @@ def _ensure_display_content_columns() -> None:
                 )
 
 
+def _ensure_accounts_branch_column() -> None:
+    """기존 DB에 accounts.branch_id 가 없으면 추가."""
+    from sqlalchemy import inspect, text
+
+    eng = get_engine()
+    insp = inspect(eng)
+    try:
+        if not insp.has_table("accounts"):
+            return
+    except Exception:
+        return
+    try:
+        cols = {c["name"] for c in insp.get_columns("accounts")}
+    except Exception:
+        return
+    if "branch_id" in cols:
+        return
+    with eng.begin() as conn:
+        conn.execute(text("ALTER TABLE accounts ADD COLUMN branch_id VARCHAR(64) NULL"))
+
+
 def init_db() -> None:
     from db_models import Base
 
     Base.metadata.create_all(bind=get_engine())
     _ensure_staff_reservation_party_columns()
     _ensure_display_content_columns()
+    _ensure_accounts_branch_column()

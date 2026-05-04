@@ -6,6 +6,7 @@
 
   var SYSTEM_IDS = { admin: 1, display: 1, tel: 1 };
   var ROLES = ['admin', 'display', 'tel'];
+  var BRANCH_KEY = 'reserve_branch_id';
 
   var tbody = document.getElementById('accounts-table-body');
   var btnAdd = document.getElementById('accounts-btn-add');
@@ -25,6 +26,30 @@
   var modalMode = 'add';
 
   if (!tbody || !modal) return;
+
+  function getBranch() {
+    try {
+      var u = new URL(window.location.href);
+      var b = u.searchParams.get('branch');
+      if (b && String(b).trim()) {
+        var id = String(b).trim().toLowerCase();
+        try {
+          localStorage.setItem(BRANCH_KEY, id);
+        } catch (e) {}
+        return id;
+      }
+    } catch (e) {}
+    try {
+      var v = localStorage.getItem(BRANCH_KEY);
+      if (v && String(v).trim()) return String(v).trim().toLowerCase();
+    } catch (e2) {}
+    return typeof reserveInferDefaultBranch === 'function' ? reserveInferDefaultBranch() : 'default';
+  }
+
+  function withBranch(url) {
+    var sep = url.indexOf('?') >= 0 ? '&' : '?';
+    return url + sep + 'branch=' + encodeURIComponent(getBranch());
+  }
 
   function escapeHtml(s) {
     return String(s)
@@ -59,7 +84,7 @@
   }
 
   function load() {
-    return apiJson('/api/auth/accounts', { credentials: 'same-origin' })
+    return apiJson(withBranch('/api/auth/accounts'), { credentials: 'same-origin' })
       .then(function (data) {
         rowsCache = data.accounts || [];
         selectedId = null;
@@ -75,10 +100,13 @@
       .map(function (r) {
         var authLabel = r.authenticated ? '예' : '아니오';
         var sel = r.id === selectedId ? ' accounts-row-selected' : '';
+        var branchLabel = r.branch_id || '-';
         return (
           '<tr class="accounts-row' + sel + '" data-id="' + escapeHtml(r.id) + '" tabindex="0">' +
           '<td>' + r.no + '</td>' +
           '<td>' + escapeHtml(r.name || r.id) + '</td>' +
+          '<td>' + escapeHtml(r.role || '') + '</td>' +
+          '<td>' + escapeHtml(branchLabel) + '</td>' +
           '<td>' + authLabel + '</td>' +
           '</tr>'
         );
@@ -170,7 +198,7 @@
         return;
       }
       showToast('');
-      apiJson('/api/auth/accounts', {
+      apiJson(withBranch('/api/auth/accounts'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'same-origin',
@@ -196,7 +224,7 @@
         body.password = newPw;
       }
       showToast('');
-      apiJson('/api/auth/accounts/' + encodeURIComponent(selectedId), {
+      apiJson(withBranch('/api/auth/accounts/' + encodeURIComponent(selectedId)), {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'same-origin',
@@ -224,7 +252,7 @@
     }
     if (!window.confirm('선택한 계정을 삭제할까요? 이 작업은 되돌릴 수 없습니다.')) return;
     showToast('');
-    apiJson('/api/auth/accounts/' + encodeURIComponent(selectedId), {
+    apiJson(withBranch('/api/auth/accounts/' + encodeURIComponent(selectedId)), {
       method: 'DELETE',
       credentials: 'same-origin',
     })
@@ -250,7 +278,7 @@
       return;
     }
     showToast('');
-    apiJson('/api/auth/accounts/' + encodeURIComponent(selectedId) + '/revoke', {
+    apiJson(withBranch('/api/auth/accounts/' + encodeURIComponent(selectedId) + '/revoke'), {
       method: 'POST',
       credentials: 'same-origin',
     })
