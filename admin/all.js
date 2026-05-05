@@ -218,6 +218,12 @@
       });
   }
 
+  function handleParentRefreshMessage(event) {
+    var data = event && event.data;
+    if (!data || data.type !== 'reserve-all-refresh') return;
+    fetchList();
+  }
+
   function partyLine(r) {
     var a = r.adult;
     var c = r.child;
@@ -414,75 +420,9 @@
         '<td>' + escapeHtml(r.name || '—') + '</td>' +
         '<td>' + escapeHtml(r.phone || '—') + '</td>' +
         '<td>' + escapeHtml(roomTextFromItem(r)) + '</td>' +
-        '<td>' + escapeHtml(partyLine(r)) + '</td>' +
-        '<td class="col-actions">' +
-          '<button type="button" class="btn-mini btn-edit-row" data-id="' + escapeHtml(String(r.id)) + '">수정</button>' +
-          '<button type="button" class="btn-mini btn-del-row" data-id="' + escapeHtml(String(r.id)) + '">삭제</button>' +
-        '</td>';
+        '<td>' + escapeHtml(partyLine(r)) + '</td>';
       tbody.appendChild(tr);
     });
-
-    tbody.querySelectorAll('.btn-del-row').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        var id = parseInt(btn.getAttribute('data-id'), 10);
-        if (!id || !window.confirm('이 예약을 삭제할까요?')) return;
-        fetch(withBranch(API + '/' + id), { method: 'DELETE', credentials: 'same-origin' })
-          .then(function (r) {
-            if (!r.ok) throw new Error();
-            return r.json();
-          })
-          .then(function () {
-            showToast('삭제했습니다.');
-            fetchList();
-          })
-          .catch(function () {
-            showToast('삭제에 실패했습니다.');
-          });
-      });
-    });
-
-    tbody.querySelectorAll('.btn-edit-row').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        var id = parseInt(btn.getAttribute('data-id'), 10);
-        var row = rows.filter(function (x) { return int(x.id) === id; })[0];
-        if (!row) return;
-        var t = window.prompt('시간 (12:00)', row.time || '');
-        if (t === null) return;
-        var n = window.prompt('이름', row.name || '');
-        if (n === null) return;
-        var rm = window.prompt('룸/테이블 (쉼표로 여러 개)', roomTextFromItem(row));
-        if (rm === null) return;
-        var ph = window.prompt('전화번호 (비우면 유지)', row.phone || '');
-        if (ph === null) return;
-        var rooms = parseRoomSelection(null, rm);
-        var body = { time: t.trim(), name: n.trim(), room: roomTextFromSelection(rooms), rooms: rooms };
-        if (ph.trim()) body.phone = ph.trim();
-        fetch(withBranch(API + '/' + id), {
-          method: 'PATCH',
-          credentials: 'same-origin',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body)
-        })
-          .then(function (r) {
-            if (!r.ok) return r.json().then(function (j) {
-              var d = j.detail;
-              throw new Error(typeof d === 'string' ? d : '수정 실패');
-            });
-            return r.json();
-          })
-          .then(function () {
-            showToast('수정했습니다.');
-            fetchList();
-          })
-          .catch(function (e) {
-            showToast(e.message || '수정에 실패했습니다.');
-          });
-      });
-    });
-  }
-
-  function int(x) {
-    return parseInt(x, 10) || 0;
   }
 
   btnSearch.addEventListener('click', fetchList);
@@ -541,6 +481,8 @@
       closeDatePicker();
     }
   });
+
+  window.addEventListener('message', handleParentRefreshMessage);
 
   var now = new Date();
   filterFrom.value = dateKey(now);

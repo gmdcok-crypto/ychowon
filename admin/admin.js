@@ -56,6 +56,14 @@
     var dc = document.getElementById('iframe-display-admin');
     if (dc) dc.src = '/admin/display-content.html?embed=1&' + q;
   }
+
+  function refreshAllIframe() {
+    var all = document.getElementById('iframe-all-admin');
+    if (!all || !all.contentWindow) return;
+    try {
+      all.contentWindow.postMessage({ type: 'reserve-all-refresh' }, window.location.origin);
+    } catch (e) {}
+  }
   const listEl = document.getElementById('list');
   const addForm = document.getElementById('add-form');
   const toastEl = document.getElementById('toast');
@@ -1057,6 +1065,9 @@
         panelAll.classList.toggle('hidden', tab !== 'all');
         panelDisplay.classList.toggle('hidden', tab !== 'display');
         panelAccounts.classList.toggle('hidden', tab !== 'accounts');
+        if (tab === 'all') {
+          refreshAllIframe();
+        }
         if (tab === 'accounts' && typeof window.__accountsReload === 'function') {
           window.__accountsReload();
         }
