@@ -603,6 +603,17 @@ body {
 
 .btn-edit:hover { background: rgba(201, 169, 98, 0.4); }
 
+.btn-swap {
+  min-height: var(--touch-min);
+  padding: 0.5rem 0.75rem;
+  border-radius: 10px;
+  border: 1px solid rgba(110, 176, 255, 0.32);
+  background: rgba(110, 176, 255, 0.16);
+  color: #d7e9ff;
+}
+
+.btn-swap:hover { background: rgba(110, 176, 255, 0.28); }
+
 .reservation-table {
   margin-bottom: 0.5rem;
   overflow-x: auto;
@@ -648,7 +659,7 @@ body {
 
 .list-table-header .list-h-actions {
   grid-column: 6;
-  min-width: 4.5rem;
+  min-width: 8rem;
 }
 
 .reservation-list {
@@ -696,12 +707,19 @@ body {
 .row-actions {
   display: flex;
   gap: 0.35rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .row:last-child { border-bottom: none; }
 
 .row .time { color: var(--gold-light); }
 .row .room { color: var(--gold); font-weight: 500; }
+
+.row.swap-source {
+  background: rgba(110, 176, 255, 0.1);
+  border-radius: 8px;
+}
 
 .hint {
   font-size: 0.8rem;

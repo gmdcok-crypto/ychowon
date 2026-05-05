@@ -77,6 +77,7 @@
   const staffPartyBackdrop = document.getElementById('staff-party-dialog-backdrop');
   const staffPartyClose = document.getElementById('staff-party-dialog-close');
   const partyDisplayInput = document.getElementById('party-display');
+  const cancelSwapBtn = document.getElementById('cancel-swap-btn');
 
   function staffTimeDialogEl() {
     return document.getElementById('staff-time-dialog');
@@ -130,6 +131,7 @@
   let staffRoomStatus = [];
   let staffSelectedRoomSection = 'all';
   let selectedStaffRooms = [];
+  let swapSelection = null;
 
   function dateKey(d) {
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
@@ -657,10 +659,16 @@
       .then(function (r) { return r.json(); })
       .then(function (data) {
         list = Array.isArray(data) ? data.map(normalizeRow) : [];
+        if (swapSelection && !list.some(isSwapSourceItem)) {
+          swapSelection = null;
+          if (cancelSwapBtn) cancelSwapBtn.style.display = 'none';
+        }
         render();
       })
       .catch(function () {
         list = [];
+        swapSelection = null;
+        if (cancelSwapBtn) cancelSwapBtn.style.display = 'none';
         render();
       });
   }
@@ -673,13 +681,89 @@
     return null;
   }
 
+  function reservationSwapRef(item) {
+    if (!item) return null;
+    if (item.source === 'tel') {
+      var telId = telNumericId(item);
+      return telId == null ? null : { source: 'tel', id: String(telId) };
+    }
+    if (item.id == null) return null;
+    return { source: 'staff', id: String(item.id) };
+  }
+
+  function reservationSwapKey(refOrItem) {
+    var ref = refOrItem && refOrItem.source ? refOrItem : reservationSwapRef(refOrItem);
+    return ref ? (ref.source + ':' + String(ref.id)) : '';
+  }
+
+  function isSwapSourceItem(item) {
+    return !!swapSelection && reservationSwapKey(item) === reservationSwapKey(swapSelection);
+  }
+
+  function clearSwapSelection(silent) {
+    swapSelection = null;
+    if (cancelSwapBtn) cancelSwapBtn.style.display = 'none';
+    if (!silent) showToast('자리 교환 대기를 취소했습니다.');
+    render();
+  }
+
+  function startSwapSelection(item) {
+    var ref = reservationSwapRef(item);
+    if (!ref) {
+      showToast('교환할 예약을 확인할 수 없습니다.');
+      return;
+    }
+    swapSelection = ref;
+    if (cancelSwapBtn) cancelSwapBtn.style.display = 'inline-block';
+    showToast('교환할 다른 예약의 교환 버튼을 누르세요.');
+    render();
+  }
+
+  function swapReservations(targetItem) {
+    var targetRef = reservationSwapRef(targetItem);
+    if (!swapSelection || !targetRef) {
+      showToast('교환할 예약을 확인할 수 없습니다.');
+      return;
+    }
+    if (reservationSwapKey(targetRef) === reservationSwapKey(swapSelection)) {
+      showToast('다른 예약을 선택하세요.');
+      return;
+    }
+    fetch(withBranch(API + '/swap-rooms'), {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        first_source: swapSelection.source,
+        first_id: String(swapSelection.id),
+        second_source: targetRef.source,
+        second_id: String(targetRef.id)
+      })
+    })
+      .then(function (r) {
+        if (!r.ok) return r.json().then(function (j) { throw new Error((j && j.detail) || '교환 실패'); });
+        return r.json();
+      })
+      .then(function () {
+        swapSelection = null;
+        if (cancelSwapBtn) cancelSwapBtn.style.display = 'none';
+        cancelEdit();
+        showToast('자리 교환을 완료했습니다.');
+        load();
+      })
+      .catch(function (err) {
+        showToast((err && err.message) || '교환에 실패했습니다.');
+      });
+  }
+
   function render() {
     if (!listEl) return;
     listEl.innerHTML = '';
     list.forEach(function (item, i) {
       var row = document.createElement('div');
-      row.className = 'row';
+      row.className = 'row' + (isSwapSourceItem(item) ? ' swap-source' : '');
       row.setAttribute('data-index', i);
+      var swapLabel = isSwapSourceItem(item) ? '선택됨' : '교환';
       row.innerHTML =
         '<span class="row-no">' + (i + 1) + '</span>' +
         '<span class="time">' + escapeHtml(item.time || '—') + '</span>' +
@@ -688,6 +772,7 @@
         '<span class="party">' + escapeHtml(partyLine(item)) + '</span>' +
         '<div class="row-actions">' +
           '<button type="button" class="btn btn-edit" data-index="' + i + '">수정</button>' +
+          '<button type="button" class="btn btn-swap" data-index="' + i + '">' + swapLabel + '</button>' +
           '<button type="button" class="btn btn-del" data-index="' + i + '">삭제</button>' +
         '</div>';
       listEl.appendChild(row);
@@ -741,6 +826,18 @@
         if (submitBtn) { submitBtn.textContent = '수정'; submitBtn.classList.add('btn-edit-submit'); }
         if (cancelEditBtn) cancelEditBtn.style.display = 'inline-block';
         document.getElementById('time').focus();
+      });
+    });
+    listEl.querySelectorAll('.btn-swap').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var i = parseInt(btn.getAttribute('data-index'), 10);
+        var item = list[i];
+        if (!item) return;
+        if (!swapSelection) {
+          startSwapSelection(item);
+          return;
+        }
+        swapReservations(item);
       });
     });
   }
@@ -899,6 +996,9 @@
   });
 
   if (cancelEditBtn) cancelEditBtn.addEventListener('click', cancelEdit);
+  if (cancelSwapBtn) cancelSwapBtn.addEventListener('click', function () {
+    clearSwapSelection(false);
+  });
 
   var staffWs = null;
 

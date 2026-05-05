@@ -350,6 +350,21 @@ def _rooms_overlap(rooms_a: list[str], rooms_b: list[str]) -> bool:
     return not set(rooms_a).isdisjoint(rooms_b)
 
 
+def _reservation_matches_ref(item: dict[str, Any], source: str, reservation_id: str) -> bool:
+    return str(item.get("source") or "") == source and str(item.get("id") or "") == reservation_id
+
+
+def _assert_no_room_overlap_with_others(
+    rooms: list[str],
+    time_text: str,
+    others: list[dict[str, Any]],
+    detail: str,
+) -> None:
+    for other in others:
+        if _rooms_overlap(rooms, _reservation_rooms(other)) and _times_overlap(str(other.get("time") or ""), time_text):
+            raise HTTPException(status_code=409, detail=detail)
+
+
 def _get_admin_today_list(branch_id: str) -> list:
     """직원(admin)이 저장한 당일 목록만 (지점별 MySQL)."""
     data = load_branch_today(branch_id)
@@ -728,6 +743,13 @@ class TodayReservations(BaseModel):
     reservations: list[ReservationItem]
 
 
+class ReservationRoomSwapIn(BaseModel):
+    first_source: str
+    first_id: str
+    second_source: str
+    second_id: str
+
+
 class TelReservationItem(BaseModel):
     id: Optional[int] = None
     date: str
@@ -829,6 +851,114 @@ async def set_today_reservations(
     save_branch_today(bid, data)
     await broadcast_reservations(bid)
     return {"ok": True, "count": len(items)}
+
+
+@app.post("/api/reservations/today/swap-rooms")
+async def swap_today_reservation_rooms(
+    request: Request,
+    payload: ReservationRoomSwapIn,
+    branch: str = Query(default="default"),
+):
+    """당일 현황 목록에서 두 예약의 룸/테이블을 원자적으로 서로 교환."""
+    bid = resolve_effective_branch(branch, request.headers.get("host"))
+    today = _today_str()
+    first_source = str(payload.first_source or "").strip().lower()
+    second_source = str(payload.second_source or "").strip().lower()
+    first_id = str(payload.first_id or "").strip()
+    second_id = str(payload.second_id or "").strip()
+
+    if first_source not in ("staff", "tel") or second_source not in ("staff", "tel"):
+        raise HTTPException(status_code=400, detail="교환할 예약 종류가 올바르지 않습니다.")
+    if not first_id or not second_id:
+        raise HTTPException(status_code=400, detail="교환할 예약을 확인할 수 없습니다.")
+    if first_source == second_source and first_id == second_id:
+        raise HTTPException(status_code=400, detail="같은 예약끼리는 교환할 수 없습니다.")
+
+    admin_data = load_branch_today(bid)
+    admin_items = list(admin_data.get("reservations") or []) if admin_data.get("date") == today else []
+    tel_store = _load_tel()
+    tel_items = list(tel_store.get("reservations") or [])
+
+    first_item = None
+    second_item = None
+    first_admin_index = None
+    second_admin_index = None
+    first_tel_index = None
+    second_tel_index = None
+
+    if first_source == "staff" or second_source == "staff":
+        for idx, item in enumerate(admin_items):
+            if not isinstance(item, dict):
+                continue
+            ref_id = str(item.get("id") or "")
+            if first_source == "staff" and ref_id == first_id:
+                first_item = item
+                first_admin_index = idx
+            if second_source == "staff" and ref_id == second_id:
+                second_item = item
+                second_admin_index = idx
+
+    if first_source == "tel" or second_source == "tel":
+        for idx, item in enumerate(tel_items):
+            if not isinstance(item, dict):
+                continue
+            if tel_branch_key(item) != bid or str(item.get("date") or "") != today:
+                continue
+            ref_id = str(item.get("id") or "")
+            if first_source == "tel" and ref_id == first_id:
+                first_item = item
+                first_tel_index = idx
+            if second_source == "tel" and ref_id == second_id:
+                second_item = item
+                second_tel_index = idx
+
+    if first_item is None or second_item is None:
+        raise HTTPException(status_code=404, detail="교환할 예약을 찾을 수 없습니다.")
+
+    first_rooms = _reservation_rooms(first_item)
+    second_rooms = _reservation_rooms(second_item)
+    if not first_rooms or not second_rooms:
+        raise HTTPException(status_code=400, detail="교환할 호실/테이블 정보가 없습니다.")
+
+    excluded = {
+        (first_source, first_id),
+        (second_source, second_id),
+    }
+    others: list[dict[str, Any]] = []
+    for item in _staff_today_items_for_date(today, bid):
+        if _reservation_matches_ref(item, "staff", str(item.get("id") or "")) and ("staff", str(item.get("id") or "")) in excluded:
+            continue
+        if ("staff", str(item.get("id") or "")) not in excluded:
+            others.append(item)
+    for item in _get_tel_reservations(today, bid):
+        if ("tel", str(item.get("id") or "")) not in excluded:
+            others.append(item)
+
+    _assert_no_room_overlap_with_others(
+        second_rooms,
+        str(first_item.get("time") or ""),
+        others,
+        "교환 후 첫 번째 예약의 호실/테이블이 다른 예약과 겹칩니다.",
+    )
+    _assert_no_room_overlap_with_others(
+        first_rooms,
+        str(second_item.get("time") or ""),
+        others,
+        "교환 후 두 번째 예약의 호실/테이블이 다른 예약과 겹칩니다.",
+    )
+
+    first_item["rooms"] = list(second_rooms)
+    first_item["room"] = _format_room_text(second_rooms)
+    second_item["rooms"] = list(first_rooms)
+    second_item["room"] = _format_room_text(first_rooms)
+
+    if first_admin_index is not None or second_admin_index is not None:
+        save_branch_today(bid, {"date": today, "reservations": admin_items})
+    if first_tel_index is not None or second_tel_index is not None:
+        _save_tel({"reservations": tel_items})
+
+    await broadcast_reservations(bid)
+    return {"ok": True}
 
 
 @app.get("/api/tel/reservations")
