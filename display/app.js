@@ -65,6 +65,16 @@
     if (timeEl) timeEl.textContent = formatTime(now);
   }
 
+  function formatRoomLabel(room) {
+    var text = String(room || '').trim();
+    if (!text) return '—';
+    var floorRoom = text.match(/^(\d+F)\s*룸\s*룸?\s*(\d+)$/i);
+    if (floorRoom) return floorRoom[1].toUpperCase() + floorRoom[2];
+    var hallTable = text.match(/^([A-Z])홀\s*([A-Z]\d+(?:\(임시\))?)$/i);
+    if (hallTable) return hallTable[2].toUpperCase();
+    return text.replace(/\s+/g, '');
+  }
+
   function renderRow(item) {
     const row = document.createElement('div');
     row.className = 'row';
@@ -73,7 +83,7 @@
     row.innerHTML =
       '<div class="col col-time">' + (item.time || '—') + '</div>' +
       '<div class="col col-name">' + (item.name || '—') + '</div>' +
-      '<div class="col ' + roomClass + '">' + (item.room || '—') + '</div>';
+      '<div class="col ' + roomClass + '">' + formatRoomLabel(item.room) + '</div>';
     return row;
   }
 
