@@ -86,6 +86,36 @@
     return text;
   }
 
+  function ychowonRoomSortKey(room) {
+    var text = String(room || '').trim();
+    var floorRoom = text.match(/^(\d+F)\s*룸\s*룸?\s*(\d+)$/i);
+    if (floorRoom) {
+      var floor = floorRoom[1].toUpperCase();
+      var num = parseInt(floorRoom[2], 10);
+      if (floor === '4F') return [0, isNaN(num) ? 999 : num, text];
+      if (floor === '5F') return [2, isNaN(num) ? 999 : num, text];
+    }
+    var hallTable = text.match(/^([A-Z])홀\s*([A-Z]\d+(?:\(임시\))?)$/i);
+    if (hallTable) return [1, hallTable[2].toUpperCase(), text];
+    return [3, text, text];
+  }
+
+  function sortDisplayItems(items) {
+    var list = Array.isArray(items) ? items.slice() : [];
+    if (!isYchowonDisplay()) return list;
+    list.sort(function (a, b) {
+      var timeA = String((a && a.time) || '');
+      var timeB = String((b && b.time) || '');
+      if (timeA !== timeB) return timeA.localeCompare(timeB);
+      var roomA = ychowonRoomSortKey(a && a.room);
+      var roomB = ychowonRoomSortKey(b && b.room);
+      if (roomA[0] !== roomB[0]) return roomA[0] - roomB[0];
+      if (roomA[1] !== roomB[1]) return String(roomA[1]).localeCompare(String(roomB[1]), 'ko');
+      return String((a && a.id) || '').localeCompare(String((b && b.id) || ''), 'ko');
+    });
+    return list;
+  }
+
   function renderRow(item) {
     const row = document.createElement('div');
     row.className = 'row';
@@ -110,7 +140,7 @@
 
   function renderList(items) {
     if (!blocksEl) return;
-    var list = Array.isArray(items) ? items : [];
+    var list = sortDisplayItems(items);
     if (typeof window.__displaySetReservations === 'function') {
       window.__displaySetReservations(list);
     }
