@@ -1325,10 +1325,9 @@ def branch_boot_js(request: Request):
         "if(h.indexOf('mchowon')>=0)return'mchowon';"
         "}catch(e){}return'';}"
         "g.reserveInferDefaultBranch=function(){"
-        "var x=inferHost();if(x)return x;"
         "var w=g.__RESERVE_DEFAULT_BRANCH__;"
         "if(w!=null&&String(w).trim())return String(w).trim().toLowerCase();"
-        "return'default';};"
+        "var x=inferHost();if(x)return x;return'default';};"
         "})(window);\n"
     )
     return Response(
