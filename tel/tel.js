@@ -613,6 +613,7 @@
     }
     roomDialog.classList.remove('hidden');
     roomDialog.setAttribute('aria-hidden', 'false');
+    updateRoomSwapUi();
     refreshRoomAvailability(true);
   }
 
@@ -1207,6 +1208,7 @@
         return;
       }
       startRoomSwapPending();
+      closeRoomDialog();
     });
   }
 

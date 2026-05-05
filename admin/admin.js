@@ -463,6 +463,7 @@
       staffRoomDialog.classList.remove('hidden');
       staffRoomDialog.setAttribute('aria-hidden', 'false');
     }
+    updateRoomSwapButtonUi();
     refreshStaffRoomAvailability(true);
   }
 
@@ -1034,6 +1035,7 @@
       return;
     }
     startSwapSelection(editingItem);
+    closeStaffRoomDialog();
   });
 
   var staffWs = null;

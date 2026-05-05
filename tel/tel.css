@@ -287,16 +287,6 @@
     color: var(--cream-dim);
   }
 
-  .field-input-row {
-    display: flex;
-    align-items: stretch;
-    gap: 0.5rem;
-  }
-
-  .field-input-row input {
-    flex: 1;
-  }
-  
   .field input,
   .field textarea {
     padding: 0.5rem 0.6rem;
@@ -337,6 +327,12 @@
   border-color: var(--gold);
   background: rgba(201, 169, 98, 0.2);
   color: var(--gold-light);
+}
+
+.room-dialog-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
   .room-dialog {

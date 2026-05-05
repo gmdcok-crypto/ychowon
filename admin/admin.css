@@ -477,18 +477,6 @@ body {
   overflow: hidden;
 }
 
-.field-input-row {
-  display: flex;
-  align-items: stretch;
-  gap: 0.5rem;
-  min-width: 0;
-}
-
-.field-input-row input {
-  flex: 1;
-  min-width: 0;
-}
-
 .add-form .field input#room,
 .add-form .field input#party-display {
   cursor: pointer;
@@ -625,16 +613,6 @@ body {
 }
 
 .btn-swap:hover { background: rgba(110, 176, 255, 0.28); }
-
-.field-room .btn-swap {
-  min-width: 5.8rem;
-  white-space: nowrap;
-}
-
-.field-room .btn-swap.is-active {
-  border-color: rgba(110, 176, 255, 0.5);
-  background: rgba(110, 176, 255, 0.28);
-}
 
 .reservation-table {
   margin-bottom: 0.5rem;
@@ -833,6 +811,17 @@ body {
   color: var(--cream);
   cursor: pointer;
   font-family: inherit;
+}
+
+.room-dialog-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.room-dialog-actions .btn-swap.is-active {
+  border-color: rgba(110, 176, 255, 0.5);
+  background: rgba(110, 176, 255, 0.28);
 }
 
 .room-dialog-legend {
