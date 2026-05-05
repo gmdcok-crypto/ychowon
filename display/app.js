@@ -38,7 +38,7 @@
     return url + sep + branchQuery();
   }
 
-  const ROWS_PER_BLOCK = 15;
+  const ROWS_PER_BLOCK = 25;
   const MIN_BLOCKS = 2;
   const blocksEl = document.getElementById('reservation-blocks');
   const topContentAreaEl = document.getElementById('top-content-area');
