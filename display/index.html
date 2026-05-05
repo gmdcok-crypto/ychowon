@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;600;700&family=Noto+Sans+KR:wght@300;400;500;600&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="styles.css?v=10" />
 </head>
 <body>
   <div class="board">
@@ -28,9 +28,9 @@
       </div>
     </header>
 
-    <!-- 예약 목록: 15줄 단위 블록, 초과 시 옆에 블록 추가 -->
+    <!-- 예약 목록: 25줄 단위 블록, 초과 시 옆에 블록 추가 -->
     <div class="blocks" id="reservation-blocks">
-      <!-- JS에서 .block (시간|이름|호실 헤더 + 15행) 단위로 생성 -->
+      <!-- JS에서 .block (시간|이름|호실 헤더 + 25행) 단위로 생성 -->
     </div>
 
     <section class="top-content-area" id="top-content-area" aria-label="상단 콘텐츠" hidden>
@@ -49,6 +49,6 @@
   </div>
 
   <script src="/api/branch-boot.js"></script>
-  <script src="app.js?v=9"></script>
+  <script src="app.js?v=10"></script>
 </body>
 </html>
