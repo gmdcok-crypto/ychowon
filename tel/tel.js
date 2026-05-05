@@ -166,12 +166,13 @@
       '.wrap{text-align:left;line-height:1.15;font-size:24px;}' +
       '.title{text-align:center;font-size:36px;font-weight:700;letter-spacing:0.08em;margin:0 0 8px;}' +
       '.line{border-top:1px dashed #000;margin:8px 0;}' +
-      '.row{display:flex;align-items:flex-start;gap:8px;margin:0;}' +
-      '.label{flex:0 0 28mm;font-weight:700;white-space:nowrap;}' +
-      '.value{flex:1;white-space:pre-wrap;word-break:keep-all;}' +
+      '.row{display:grid;grid-template-columns:28mm 4mm 1fr;align-items:flex-start;column-gap:2mm;margin:0;}' +
+      '.label{font-weight:700;white-space:nowrap;}' +
+      '.colon{font-weight:700;text-align:center;white-space:nowrap;}' +
+      '.value{white-space:pre-wrap;word-break:keep-all;}' +
       '</style></head><body><div class="wrap"><div class="title">예약 현황</div><div class="line"></div>' +
       rows.map(function (row) {
-        return '<div class="row"><div class="label">' + escapeHtml(row[0]) + ' :</div><div class="value">' + escapeHtml(row[1]) + '</div></div>';
+        return '<div class="row"><div class="label">' + escapeHtml(row[0]) + '</div><div class="colon">:</div><div class="value">' + escapeHtml(row[1]) + '</div></div>';
       }).join('') +
       '</div><script>window.onload=function(){setTimeout(function(){window.print();},150);};</script></body></html>';
   }
