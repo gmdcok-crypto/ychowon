@@ -1,5 +1,11 @@
-const CACHE_NAME = 'reserve-board-v8';
-const STATIC_URLS = ['./', './index.html', './styles.css?v=13', './app.js?v=13', './manifest.json'];
+let BUILD_VERSION = 'dev';
+try {
+  BUILD_VERSION = new URL(self.location.href).searchParams.get('v') || 'dev';
+} catch (e) {}
+
+const ASSET_SUFFIX = BUILD_VERSION ? '?v=' + encodeURIComponent(BUILD_VERSION) : '';
+const CACHE_NAME = 'reserve-board-' + BUILD_VERSION;
+const STATIC_URLS = ['./', './index.html', './styles.css' + ASSET_SUFFIX, './app.js' + ASSET_SUFFIX, './manifest.json' + ASSET_SUFFIX];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(

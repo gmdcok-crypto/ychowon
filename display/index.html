@@ -7,11 +7,25 @@
   <meta name="description" content="초원농원 예약 현황판" />
   <title>초원농원 예약 현황</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' fill='%231a1510'/><text x='16' y='22' font-size='18' text-anchor='middle' fill='%23c9a962' font-family='sans-serif'>예</text></svg>" />
-  <link rel="manifest" href="manifest.json" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;600;700&family=Noto+Sans+KR:wght@300;400;500;600&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=13" />
+  <script src="/api/branch-boot.js"></script>
+  <script>
+    (function () {
+      var raw = String(window.__RESERVE_BUILD_VERSION__ || '').trim();
+      var version = raw ? encodeURIComponent(raw) : String(Date.now());
+      var manifest = document.createElement('link');
+      manifest.rel = 'manifest';
+      manifest.href = 'manifest.json?v=' + version;
+      document.head.appendChild(manifest);
+
+      var css = document.createElement('link');
+      css.rel = 'stylesheet';
+      css.href = 'styles.css?v=' + version;
+      document.head.appendChild(css);
+    })();
+  </script>
 </head>
 <body>
   <div class="board">
@@ -48,7 +62,14 @@
     </footer>
   </div>
 
-  <script src="/api/branch-boot.js"></script>
-  <script src="app.js?v=13"></script>
+  <script>
+    (function () {
+      var raw = String(window.__RESERVE_BUILD_VERSION__ || '').trim();
+      var version = raw ? encodeURIComponent(raw) : String(Date.now());
+      var script = document.createElement('script');
+      script.src = 'app.js?v=' + version;
+      document.body.appendChild(script);
+    })();
+  </script>
 </body>
 </html>

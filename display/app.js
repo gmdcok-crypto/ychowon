@@ -628,6 +628,14 @@
 
   // PWA Service Worker
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js?v=8').catch(function () {});
+    var buildVersion = '';
+    try {
+      buildVersion = String(window.__RESERVE_BUILD_VERSION__ || '').trim();
+    } catch (e) {}
+    var swUrl = 'sw.js';
+    if (buildVersion) {
+      swUrl += '?v=' + encodeURIComponent(buildVersion);
+    }
+    navigator.serviceWorker.register(swUrl).catch(function () {});
   }
 })();

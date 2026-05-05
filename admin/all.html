@@ -8,8 +8,22 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="admin.css" />
-  <link rel="stylesheet" href="all.css?v=2" />
+  <script src="/api/branch-boot.js"></script>
+  <script>
+    (function () {
+      var raw = String(window.__RESERVE_BUILD_VERSION__ || '').trim();
+      var version = raw ? encodeURIComponent(raw) : String(Date.now());
+      var adminCss = document.createElement('link');
+      adminCss.rel = 'stylesheet';
+      adminCss.href = 'admin.css?v=' + version;
+      document.head.appendChild(adminCss);
+
+      var allCss = document.createElement('link');
+      allCss.rel = 'stylesheet';
+      allCss.href = 'all.css?v=' + version;
+      document.head.appendChild(allCss);
+    })();
+  </script>
 </head>
 <body>
   <script>
@@ -94,7 +108,14 @@
 
     <div id="toast" class="toast" aria-live="polite"></div>
   </div>
-  <script src="/api/branch-boot.js"></script>
-  <script src="all.js?v=2"></script>
+  <script>
+    (function () {
+      var raw = String(window.__RESERVE_BUILD_VERSION__ || '').trim();
+      var version = raw ? encodeURIComponent(raw) : String(Date.now());
+      var script = document.createElement('script');
+      script.src = 'all.js?v=' + version;
+      document.body.appendChild(script);
+    })();
+  </script>
 </body>
 </html>

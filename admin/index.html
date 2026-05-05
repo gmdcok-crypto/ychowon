@@ -9,7 +9,17 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="admin.css?v=14" />
+  <script src="/api/branch-boot.js"></script>
+  <script>
+    (function () {
+      var raw = String(window.__RESERVE_BUILD_VERSION__ || '').trim();
+      var version = raw ? encodeURIComponent(raw) : String(Date.now());
+      var css = document.createElement('link');
+      css.rel = 'stylesheet';
+      css.href = 'admin.css?v=' + version;
+      document.head.appendChild(css);
+    })();
+  </script>
 </head>
 <body>
   <div class="admin admin-with-tabs">
@@ -261,8 +271,23 @@
     </div>
   </div>
 
-  <script src="/api/branch-boot.js"></script>
-  <script src="admin.js?v=13"></script>
-  <script src="accounts.js"></script>
+  <script>
+    (function () {
+      var raw = String(window.__RESERVE_BUILD_VERSION__ || '').trim();
+      var version = raw ? encodeURIComponent(raw) : String(Date.now());
+      var allFrame = document.getElementById('iframe-all-admin');
+      if (allFrame) allFrame.src = '/admin/all.html?embed=1&v=' + version;
+      var displayFrame = document.getElementById('iframe-display-admin');
+      if (displayFrame) displayFrame.src = '/admin/display-content.html?embed=1&v=' + version;
+
+      var adminScript = document.createElement('script');
+      adminScript.src = 'admin.js?v=' + version;
+      document.body.appendChild(adminScript);
+
+      var accountsScript = document.createElement('script');
+      accountsScript.src = 'accounts.js?v=' + version;
+      document.body.appendChild(accountsScript);
+    })();
+  </script>
 </body>
 </html>
