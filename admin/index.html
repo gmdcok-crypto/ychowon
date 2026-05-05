@@ -67,16 +67,19 @@
             </div>
             <div class="field field-room">
               <label for="room">호실</label>
-              <input
-                type="text"
-                id="room"
-                name="room"
-                placeholder="탭하여 선택"
-                title="탭하면 룸·테이블을 고를 수 있습니다"
-                required
-                readonly
-                autocomplete="off"
-              />
+              <div class="field-input-row">
+                <input
+                  type="text"
+                  id="room"
+                  name="room"
+                  placeholder="탭하여 선택"
+                  title="탭하면 룸·테이블을 고를 수 있습니다"
+                  required
+                  readonly
+                  autocomplete="off"
+                />
+                <button type="button" class="btn btn-swap hidden" id="room-swap-btn">자리교환</button>
+              </div>
             </div>
             <div class="field field-party">
               <label for="party-display">인원</label>
@@ -93,7 +96,6 @@
             <div class="form-actions form-actions-inline">
               <button type="submit" class="btn btn-add" id="submit-btn">추가</button>
               <button type="button" class="btn btn-cancel" id="cancel-edit-btn" style="display:none;">취소</button>
-              <button type="button" class="btn btn-cancel" id="cancel-swap-btn" style="display:none;">교환취소</button>
             </div>
           </div>
           <div class="form-actions form-actions-refresh">

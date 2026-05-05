@@ -239,6 +239,11 @@
   background: rgba(201,169,98,0.14);
   border-radius: 8px;
 }
+
+.reserve-row.reserve-item.swap-target {
+  background: rgba(201,169,98,0.08);
+  border-radius: 8px;
+}
   
   .reserve-list .empty {
     margin-top: 0.5rem;
@@ -281,6 +286,16 @@
     font-size: 0.8rem;
     color: var(--cream-dim);
   }
+
+  .field-input-row {
+    display: flex;
+    align-items: stretch;
+    gap: 0.5rem;
+  }
+
+  .field-input-row input {
+    flex: 1;
+  }
   
   .field input,
   .field textarea {
@@ -302,6 +317,26 @@
 
 .field input[readonly] {
   cursor: pointer;
+}
+
+.tel-swap-btn {
+  margin-top: 0;
+  min-width: 5.7rem;
+  padding: 0 0.85rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.35);
+  color: var(--gold-light);
+  font: inherit;
+  font-size: 0.88rem;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.tel-swap-btn.is-active {
+  border-color: var(--gold);
+  background: rgba(201, 169, 98, 0.2);
+  color: var(--gold-light);
 }
 
   .room-dialog {

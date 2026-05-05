@@ -3,6 +3,7 @@
 
   var API_TEL_RESERVATIONS = '/api/tel/reservations';
   var API_TEL_ROOMS = '/api/tel/rooms';
+  var API_SWAP_ROOMS = '/api/reservations/today/swap-rooms';
   var BRANCH_KEY = 'reserve_branch_id';
 
   function getTelBranch() {
@@ -43,6 +44,7 @@
   var roomStatus = [];
   var editingReservationId = null;
   var selectedRooms = [];
+  var roomSwapPending = false;
 
   var monthLabel = document.getElementById('month-label');
   var calGrid = document.getElementById('calendar-grid');
@@ -57,6 +59,7 @@
   var deleteBtn = document.getElementById('tel-delete-btn');
   var editCancelBtn = document.getElementById('tel-edit-cancel');
   var roomInput = document.getElementById('tel-room');
+  var roomSwapBtn = document.getElementById('tel-room-swap-btn');
   var timeInput = document.getElementById('tel-time');
   var partyDisplayInput = document.getElementById('tel-party-display');
   var phoneInput = document.getElementById('tel-phone');
@@ -251,6 +254,36 @@
     })[0] || null;
   }
 
+  function currentEditingReservation() {
+    return editingReservationId == null ? null : findReservationById(editingReservationId);
+  }
+
+  function updateRoomSwapUi() {
+    if (!roomSwapBtn) return;
+    var editing = editingReservationId != null;
+    roomSwapBtn.classList.toggle('hidden', !editing);
+    roomSwapBtn.classList.toggle('is-active', editing && roomSwapPending);
+    roomSwapBtn.textContent = roomSwapPending ? '교환취소' : '자리교환';
+  }
+
+  function clearRoomSwapPending(silent) {
+    roomSwapPending = false;
+    updateRoomSwapUi();
+    renderReserveList();
+    if (!silent) showToast('자리 교환 대기를 취소했습니다.');
+  }
+
+  function startRoomSwapPending() {
+    if (editingReservationId == null) {
+      showToast('먼저 교환할 예약을 선택하세요.');
+      return;
+    }
+    roomSwapPending = true;
+    updateRoomSwapUi();
+    renderReserveList();
+    showToast('교환할 다른 예약을 목록에서 선택하세요.');
+  }
+
   function updateEditUi() {
     var editing = editingReservationId != null;
     if (editStatusEl) editStatusEl.classList.toggle('hidden', !editing);
@@ -258,6 +291,8 @@
     if (deleteBtn) deleteBtn.disabled = !editing;
     if (printBtn) printBtn.disabled = !editing;
     if (editCancelBtn) editCancelBtn.classList.toggle('hidden', !editing);
+    if (!editing) roomSwapPending = false;
+    updateRoomSwapUi();
   }
 
   function resetFormFields() {
@@ -308,6 +343,7 @@
 
   function startEditingReservation(item) {
     if (!item) return;
+    roomSwapPending = false;
     editingReservationId = item.id;
     fillFormFromReservation(item);
     updateEditUi();
@@ -419,9 +455,11 @@
         '<span class="col-party">인원</span>' +
       '</div>';
     reserveListEl.innerHTML = head + list.map(function (item) {
-      var selectedClass = String(editingReservationId || '') === String(item.id || '') ? ' selected' : '';
+      var isSelected = String(editingReservationId || '') === String(item.id || '');
+      var selectedClass = isSelected ? ' selected' : '';
+      var swapTargetClass = roomSwapPending && !isSelected ? ' swap-target' : '';
       return (
-        '<div class="reserve-row reserve-item' + selectedClass + '" data-id="' + escapeHtml(item.id) + '">' +
+        '<div class="reserve-row reserve-item' + selectedClass + swapTargetClass + '" data-id="' + escapeHtml(item.id) + '">' +
           '<span class="time col-time">' + escapeHtml(item.time) + '</span>' +
           '<span class="name col-name">' + escapeHtml(item.name) + '</span>' +
           '<span class="room col-room">' + escapeHtml(roomTextFromItem(item)) + '</span>' +
@@ -742,12 +780,65 @@
       var row = e.target.closest('.reserve-item');
       if (!row) return;
       var clickedId = row.getAttribute('data-id');
+      if (roomSwapPending) {
+        if (String(editingReservationId || '') === String(clickedId || '')) {
+          showToast('교환할 다른 예약을 선택하세요.');
+          return;
+        }
+        swapReservationsWith(clickedId);
+        return;
+      }
       if (String(editingReservationId || '') === String(clickedId || '')) {
         beginNewReservationEntry('선택을 해제했습니다. 새 예약을 입력하세요.');
         return;
       }
       startEditingReservation(findReservationById(clickedId));
     });
+  }
+
+  function swapReservationsWith(targetId) {
+    var sourceItem = currentEditingReservation();
+    var targetItem = findReservationById(targetId);
+    if (!sourceItem || !targetItem) {
+      showToast('교환할 예약을 확인할 수 없습니다.');
+      return;
+    }
+    fetch(withBranch(API_SWAP_ROOMS), {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        first_source: 'tel',
+        first_id: String(sourceItem.id),
+        second_source: 'tel',
+        second_id: String(targetItem.id)
+      })
+    })
+      .then(function (r) {
+        if (!r.ok) {
+          return r.json().then(function (j) {
+            throw new Error((j && j.detail) || '교환 실패');
+          });
+        }
+        return r.json();
+      })
+      .then(function () {
+        roomSwapPending = false;
+        return fetchTelReservations()
+          .then(function () {
+            return refreshRoomAvailability(false);
+          })
+          .then(function () {
+            updateRoomSwapUi();
+            var refreshed = findReservationById(sourceItem.id);
+            if (refreshed) startEditingReservation(refreshed);
+            else clearEditingReservation(true);
+            showToast('자리 교환을 완료했습니다.');
+          });
+      })
+      .catch(function (err) {
+        showToast((err && err.message) || '교환에 실패했습니다.');
+      });
   }
 
   function collectPayload() {
@@ -1106,6 +1197,16 @@
   if (printBtn) {
     printBtn.addEventListener('click', function () {
       printReservation(findReservationById(editingReservationId));
+    });
+  }
+
+  if (roomSwapBtn) {
+    roomSwapBtn.addEventListener('click', function () {
+      if (roomSwapPending) {
+        clearRoomSwapPending(false);
+        return;
+      }
+      startRoomSwapPending();
     });
   }
 

@@ -85,7 +85,7 @@
   const staffPartyBackdrop = document.getElementById('staff-party-dialog-backdrop');
   const staffPartyClose = document.getElementById('staff-party-dialog-close');
   const partyDisplayInput = document.getElementById('party-display');
-  const cancelSwapBtn = document.getElementById('cancel-swap-btn');
+  const roomSwapBtn = document.getElementById('room-swap-btn');
 
   function staffTimeDialogEl() {
     return document.getElementById('staff-time-dialog');
@@ -669,14 +669,14 @@
         list = Array.isArray(data) ? data.map(normalizeRow) : [];
         if (swapSelection && !list.some(isSwapSourceItem)) {
           swapSelection = null;
-          if (cancelSwapBtn) cancelSwapBtn.style.display = 'none';
         }
+        updateRoomSwapButtonUi();
         render();
       })
       .catch(function () {
         list = [];
         swapSelection = null;
-        if (cancelSwapBtn) cancelSwapBtn.style.display = 'none';
+        updateRoomSwapButtonUi();
         render();
       });
   }
@@ -708,9 +708,22 @@
     return !!swapSelection && reservationSwapKey(item) === reservationSwapKey(swapSelection);
   }
 
+  function currentEditingItem() {
+    return editingIndex >= 0 ? list[editingIndex] || null : null;
+  }
+
+  function updateRoomSwapButtonUi() {
+    if (!roomSwapBtn) return;
+    var editingItem = currentEditingItem();
+    var visible = !!editingItem;
+    roomSwapBtn.classList.toggle('hidden', !visible);
+    roomSwapBtn.classList.toggle('is-active', !!editingItem && !!swapSelection);
+    roomSwapBtn.textContent = swapSelection ? '교환취소' : '자리교환';
+  }
+
   function clearSwapSelection(silent) {
     swapSelection = null;
-    if (cancelSwapBtn) cancelSwapBtn.style.display = 'none';
+    updateRoomSwapButtonUi();
     if (!silent) showToast('자리 교환 대기를 취소했습니다.');
     render();
   }
@@ -722,8 +735,8 @@
       return;
     }
     swapSelection = ref;
-    if (cancelSwapBtn) cancelSwapBtn.style.display = 'inline-block';
-    showToast('교환할 다른 예약의 교환 버튼을 누르세요.');
+    updateRoomSwapButtonUi();
+    showToast('교환할 다른 예약 행을 선택하세요.');
     render();
   }
 
@@ -754,7 +767,7 @@
       })
       .then(function () {
         swapSelection = null;
-        if (cancelSwapBtn) cancelSwapBtn.style.display = 'none';
+        updateRoomSwapButtonUi();
         cancelEdit();
         showToast('자리 교환을 완료했습니다.');
         load();
@@ -769,9 +782,8 @@
     listEl.innerHTML = '';
     list.forEach(function (item, i) {
       var row = document.createElement('div');
-      row.className = 'row' + (isSwapSourceItem(item) ? ' swap-source' : '');
+      row.className = 'row' + (isSwapSourceItem(item) ? ' swap-source' : '') + (swapSelection && !isSwapSourceItem(item) ? ' swap-target' : '');
       row.setAttribute('data-index', i);
-      var swapLabel = isSwapSourceItem(item) ? '선택됨' : '교환';
       row.innerHTML =
         '<span class="row-no">' + (i + 1) + '</span>' +
         '<span class="time">' + escapeHtml(item.time || '—') + '</span>' +
@@ -780,7 +792,6 @@
         '<span class="party">' + escapeHtml(partyLine(item)) + '</span>' +
         '<div class="row-actions">' +
           '<button type="button" class="btn btn-edit" data-index="' + i + '">수정</button>' +
-          '<button type="button" class="btn btn-swap" data-index="' + i + '">' + swapLabel + '</button>' +
           '<button type="button" class="btn btn-del" data-index="' + i + '">삭제</button>' +
         '</div>';
       listEl.appendChild(row);
@@ -830,19 +841,25 @@
         setStaffSelectedRooms(parseRoomSelection(item.rooms, item.room));
         applyPartyFromItem(item);
         editingIndex = i;
+        if (swapSelection && !isSwapSourceItem(item)) {
+          swapSelection = null;
+        }
         if (formTitle) formTitle.textContent = '예약 수정';
         if (submitBtn) { submitBtn.textContent = '수정'; submitBtn.classList.add('btn-edit-submit'); }
         if (cancelEditBtn) cancelEditBtn.style.display = 'inline-block';
+        updateRoomSwapButtonUi();
         document.getElementById('time').focus();
       });
     });
-    listEl.querySelectorAll('.btn-swap').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        var i = parseInt(btn.getAttribute('data-index'), 10);
+    listEl.querySelectorAll('.row').forEach(function (row) {
+      row.addEventListener('click', function (e) {
+        if (!swapSelection) return;
+        if (e.target.closest('.row-actions')) return;
+        var i = parseInt(row.getAttribute('data-index'), 10);
         var item = list[i];
         if (!item) return;
-        if (!swapSelection) {
-          startSwapSelection(item);
+        if (isSwapSourceItem(item)) {
+          showToast('교환할 다른 예약을 선택하세요.');
           return;
         }
         swapReservations(item);
@@ -852,6 +869,7 @@
 
   function cancelEdit() {
     editingIndex = -1;
+    swapSelection = null;
     document.getElementById('time').value = '';
     document.getElementById('name').value = '';
     setStaffSelectedRooms([]);
@@ -859,6 +877,7 @@
     if (formTitle) formTitle.textContent = '예약 추가';
     if (submitBtn) { submitBtn.textContent = '추가'; submitBtn.classList.remove('btn-edit-submit'); }
     if (cancelEditBtn) cancelEditBtn.style.display = 'none';
+    updateRoomSwapButtonUi();
   }
 
   function saveAndNotify(msg) {
@@ -1004,8 +1023,17 @@
   });
 
   if (cancelEditBtn) cancelEditBtn.addEventListener('click', cancelEdit);
-  if (cancelSwapBtn) cancelSwapBtn.addEventListener('click', function () {
-    clearSwapSelection(false);
+  if (roomSwapBtn) roomSwapBtn.addEventListener('click', function () {
+    if (swapSelection) {
+      clearSwapSelection(false);
+      return;
+    }
+    var editingItem = currentEditingItem();
+    if (!editingItem) {
+      showToast('먼저 수정할 예약을 선택하세요.');
+      return;
+    }
+    startSwapSelection(editingItem);
   });
 
   var staffWs = null;

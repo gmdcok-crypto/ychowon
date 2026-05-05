@@ -354,6 +354,10 @@ def _reservation_matches_ref(item: dict[str, Any], source: str, reservation_id: 
     return str(item.get("source") or "") == source and str(item.get("id") or "") == reservation_id
 
 
+def _reservation_date_text(item: dict[str, Any], fallback: str = "") -> str:
+    return str(item.get("date") or fallback or "")
+
+
 def _assert_no_room_overlap_with_others(
     rooms: list[str],
     time_text: str,
@@ -859,7 +863,7 @@ async def swap_today_reservation_rooms(
     payload: ReservationRoomSwapIn,
     branch: str = Query(default="default"),
 ):
-    """당일 현황 목록에서 두 예약의 룸/테이블을 원자적으로 서로 교환."""
+    """두 예약의 룸/테이블을 원자적으로 서로 교환."""
     bid = resolve_effective_branch(branch, request.headers.get("host"))
     today = _today_str()
     first_source = str(payload.first_source or "").strip().lower()
@@ -878,6 +882,13 @@ async def swap_today_reservation_rooms(
     admin_items = list(admin_data.get("reservations") or []) if admin_data.get("date") == today else []
     tel_store = _load_tel()
     tel_items = list(tel_store.get("reservations") or [])
+    tel_index_by_id: dict[str, tuple[int, dict[str, Any]]] = {}
+    for idx, item in enumerate(tel_items):
+        if not isinstance(item, dict):
+            continue
+        if tel_branch_key(item) != bid:
+            continue
+        tel_index_by_id[str(item.get("id") or "")] = (idx, item)
 
     first_item = None
     second_item = None
@@ -899,21 +910,26 @@ async def swap_today_reservation_rooms(
                 second_admin_index = idx
 
     if first_source == "tel" or second_source == "tel":
-        for idx, item in enumerate(tel_items):
-            if not isinstance(item, dict):
-                continue
-            if tel_branch_key(item) != bid or str(item.get("date") or "") != today:
-                continue
-            ref_id = str(item.get("id") or "")
-            if first_source == "tel" and ref_id == first_id:
-                first_item = item
-                first_tel_index = idx
-            if second_source == "tel" and ref_id == second_id:
-                second_item = item
-                second_tel_index = idx
+        if first_source == "tel":
+            matched = tel_index_by_id.get(first_id)
+            if matched:
+                first_tel_index, first_item = matched
+        if second_source == "tel":
+            matched = tel_index_by_id.get(second_id)
+            if matched:
+                second_tel_index, second_item = matched
 
     if first_item is None or second_item is None:
         raise HTTPException(status_code=404, detail="교환할 예약을 찾을 수 없습니다.")
+
+    first_date = _reservation_date_text(first_item, today if first_source == "staff" else "")
+    second_date = _reservation_date_text(second_item, today if second_source == "staff" else "")
+    if not first_date or not second_date:
+        raise HTTPException(status_code=400, detail="교환할 예약의 날짜를 확인할 수 없습니다.")
+    if first_date != second_date:
+        raise HTTPException(status_code=400, detail="같은 날짜 예약끼리만 교환할 수 있습니다.")
+    if (first_source == "staff" or second_source == "staff") and first_date != today:
+        raise HTTPException(status_code=400, detail="직원 당일 예약은 오늘 날짜에서만 교환할 수 있습니다.")
 
     first_rooms = _reservation_rooms(first_item)
     second_rooms = _reservation_rooms(second_item)
@@ -925,12 +941,12 @@ async def swap_today_reservation_rooms(
         (second_source, second_id),
     }
     others: list[dict[str, Any]] = []
-    for item in _staff_today_items_for_date(today, bid):
+    for item in _staff_today_items_for_date(first_date, bid):
         if _reservation_matches_ref(item, "staff", str(item.get("id") or "")) and ("staff", str(item.get("id") or "")) in excluded:
             continue
         if ("staff", str(item.get("id") or "")) not in excluded:
             others.append(item)
-    for item in _get_tel_reservations(today, bid):
+    for item in _get_tel_reservations(first_date, bid):
         if ("tel", str(item.get("id") or "")) not in excluded:
             others.append(item)
 
