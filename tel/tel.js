@@ -160,14 +160,14 @@
     return '<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8">' +
       '<title>예약 현황 인쇄</title>' +
       '<style>' +
-      '@page{size:80mm auto;margin:6mm;}' +
+      '@page{size:80mm auto;margin:0;}' +
       'html,body{margin:0;padding:0;background:#fff;color:#000;font-family:\"Malgun Gothic\",\"Noto Sans KR\",sans-serif;}' +
-      'body{width:72mm;margin:0 auto;padding:2mm 0;}' +
+      'body{width:80mm;box-sizing:border-box;margin:0 auto;padding:2mm;}' +
       '.wrap{text-align:left;line-height:1.15;font-size:24px;}' +
       '.title{text-align:center;font-size:36px;font-weight:700;letter-spacing:0.08em;margin:0 0 8px;}' +
       '.line{border-top:1px dashed #000;margin:8px 0;}' +
       '.row{display:flex;align-items:flex-start;gap:8px;margin:0;}' +
-      '.label{flex:0 0 104px;font-weight:700;}' +
+      '.label{flex:0 0 28mm;font-weight:700;white-space:nowrap;}' +
       '.value{flex:1;white-space:pre-wrap;word-break:keep-all;}' +
       '</style></head><body><div class="wrap"><div class="title">예약 현황</div><div class="line"></div>' +
       rows.map(function (row) {
