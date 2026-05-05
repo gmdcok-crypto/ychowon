@@ -34,6 +34,7 @@
   var filterFrom = document.getElementById('filter-from');
   var filterTo = document.getElementById('filter-to');
   var btnSearch = document.getElementById('btn-search');
+  var btnPrintDay = document.getElementById('btn-print-day');
   var btnCalFrom = document.getElementById('btn-cal-from');
   var btnCalTo = document.getElementById('btn-cal-to');
   var calBackdrop = document.getElementById('all-cal-backdrop');
@@ -51,6 +52,7 @@
   var calMonth;
   var activeDateInput = null;
   var today = new Date();
+  var rowsCache = [];
 
   function showToast(msg) {
     if (!toastEl) return;
@@ -172,10 +174,12 @@
       .then(function (r) { return r.json(); })
       .then(function (data) {
         var rows = Array.isArray(data) ? data : [];
+        rowsCache = rows.slice();
         renderTable(rows);
         resultCount.textContent = countText(rows.length, filterFrom.value, filterTo.value);
       })
       .catch(function () {
+        rowsCache = [];
         renderTable([]);
         resultCount.textContent = '불러오기 실패';
         showToast('목록을 불러오지 못했습니다.');
@@ -194,6 +198,107 @@
     if (c) parts.push('어린이 ' + c);
     if (i) parts.push('유아 ' + i);
     return parts.length ? parts.join(', ') : (r.count != null ? String(r.count) + '명' : '—');
+  }
+
+  function displayPartyShort(r) {
+    var total = r.count;
+    if (total == null) {
+      total = (parseInt(r.adult, 10) || 0) + (parseInt(r.child, 10) || 0) + (parseInt(r.infant, 10) || 0);
+    }
+    total = parseInt(total, 10) || 0;
+    return total > 0 ? String(total).padStart(2, '0') + '명' : '—';
+  }
+
+  function printableRoom(r) {
+    var room = String((r && r.room) || '').trim();
+    return room || '—';
+  }
+
+  function currentPrintDate() {
+    var from = (filterFrom.value || '').trim();
+    var to = (filterTo.value || '').trim();
+    if (from && to && from !== to) return '';
+    return from || to || '';
+  }
+
+  function formatPrintDate(dateText) {
+    var p = String(dateText || '').split('-');
+    if (p.length !== 3) return String(dateText || '');
+    return p[0] + '년 ' + p[1] + '월 ' + p[2] + '일';
+  }
+
+  function buildPrintColumns(rows) {
+    var mid = Math.ceil(rows.length / 2);
+    return [rows.slice(0, mid), rows.slice(mid)];
+  }
+
+  function buildPrintTable(rows) {
+    var body = rows.map(function (r) {
+      return '<tr>' +
+        '<td>' + escapeHtml(r.time || '—') + '</td>' +
+        '<td>' + escapeHtml((r.name || '') + ' 님') + '</td>' +
+        '<td>' + escapeHtml(displayPartyShort(r)) + '</td>' +
+        '<td>' + escapeHtml(printableRoom(r)) + '</td>' +
+      '</tr>';
+    }).join('');
+    if (!body) {
+      body = '<tr class="empty"><td></td><td></td><td></td><td></td></tr>'.repeat(18);
+    }
+    return '<table class="print-day-table">' +
+      '<thead><tr><th>시간</th><th>예약자명</th><th>인원수</th><th>룸번호</th></tr></thead>' +
+      '<tbody>' + body + '</tbody></table>';
+  }
+
+  function buildDayPrintHtml(dateText, rows) {
+    var cols = buildPrintColumns(rows);
+    var printDate = escapeHtml(formatPrintDate(dateText));
+    return '<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><title>당일 예약현황 인쇄</title><style>' +
+      '@page{size:A4 portrait;margin:12mm 10mm 14mm;}' +
+      'html,body{margin:0;padding:0;background:#fff;color:#111;font-family:"Malgun Gothic","Noto Sans KR",sans-serif;}' +
+      'body{font-size:11pt;line-height:1.3;}' +
+      '.sheet{width:100%;}' +
+      '.date-line{text-align:right;font-size:14pt;font-weight:600;margin:0 0 8mm;}' +
+      '.tables{display:grid;grid-template-columns:1fr 1fr;gap:6mm;align-items:start;}' +
+      '.print-day-table{width:100%;border-collapse:collapse;table-layout:fixed;}' +
+      '.print-day-table th,.print-day-table td{border:1px solid #999;padding:2.2mm 2mm;font-size:10.5pt;vertical-align:middle;}' +
+      '.print-day-table th{background:#f5f5f5;font-weight:700;text-align:center;white-space:nowrap;}' +
+      '.print-day-table td:nth-child(1){width:18%;text-align:center;}' +
+      '.print-day-table td:nth-child(2){width:34%;font-weight:600;}' +
+      '.print-day-table td:nth-child(3){width:18%;text-align:center;}' +
+      '.print-day-table td:nth-child(4){width:30%;text-align:center;}' +
+      '.print-day-table tbody tr.empty td{height:10mm;}' +
+      '</style></head><body><div class="sheet">' +
+      '<div class="date-line">' + printDate + '</div>' +
+      '<div class="tables">' +
+      '<div>' + buildPrintTable(cols[0]) + '</div>' +
+      '<div>' + buildPrintTable(cols[1]) + '</div>' +
+      '</div></div>' +
+      '<script>window.onload=function(){setTimeout(function(){window.print();},150);};</script>' +
+      '</body></html>';
+  }
+
+  function printCurrentDay() {
+    var dateText = currentPrintDate();
+    if (!dateText) {
+      showToast('당일 출력은 시작일과 종료일을 같은 날짜로 맞춰주세요.');
+      return;
+    }
+    var rows = rowsCache.filter(function (r) { return String(r.date || '') === dateText; });
+    if (!rows.length) {
+      showToast('선택한 날짜의 예약이 없습니다.');
+      return;
+    }
+    var win = window.open('', '_blank', 'width=1024,height=900');
+    if (!win) {
+      showToast('팝업이 차단되어 인쇄 창을 열 수 없습니다.');
+      return;
+    }
+    win.document.open();
+    win.document.write(buildDayPrintHtml(dateText, rows));
+    win.document.close();
+    try {
+      win.focus();
+    } catch (e) {}
   }
 
   function renderTable(rows) {
@@ -282,6 +387,7 @@
   }
 
   btnSearch.addEventListener('click', fetchList);
+  if (btnPrintDay) btnPrintDay.addEventListener('click', printCurrentDay);
 
   if (btnCalFrom) {
     btnCalFrom.addEventListener('click', function () {

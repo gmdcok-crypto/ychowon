@@ -71,6 +71,19 @@ body.embed .admin-wide {
   gap: 0.75rem 1rem;
 }
 
+.all-action-buttons {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+}
+
+.all-action-btn {
+  min-height: 2.55rem;
+  padding: 0.45rem 0.95rem;
+  font-size: 0.9rem;
+}
+
 .all-filters .all-date-field {
   display: flex;
   flex-direction: column;
@@ -316,6 +329,9 @@ body.embed .admin-wide {
   .all-filters .filter-row {
     flex-direction: column;
     align-items: stretch;
+  }
+  .all-action-buttons {
+    width: 100%;
   }
   .all-filters .filter-row .btn {
     width: 100%;
