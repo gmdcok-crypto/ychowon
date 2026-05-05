@@ -160,6 +160,32 @@ app.add_middleware(
 async def _auth_middleware_layer(request: Request, call_next):
     return await auth_middleware(request, call_next)
 
+
+_NO_STORE_PATHS = {
+    "/display",
+    "/display/",
+    "/display/index.html",
+    "/display/sw.js",
+    "/admin",
+    "/admin/",
+    "/admin/index.html",
+    "/tel",
+    "/tel/",
+    "/tel/index.html",
+    "/tel/login.html",
+    "/tel/sw.js",
+}
+
+
+@app.middleware("http")
+async def _entrypoint_cache_control(request: Request, call_next):
+    response = await call_next(request)
+    path = request.url.path
+    if path in _NO_STORE_PATHS:
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+    return response
+
 # 당일 예약 저장 파일 (DB 대신 단일 JSON)
 DATA_DIR = Path(__file__).resolve().parent / "data"
 DATA_DIR.mkdir(exist_ok=True)
@@ -1322,8 +1348,10 @@ def branch_boot_js(request: Request):
         env_literal = json.dumps(bid)
     except HTTPException:
         env_literal = "null"
+    build_literal = json.dumps(DISPLAY_BUILD_VERSION)
     body = (
         f"window.__RESERVE_DEFAULT_BRANCH__={env_literal};\n"
+        f"window.__RESERVE_BUILD_VERSION__={build_literal};\n"
         "(function(g){"
         "function inferHost(){try{var h=(g.location.hostname||'').toLowerCase();"
         "if(h.indexOf('ychowon')>=0)return'ychowon';"
@@ -1333,12 +1361,41 @@ def branch_boot_js(request: Request):
         "var w=g.__RESERVE_DEFAULT_BRANCH__;"
         "if(w!=null&&String(w).trim())return String(w).trim().toLowerCase();"
         "var x=inferHost();if(x)return x;return'default';};"
+        "g.reserveInstallBuildVersionWatcher=function(opts){"
+        "opts=opts||{};"
+        "var known=String(g.__RESERVE_BUILD_VERSION__||'').trim();"
+        "if(!known)return;"
+        "var interval=Math.max(5000,Number(opts.intervalMs)||15000);"
+        "var path=opts.path||'/api/build-version';"
+        "var stopped=false;"
+        "function check(){"
+        "if(stopped)return;"
+        "fetch(path+'?_=' + Date.now(),{cache:'no-store',credentials:'same-origin'})"
+        ".then(function(r){if(!r.ok)throw new Error('build-version');return r.json();})"
+        ".then(function(data){"
+        "var next=data&&data.version!=null?String(data.version).trim():'';"
+        "if(next&&next!==known){g.location.reload();}"
+        "})"
+        ".catch(function(){});"
+        "}"
+        "check();"
+        "var timer=g.setInterval(check,interval);"
+        "return function(){stopped=true;try{g.clearInterval(timer);}catch(e){}};"
+        "};"
         "})(window);\n"
     )
     return Response(
         content=body,
         media_type="application/javascript",
         headers={"Cache-Control": "no-store"},
+    )
+
+
+@app.get("/api/build-version")
+def api_build_version():
+    return JSONResponse(
+        content={"version": DISPLAY_BUILD_VERSION},
+        headers={"Cache-Control": "no-store, no-cache, must-revalidate", "Pragma": "no-cache"},
     )
 
 

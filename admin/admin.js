@@ -897,6 +897,9 @@
     syncAdminIframes();
     load();
     connectWs();
+    if (typeof window.reserveInstallBuildVersionWatcher === 'function') {
+      window.reserveInstallBuildVersionWatcher({ intervalMs: 10000 });
+    }
   }
 
   setupStaffTimeDialog();

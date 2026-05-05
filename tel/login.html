@@ -175,7 +175,10 @@
   </script>
   <script>
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/tel/sw.js', { scope: '/tel/' }).catch(function () {});
+      navigator.serviceWorker.register('/tel/sw.js?v=4', { scope: '/tel/' }).catch(function () {});
+    }
+    if (typeof window.reserveInstallBuildVersionWatcher === 'function') {
+      window.reserveInstallBuildVersionWatcher({ intervalMs: 10000 });
     }
   </script>
 </body>

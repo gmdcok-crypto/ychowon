@@ -11,7 +11,7 @@
   <title>전화 예약 접수 · 초원농원</title>
   <link rel="manifest" href="manifest.json" />
   <link rel="apple-touch-icon" href="/display/icon-192.png" />
-  <link rel="stylesheet" href="tel.css?v=12" />
+  <link rel="stylesheet" href="tel.css?v=13" />
 </head>
 <body>
   <div class="tel-root">
@@ -220,10 +220,13 @@
   </div>
 
   <script src="/api/branch-boot.js"></script>
-  <script src="tel.js?v=15"></script>
+  <script src="tel.js?v=16"></script>
   <script>
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/tel/sw.js', { scope: '/tel/' }).catch(function () {});
+      navigator.serviceWorker.register('/tel/sw.js?v=4', { scope: '/tel/' }).catch(function () {});
+    }
+    if (typeof window.reserveInstallBuildVersionWatcher === 'function') {
+      window.reserveInstallBuildVersionWatcher({ intervalMs: 10000 });
     }
   </script>
 </body>
