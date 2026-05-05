@@ -213,9 +213,31 @@
     return total > 0 ? String(total).padStart(2, '0') + '명' : '—';
   }
 
+  function isYchowonBranch() {
+    return getBranch() === 'ychowon';
+  }
+
+  function formatYchowonPrintRoom(room) {
+    var text = String(room || '').trim();
+    if (!text) return '—';
+
+    var floorRoom = text.match(/^(\d+F)\s*룸\s*룸?\s*(\d+)\s*(?:호|호실)?$/i);
+    if (floorRoom) {
+      var floor = floorRoom[1].toUpperCase();
+      var number = floorRoom[2];
+      if (floor === '4F') return number + '호실';
+      if (floor === '5F') return '5층 ' + number + '호실';
+    }
+
+    if (/홀/i.test(text)) return '3층';
+    return text;
+  }
+
   function printableRoom(r) {
     var room = String((r && r.room) || '').trim();
-    return room || '—';
+    if (!room) return '—';
+    if (!isYchowonBranch()) return room;
+    return formatYchowonPrintRoom(room);
   }
 
   function printableGuestName(r) {

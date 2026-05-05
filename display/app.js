@@ -76,27 +76,25 @@
     var text = String(room || '').trim();
     if (!text) return '—';
     if (!isYchowonDisplay()) return text;
-    var floorRoom = text.match(/^(\d+F)\s*룸\s*룸?\s*(\d+)$/i);
+    var floorRoom = text.match(/^(\d+F)\s*룸\s*룸?\s*(\d+)\s*(?:호|호실)?$/i);
     if (floorRoom) {
       if (floorRoom[1].toUpperCase() === '4F') return floorRoom[2] + '호실';
-      if (floorRoom[1].toUpperCase() === '5F') return '5층 ' + floorRoom[2] + '호';
+      if (floorRoom[1].toUpperCase() === '5F') return '5층 ' + floorRoom[2] + '호실';
     }
-    var hallTable = text.match(/^([A-Z])홀\s*([A-Z]\d+(?:\(임시\))?)$/i);
-    if (hallTable) return '3층';
+    if (/홀/i.test(text)) return '3층';
     return text;
   }
 
   function ychowonRoomSortKey(room) {
     var text = String(room || '').trim();
-    var floorRoom = text.match(/^(\d+F)\s*룸\s*룸?\s*(\d+)$/i);
+    var floorRoom = text.match(/^(\d+F)\s*룸\s*룸?\s*(\d+)\s*(?:호|호실)?$/i);
     if (floorRoom) {
       var floor = floorRoom[1].toUpperCase();
       var num = parseInt(floorRoom[2], 10);
       if (floor === '4F') return [0, isNaN(num) ? 999 : num, text];
       if (floor === '5F') return [2, isNaN(num) ? 999 : num, text];
     }
-    var hallTable = text.match(/^([A-Z])홀\s*([A-Z]\d+(?:\(임시\))?)$/i);
-    if (hallTable) return [1, hallTable[2].toUpperCase(), text];
+    if (/홀/i.test(text)) return [1, text.toUpperCase(), text];
     return [3, text, text];
   }
 
