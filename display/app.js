@@ -65,10 +65,17 @@
     if (timeEl) timeEl.textContent = formatTime(now);
   }
 
+  function isYchowonDisplay() {
+    try {
+      return String(window.location.hostname || '').toLowerCase().indexOf('ychowon') >= 0;
+    } catch (e) {}
+    return false;
+  }
+
   function formatRoomLabel(room) {
     var text = String(room || '').trim();
     if (!text) return '—';
-    if (getDisplayBranch() !== 'ychowon') return text;
+    if (!isYchowonDisplay()) return text;
     var floorRoom = text.match(/^(\d+F)\s*룸\s*룸?\s*(\d+)$/i);
     if (floorRoom) return '룸' + floorRoom[2] + '호';
     var hallTable = text.match(/^([A-Z])홀\s*([A-Z]\d+(?:\(임시\))?)$/i);
