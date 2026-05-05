@@ -1,5 +1,5 @@
-const CACHE_NAME = 'reserve-board-v5';
-const STATIC_URLS = ['./', './index.html', './styles.css?v=10', './app.js?v=10', './manifest.json'];
+const CACHE_NAME = 'reserve-board-v6';
+const STATIC_URLS = ['./', './index.html', './styles.css?v=11', './app.js?v=11', './manifest.json'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
