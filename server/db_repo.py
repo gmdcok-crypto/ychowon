@@ -152,12 +152,14 @@ def load_branch_today(branch_id: str, *, _retry: bool = True) -> dict[str, Any]:
             date_str = d0.isoformat() if isinstance(d0, date) else str(d0)
             reservations = []
             for r in rows:
+                rooms = _normalize_rooms(None, r.room)
                 reservations.append(
                     {
                         "id": r.id,
                         "time": r.time,
                         "name": r.name,
-                        "room": r.room,
+                        "room": _format_room_text(rooms),
+                        "rooms": rooms,
                         "count": int(r.count),
                         "adult": r.adult,
                         "child": r.child,
@@ -196,6 +198,36 @@ def _opt_party_int(v: Any) -> Optional[int]:
         return None
 
 
+def _normalize_room_label(value: Any) -> str:
+    return " ".join(str(value or "").replace("\n", " ").split()).strip()
+
+
+def _normalize_rooms(raw_rooms: Any, raw_room: Any = None) -> list[str]:
+    values: list[Any] = []
+    if isinstance(raw_rooms, (list, tuple, set)):
+        values.extend(list(raw_rooms))
+    elif raw_rooms is not None and str(raw_rooms).strip():
+        values.append(raw_rooms)
+    elif raw_room is not None and str(raw_room).strip():
+        values.append(raw_room)
+
+    out: list[str] = []
+    seen: set[str] = set()
+    for raw in values:
+        parts = raw if isinstance(raw, (list, tuple, set)) else str(raw).split(",")
+        for part in parts:
+            label = _normalize_room_label(part)
+            if not label or label in seen:
+                continue
+            seen.add(label)
+            out.append(label)
+    return out
+
+
+def _format_room_text(rooms: list[str]) -> str:
+    return ", ".join(rooms)
+
+
 def save_branch_today(branch_id: str, data: dict[str, Any]) -> None:
     date_str = str(data.get("date") or _today_str())[:10]
     d = _parse_ymd(date_str)
@@ -217,13 +249,14 @@ def save_branch_today(branch_id: str, data: dict[str, Any]) -> None:
                     count = 2
             else:
                 count = max(1, (adult or 0) + (child or 0) + (infant or 0))
+            rooms = _normalize_rooms(r.get("rooms"), r.get("room"))
             s.add(
                 StaffReservationRow(
                     branch_id=branch_id,
                     date=d,
                     time=str(r.get("time") or ""),
                     name=str(r.get("name") or ""),
-                    room=str(r.get("room") or ""),
+                    room=_format_room_text(rooms),
                     count=count,
                     adult=adult,
                     child=child,
@@ -364,6 +397,7 @@ def load_tel_store() -> dict[str, Any]:
         if rows:
             out: list[dict[str, Any]] = []
             for r in rows:
+                rooms = _normalize_rooms(None, r.room)
                 item: dict[str, Any] = {
                     "id": r.id,
                     "branch_id": r.branch_id,
@@ -374,7 +408,8 @@ def load_tel_store() -> dict[str, Any]:
                     "name": r.name,
                     "note": r.note or "",
                     "count": r.count,
-                    "room": r.room,
+                    "room": _format_room_text(rooms),
+                    "rooms": rooms,
                 }
                 if r.adult is not None:
                     item["adult"] = r.adult
@@ -420,6 +455,7 @@ def save_tel_store(data: dict[str, Any]) -> None:
             if not isinstance(it, dict):
                 continue
             bid = str(it.get("branch_id") or _DEFAULT_BRANCH).strip().lower() or _DEFAULT_BRANCH
+            rooms = _normalize_rooms(it.get("rooms"), it.get("room"))
             row_kw: dict[str, Any] = {
                 "branch_id": bid,
                 "date": str(it.get("date") or "")[:10],
@@ -429,7 +465,7 @@ def save_tel_store(data: dict[str, Any]) -> None:
                 "name": str(it.get("name") or ""),
                 "note": str(it.get("note") or ""),
                 "count": int(it.get("count") or 2),
-                "room": str(it.get("room") or ""),
+                "room": _format_room_text(rooms),
             }
             for k in ("adult", "child", "infant"):
                 v = it.get(k)

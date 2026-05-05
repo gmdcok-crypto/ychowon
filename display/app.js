@@ -65,6 +65,26 @@
     if (timeEl) timeEl.textContent = formatTime(now);
   }
 
+  function normalizeRoomLabel(value) {
+    return String(value || '').replace(/\s+/g, ' ').trim();
+  }
+
+  function parseRoomSelection(rawRooms, rawRoom) {
+    var values = [];
+    if (Array.isArray(rawRooms)) values = rawRooms.slice();
+    else if (rawRooms != null && String(rawRooms).trim()) values = [rawRooms];
+    else if (rawRoom != null && String(rawRoom).trim()) values = [rawRoom];
+    var out = [];
+    values.forEach(function (raw) {
+      String(raw || '').split(',').forEach(function (part) {
+        var room = normalizeRoomLabel(part);
+        if (!room || out.indexOf(room) >= 0) return;
+        out.push(room);
+      });
+    });
+    return out;
+  }
+
   function isYchowonDisplay() {
     try {
       return String(window.location.hostname || '').toLowerCase().indexOf('ychowon') >= 0;
@@ -85,8 +105,14 @@
     return text;
   }
 
+  function formatRoomLabelList(item) {
+    var rooms = parseRoomSelection(item && item.rooms, item && item.room);
+    if (!rooms.length) return '—';
+    return rooms.map(formatRoomLabel).join(', ');
+  }
+
   function ychowonRoomSortKey(room) {
-    var text = String(room || '').trim();
+    var text = parseRoomSelection(null, room)[0] || '';
     var floorRoom = text.match(/^(\d+F)\s*룸\s*룸?\s*(\d+)\s*(?:호|호실)?$/i);
     if (floorRoom) {
       var floor = floorRoom[1].toUpperCase();
@@ -102,8 +128,8 @@
     var list = Array.isArray(items) ? items.slice() : [];
     if (!isYchowonDisplay()) return list;
     list.sort(function (a, b) {
-      var roomA = ychowonRoomSortKey(a && a.room);
-      var roomB = ychowonRoomSortKey(b && b.room);
+      var roomA = ychowonRoomSortKey(parseRoomSelection(a && a.rooms, a && a.room)[0] || '');
+      var roomB = ychowonRoomSortKey(parseRoomSelection(b && b.rooms, b && b.room)[0] || '');
       if (roomA[0] !== roomB[0]) return roomA[0] - roomB[0];
       var timeA = String((a && a.time) || '');
       var timeB = String((b && b.time) || '');
@@ -118,11 +144,12 @@
     const row = document.createElement('div');
     row.className = 'row';
     row.setAttribute('data-id', item.id || '');
-    const roomClass = (item.room && String(item.room).toUpperCase().includes('VIP')) ? 'col-room vip' : 'col-room';
+    const rooms = parseRoomSelection(item && item.rooms, item && item.room);
+    const roomClass = rooms.some(function (room) { return String(room).toUpperCase().includes('VIP'); }) ? 'col-room vip' : 'col-room';
     row.innerHTML =
       '<div class="col col-time">' + (item.time || '—') + '</div>' +
       '<div class="col col-name">' + (item.name || '—') + '</div>' +
-      '<div class="col ' + roomClass + '">' + formatRoomLabel(item.room) + '</div>';
+      '<div class="col ' + roomClass + '">' + formatRoomLabelList(item) + '</div>';
     return row;
   }
 

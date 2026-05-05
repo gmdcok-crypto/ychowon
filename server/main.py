@@ -296,24 +296,86 @@ def _today_str() -> str:
     return today_str_kst()
 
 
+ROOM_TEXT_SEPARATOR = ", "
+
+
+def _normalize_room_label(value: Any) -> str:
+    return " ".join(str(value or "").replace("\n", " ").split()).strip()
+
+
+def _normalize_rooms(raw_rooms: Any, raw_room: Any = None) -> list[str]:
+    values: list[Any] = []
+    if isinstance(raw_rooms, (list, tuple, set)):
+        values.extend(list(raw_rooms))
+    elif raw_rooms is not None and str(raw_rooms).strip():
+        values.append(raw_rooms)
+    elif raw_room is not None and str(raw_room).strip():
+        values.append(raw_room)
+
+    out: list[str] = []
+    seen: set[str] = set()
+    for raw in values:
+        parts = raw if isinstance(raw, (list, tuple, set)) else str(raw).split(",")
+        for part in parts:
+            label = _normalize_room_label(part)
+            if not label or label in seen:
+                continue
+            seen.add(label)
+            out.append(label)
+    return out
+
+
+def _format_room_text(rooms: list[str]) -> str:
+    return ROOM_TEXT_SEPARATOR.join(rooms)
+
+
+def _reservation_rooms(item: Any) -> list[str]:
+    if not isinstance(item, dict):
+        return []
+    return _normalize_rooms(item.get("rooms"), item.get("room"))
+
+
+def _reservation_room_text(item: Any) -> str:
+    return _format_room_text(_reservation_rooms(item))
+
+
+def _primary_room_text(item: Any) -> str:
+    rooms = _reservation_rooms(item) if isinstance(item, dict) else _normalize_rooms(item)
+    return rooms[0] if rooms else ""
+
+
+def _rooms_overlap(rooms_a: list[str], rooms_b: list[str]) -> bool:
+    if not rooms_a or not rooms_b:
+        return False
+    return not set(rooms_a).isdisjoint(rooms_b)
+
+
 def _get_admin_today_list(branch_id: str) -> list:
     """직원(admin)이 저장한 당일 목록만 (지점별 MySQL)."""
     data = load_branch_today(branch_id)
     if data.get("date") != _today_str():
         return []
     items = data.get("reservations") or []
-    return sorted(items, key=lambda x: x.get("time", ""))
+    normalized: list[dict[str, Any]] = []
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        rooms = _reservation_rooms(item)
+        normalized.append({**item, "rooms": rooms, "room": _format_room_text(rooms)})
+    return sorted(normalized, key=lambda x: (x.get("time", ""), _primary_room_text(x)))
 
 
 def _get_board_today_merged(branch_id: str) -> list:
     """현황판·admin 목록용: 당일 직원 입력 + 당일 전화 예약(tel) 합침 (지점별)."""
     merged = []
     for r in _get_admin_today_list(branch_id):
+        rooms = _reservation_rooms(r)
         merged.append({
             "id": r.get("id"),
             "time": r.get("time", ""),
             "name": r.get("name", ""),
-            "room": r.get("room", ""),
+            "room": _format_room_text(rooms),
+            "rooms": rooms,
             "source": "admin",
             "count": r.get("count"),
             "adult": r.get("adult"),
@@ -322,11 +384,13 @@ def _get_board_today_merged(branch_id: str) -> list:
         })
     for r in _get_tel_reservations(_today_str(), branch_id):
         tid = r.get("id")
+        rooms = _reservation_rooms(r)
         merged.append({
             "id": f"tel-{tid}",
             "time": r.get("time", ""),
             "name": r.get("name", ""),
-            "room": r.get("room", ""),
+            "room": _format_room_text(rooms),
+            "rooms": rooms,
             "source": "tel",
             "phone": r.get("phone", ""),
             "count": r.get("count"),
@@ -515,12 +579,13 @@ def _get_tel_reservations(date_text: Optional[str] = None, branch_id: Optional[s
     normalized = []
     for item in items:
         slot = item.get("slot") or _time_slot(item.get("time", ""))
-        normalized.append({**item, "slot": slot})
+        rooms = _reservation_rooms(item)
+        normalized.append({**item, "slot": slot, "source": "tel", "rooms": rooms, "room": _format_room_text(rooms)})
     if branch_id is not None:
         normalized = [item for item in normalized if tel_branch_key(item) == branch_id]
     if date_text:
         normalized = [item for item in normalized if item.get("date") == date_text]
-    return sorted(normalized, key=lambda x: (x.get("date", ""), x.get("time", ""), x.get("room", "")))
+    return sorted(normalized, key=lambda x: (x.get("date", ""), x.get("time", ""), _primary_room_text(x)))
 
 
 def _staff_today_items_for_date(date_text: str, branch_id: str) -> list[dict]:
@@ -532,14 +597,16 @@ def _staff_today_items_for_date(date_text: str, branch_id: str) -> list[dict]:
     for r in data.get("reservations") or []:
         if not isinstance(r, dict):
             continue
-        room = (r.get("room") or "").strip()
-        if not room:
+        rooms = _reservation_rooms(r)
+        if not rooms:
             continue
         t = str(r.get("time") or "")
         out.append(
             {
+                "id": r.get("id"),
                 "time": t,
-                "room": room,
+                "room": _format_room_text(rooms),
+                "rooms": rooms,
                 "name": str(r.get("name") or ""),
                 "slot": _time_slot(t),
                 "source": "staff",
@@ -548,15 +615,26 @@ def _staff_today_items_for_date(date_text: str, branch_id: str) -> list[dict]:
     return out
 
 
-def _room_status(date_text: str, time_text: str, branch_id: str) -> list:
+def _room_status(
+    date_text: str,
+    time_text: str,
+    branch_id: str,
+    *,
+    exclude_source: Optional[str] = None,
+    exclude_id: Optional[str] = None,
+) -> list:
     reservations = list(_get_tel_reservations(date_text, branch_id))
     reservations.extend(_staff_today_items_for_date(date_text, branch_id))
     by_room = {}
     for item in reservations:
-        room_name = item.get("room")
-        if not room_name:
+        if exclude_source and exclude_id:
+            if str(item.get("source") or "") == exclude_source and str(item.get("id") or "") == exclude_id:
+                continue
+        room_names = _reservation_rooms(item)
+        if not room_names:
             continue
-        by_room.setdefault(room_name, []).append(item)
+        for room_name in room_names:
+            by_room.setdefault(room_name, []).append(item)
 
     result = []
     for room in ROOM_OPTIONS:
@@ -638,7 +716,8 @@ class ReservationItem(BaseModel):
     id: Optional[int] = None
     time: str
     name: str
-    room: str
+    room: str = ""
+    rooms: Optional[list[str]] = None
     count: int = 2
     adult: Optional[int] = None
     child: Optional[int] = None
@@ -656,7 +735,8 @@ class TelReservationItem(BaseModel):
     phone: str
     name: str
     note: Optional[str] = None
-    room: str
+    room: str = ""
+    rooms: Optional[list[str]] = None
     count: int = 2
     adult: Optional[int] = None
     child: Optional[int] = None
@@ -714,27 +794,33 @@ async def set_today_reservations(
 ):
     """직원(admin) 당일 예약만 통째로 교체. 전화 예약(tel)은 그대로 두고 합쳐서 현황판에 반영."""
     bid = resolve_effective_branch(branch, request.headers.get("host"))
-    items = [r.model_dump() for r in payload.reservations]
+    items = []
+    for r in payload.reservations:
+        item = r.model_dump()
+        rooms = _normalize_rooms(item.get("rooms"), item.get("room"))
+        item["rooms"] = rooms
+        item["room"] = _format_room_text(rooms)
+        items.append(item)
     for i, r in enumerate(items):
         if r.get("id") is None:
             r["id"] = i + 1
     date_str = _today_str()
     tel_day = _get_tel_reservations(date_str, bid)
     for i, a in enumerate(items):
-        ra = (a.get("room") or "").strip()
+        ra = _reservation_rooms(a)
         ta = str(a.get("time") or "")
         if not ra or not ta:
             continue
         for t in tel_day:
-            if (t.get("room") or "").strip() == ra and _times_overlap(str(t.get("time") or ""), ta):
+            if _rooms_overlap(_reservation_rooms(t), ra) and _times_overlap(str(t.get("time") or ""), ta):
                 raise HTTPException(
                     status_code=409,
                     detail="전화 예약과 시간이 겹칩니다. 해당 호실/시간은 전화 예약 화면에서 확인하세요.",
                 )
         for b in items[i + 1 :]:
-            rb = (b.get("room") or "").strip()
+            rb = _reservation_rooms(b)
             tb = str(b.get("time") or "")
-            if ra == rb and tb and _times_overlap(ta, tb):
+            if _rooms_overlap(ra, rb) and tb and _times_overlap(ta, tb):
                 raise HTTPException(
                     status_code=409,
                     detail="같은 호실에서 식사 시간(2시간)이 겹치는 예약은 넣을 수 없습니다.",
@@ -764,7 +850,7 @@ def get_tel_reservations(
         items = [i for i in items if (i.get("date") or "") <= date_to]
     return sorted(
         items,
-        key=lambda x: (x.get("date", ""), x.get("time", ""), x.get("room", "")),
+        key=lambda x: (x.get("date", ""), x.get("time", ""), _primary_room_text(x)),
     )
 
 
@@ -773,6 +859,8 @@ def get_tel_room_status(
     request: Request,
     date: str,
     time: str,
+    exclude_id: Optional[str] = None,
+    exclude_source: Optional[str] = None,
     branch: str = Query(default="default"),
 ):
     """날짜+시간 기준 호실/테이블 예약 가능 상태."""
@@ -781,7 +869,7 @@ def get_tel_room_status(
         "date": date,
         "time": time,
         "slot": _time_slot(time),
-        "rooms": _room_status(date, time, bid),
+        "rooms": _room_status(date, time, bid, exclude_id=exclude_id, exclude_source=exclude_source),
     }
 
 
@@ -795,19 +883,22 @@ async def create_tel_reservation(
     bid = resolve_effective_branch(branch, request.headers.get("host"))
     items = _get_tel_reservations()
     slot = payload.slot or _time_slot(payload.time)
+    rooms = _normalize_rooms(payload.rooms, payload.room)
+    if not rooms:
+        raise HTTPException(status_code=400, detail="호실/테이블을 하나 이상 선택하세요.")
 
     for item in items:
         if tel_branch_key(item) != bid:
             continue
         if (
             item.get("date") == payload.date
-            and item.get("room") == payload.room
+            and _rooms_overlap(_reservation_rooms(item), rooms)
             and _times_overlap(item.get("time", ""), payload.time)
         ):
             raise HTTPException(status_code=409, detail="기본 식사시간 2시간 기준으로 이미 예약된 호실/테이블입니다.")
 
     for s in _staff_today_items_for_date(payload.date, bid):
-        if s.get("room") == payload.room and _times_overlap(s.get("time", ""), payload.time):
+        if _rooms_overlap(_reservation_rooms(s), rooms) and _times_overlap(s.get("time", ""), payload.time):
             raise HTTPException(
                 status_code=409,
                 detail="직원 당일 예약과 시간이 겹칩니다. 관리자 화면에서 해당 호실/시간을 확인하세요.",
@@ -824,7 +915,8 @@ async def create_tel_reservation(
         "name": payload.name,
         "note": str(payload.note or "").strip(),
         "count": payload.count,
-        "room": payload.room,
+        "room": _format_room_text(rooms),
+        "rooms": rooms,
         "adult": payload.adult,
         "child": payload.child,
         "infant": payload.infant,
@@ -840,6 +932,7 @@ class TelReservationPatch(BaseModel):
     time: Optional[str] = None
     name: Optional[str] = None
     room: Optional[str] = None
+    rooms: Optional[list[str]] = None
     phone: Optional[str] = None
     note: Optional[str] = None
     count: Optional[int] = None
@@ -1116,26 +1209,32 @@ async def patch_tel_reservation(
     if tel_branch_key(cur) != bid:
         raise HTTPException(status_code=404, detail="예약을 찾을 수 없습니다.")
     new_time = payload.time if payload.time is not None else cur.get("time", "")
-    new_room = payload.room if payload.room is not None else cur.get("room", "")
+    if payload.rooms is not None or payload.room is not None:
+        new_rooms = _normalize_rooms(payload.rooms, payload.room)
+    else:
+        new_rooms = _reservation_rooms(cur)
     new_name = payload.name if payload.name is not None else cur.get("name", "")
     new_phone = payload.phone if payload.phone is not None else cur.get("phone", "")
     new_note = payload.note if payload.note is not None else cur.get("note", "")
     date = cur.get("date", "")
+    if not new_rooms:
+        raise HTTPException(status_code=400, detail="호실/테이블을 하나 이상 선택하세요.")
     for item in items:
         if int(item.get("id", 0) or 0) == reservation_id:
             continue
         if tel_branch_key(item) != bid:
             continue
-        if item.get("date") == date and item.get("room") == new_room and _times_overlap(item.get("time", ""), new_time):
+        if item.get("date") == date and _rooms_overlap(_reservation_rooms(item), new_rooms) and _times_overlap(item.get("time", ""), new_time):
             raise HTTPException(status_code=409, detail="기본 식사시간 2시간 기준으로 이미 예약된 호실/테이블입니다.")
     for s in _staff_today_items_for_date(date, bid):
-        if s.get("room") == new_room and _times_overlap(s.get("time", ""), new_time):
+        if _rooms_overlap(_reservation_rooms(s), new_rooms) and _times_overlap(s.get("time", ""), new_time):
             raise HTTPException(
                 status_code=409,
                 detail="직원 당일 예약과 시간이 겹칩니다. 관리자 화면에서 해당 호실/시간을 확인하세요.",
             )
     cur["time"] = new_time
-    cur["room"] = new_room
+    cur["room"] = _format_room_text(new_rooms)
+    cur["rooms"] = new_rooms
     cur["name"] = new_name
     cur["phone"] = new_phone
     cur["note"] = str(new_note or "").strip()

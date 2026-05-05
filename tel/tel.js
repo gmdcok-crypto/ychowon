@@ -42,6 +42,7 @@
   var telReservations = [];
   var roomStatus = [];
   var editingReservationId = null;
+  var selectedRooms = [];
 
   var monthLabel = document.getElementById('month-label');
   var calGrid = document.getElementById('calendar-grid');
@@ -112,6 +113,45 @@
       .replace(/'/g, '&#39;');
   }
 
+  function normalizeRoomLabel(value) {
+    return String(value || '').replace(/\s+/g, ' ').trim();
+  }
+
+  function parseRoomSelection(rawRooms, rawRoom) {
+    var values = [];
+    if (Array.isArray(rawRooms)) values = rawRooms.slice();
+    else if (rawRooms != null && String(rawRooms).trim()) values = [rawRooms];
+    else if (rawRoom != null && String(rawRoom).trim()) values = [rawRoom];
+    var out = [];
+    values.forEach(function (raw) {
+      String(raw || '').split(',').forEach(function (part) {
+        var room = normalizeRoomLabel(part);
+        if (!room || out.indexOf(room) >= 0) return;
+        out.push(room);
+      });
+    });
+    return out;
+  }
+
+  function roomTextFromSelection(rawRooms, rawRoom) {
+    return parseRoomSelection(rawRooms, rawRoom).join(', ');
+  }
+
+  function roomTextFromItem(item) {
+    var text = roomTextFromSelection(item && item.rooms, item && item.room);
+    return text || '—';
+  }
+
+  function setSelectedRooms(rooms) {
+    selectedRooms = parseRoomSelection(rooms);
+    if (roomInput) roomInput.value = roomTextFromSelection(selectedRooms);
+  }
+
+  function roomStatusQueryExtras() {
+    if (editingReservationId == null) return '';
+    return '&exclude_source=tel&exclude_id=' + encodeURIComponent(String(editingReservationId));
+  }
+
   /** 예약조회(all.js)와 동일한 인원 표기 */
   function partyLine(r) {
     var a = r.adult;
@@ -150,7 +190,7 @@
     var rows = [
       ['방문일자', formatReceiptDate(item.date)],
       ['예약명', item.name || '—'],
-      ['호실', item.room || '—'],
+      ['호실', roomTextFromItem(item)],
       ['예약시간', item.time || '—'],
       ['고객수', receiptPartyLine(item)]
     ];
@@ -224,7 +264,7 @@
     phoneInput.value = '';
     nameInput.value = '';
     if (noteInput) noteInput.value = '';
-    roomInput.value = '';
+    setSelectedRooms([]);
     adultInput.value = '2';
     childInput.value = '0';
     infantInput.value = '0';
@@ -245,7 +285,7 @@
     nameInput.value = item.name || '';
     if (noteInput) noteInput.value = item.note || '';
     timeInput.value = item.time || '';
-    roomInput.value = item.room || '';
+    setSelectedRooms(parseRoomSelection(item.rooms, item.room));
     adultInput.value = String(item.adult != null ? item.adult : 0);
     childInput.value = String(item.child != null ? item.child : 0);
     infantInput.value = String(item.infant != null ? item.infant : 0);
@@ -374,7 +414,7 @@
         '<div class="reserve-row reserve-item' + selectedClass + '" data-id="' + escapeHtml(item.id) + '">' +
           '<span class="time col-time">' + escapeHtml(item.time) + '</span>' +
           '<span class="name col-name">' + escapeHtml(item.name) + '</span>' +
-          '<span class="room col-room">' + escapeHtml(item.room) + '</span>' +
+          '<span class="room col-room">' + escapeHtml(roomTextFromItem(item)) + '</span>' +
           '<span class="party col-party">' + escapeHtml(partyLine(item)) + '</span>' +
         '</div>'
       );
@@ -441,7 +481,7 @@
       var selectedTimeText = timeInput.value ? (timeInput.value + ' 기준') : '';
       var occupiedRanges = Array.isArray(room.occupied_ranges) ? room.occupied_ranges : [];
       if (room.reserved) className += ' reserved';
-      if (roomInput.value === room.label) className += ' selected';
+      if (selectedRooms.indexOf(room.label) >= 0) className += ' selected';
       var base = selectedRoomSection === 'all' && room.section ? room.section + ' · ' : '';
       var statusText = room.reserved ? '예약 완료' : '선택 가능';
       var timeText = room.reserved ? (room.reservation_range || room.time || timeInput.value || '') : selectedTimeText;
@@ -465,8 +505,13 @@
     roomGrid.querySelectorAll('.room-option').forEach(function (btn) {
       btn.addEventListener('click', function () {
         if (btn.disabled) return;
-        roomInput.value = btn.getAttribute('data-room') || '';
-        closeRoomDialog();
+        var room = btn.getAttribute('data-room') || '';
+        var next = selectedRooms.slice();
+        var idx = next.indexOf(room);
+        if (idx >= 0) next.splice(idx, 1);
+        else next.push(room);
+        setSelectedRooms(next);
+        renderRoomDialog();
       });
     });
   }
@@ -478,16 +523,22 @@
       return Promise.resolve();
     }
 
-    var query = '?date=' + encodeURIComponent(dateKey(selectedDate)) + '&time=' + encodeURIComponent(timeInput.value) + '&' + branchQuery();
+    var query = '?date=' + encodeURIComponent(dateKey(selectedDate)) + '&time=' + encodeURIComponent(timeInput.value) + '&' + branchQuery() + roomStatusQueryExtras();
     roomDialogMeta.textContent = formatDate(selectedDate) + ' · ' + timeInput.value + ' 기준';
 
     return fetch(API_TEL_ROOMS + query, { credentials: 'same-origin' })
       .then(function (r) { return r.json(); })
       .then(function (data) {
         roomStatus = Array.isArray(data.rooms) ? data.rooms : [];
-        var current = roomStatus.filter(function (room) { return room.label === roomInput.value; })[0];
-        if (current && current.reserved) {
-          roomInput.value = '';
+        var blocked = selectedRooms.filter(function (selected) {
+          return roomStatus.some(function (room) {
+            return room.label === selected && room.reserved;
+          });
+        });
+        if (blocked.length) {
+          setSelectedRooms(selectedRooms.filter(function (selected) {
+            return blocked.indexOf(selected) === -1;
+          }));
           showToast('선택한 시간에 이미 예약된 자리입니다. 다시 선택하세요.');
         }
         if (openIfNeeded || !roomDialog.classList.contains('hidden')) {
@@ -700,7 +751,8 @@
         phone: (phoneInput.value || '').trim(),
         name: (nameInput.value || '').trim(),
         note: noteInput ? (noteInput.value || '').trim() : '',
-        room: (roomInput.value || '').trim(),
+        room: roomTextFromSelection(selectedRooms),
+        rooms: selectedRooms.slice(),
         count: total,
         adult: adult,
         child: child,
@@ -715,7 +767,7 @@
       showToast('먼저 왼쪽에서 예약 일자를 선택하세요.');
       return false;
     }
-    if (!payload.body.phone || !payload.body.name || !payload.body.time || !payload.body.room) {
+    if (!payload.body.phone || !payload.body.name || !payload.body.time || !payload.body.rooms.length) {
       showToast('전화번호, 이름, 시간, 룸을 모두 입력하세요.');
       return false;
     }

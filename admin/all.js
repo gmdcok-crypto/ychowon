@@ -76,6 +76,34 @@
       .replace(/"/g, '&quot;');
   }
 
+  function normalizeRoomLabel(value) {
+    return String(value || '').replace(/\s+/g, ' ').trim();
+  }
+
+  function parseRoomSelection(rawRooms, rawRoom) {
+    var values = [];
+    if (Array.isArray(rawRooms)) values = rawRooms.slice();
+    else if (rawRooms != null && String(rawRooms).trim()) values = [rawRooms];
+    else if (rawRoom != null && String(rawRoom).trim()) values = [rawRoom];
+    var out = [];
+    values.forEach(function (raw) {
+      String(raw || '').split(',').forEach(function (part) {
+        var room = normalizeRoomLabel(part);
+        if (!room || out.indexOf(room) >= 0) return;
+        out.push(room);
+      });
+    });
+    return out;
+  }
+
+  function roomTextFromSelection(rawRooms, rawRoom) {
+    return parseRoomSelection(rawRooms, rawRoom).join(', ');
+  }
+
+  function roomTextFromItem(item) {
+    return roomTextFromSelection(item && item.rooms, item && item.room) || '—';
+  }
+
   function dateKey(d) {
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
   }
@@ -240,7 +268,7 @@
   }
 
   function ychowonPrintRoomSortKey(room) {
-    var text = String(room || '').trim();
+    var text = parseRoomSelection(null, room)[0] || '';
     var floorRoom = text.match(/^(\d+F)\s*룸\s*룸?\s*(\d+)\s*(?:호|호실)?$/i);
     if (floorRoom) {
       var floor = floorRoom[1].toUpperCase();
@@ -269,10 +297,10 @@
   }
 
   function printableRoom(r) {
-    var room = String((r && r.room) || '').trim();
-    if (!room) return '—';
-    if (!isYchowonBranch()) return room;
-    return formatYchowonPrintRoom(room);
+    var rooms = parseRoomSelection(r && r.rooms, r && r.room);
+    if (!rooms.length) return '—';
+    if (!isYchowonBranch()) return rooms.join(', ');
+    return rooms.map(formatYchowonPrintRoom).join(', ');
   }
 
   function printableGuestName(r) {
@@ -385,7 +413,7 @@
         '<td>' + escapeHtml(r.time || '—') + '</td>' +
         '<td>' + escapeHtml(r.name || '—') + '</td>' +
         '<td>' + escapeHtml(r.phone || '—') + '</td>' +
-        '<td>' + escapeHtml(r.room || '—') + '</td>' +
+        '<td>' + escapeHtml(roomTextFromItem(r)) + '</td>' +
         '<td>' + escapeHtml(partyLine(r)) + '</td>' +
         '<td class="col-actions">' +
           '<button type="button" class="btn-mini btn-edit-row" data-id="' + escapeHtml(String(r.id)) + '">수정</button>' +
@@ -422,11 +450,12 @@
         if (t === null) return;
         var n = window.prompt('이름', row.name || '');
         if (n === null) return;
-        var rm = window.prompt('룸/테이블', row.room || '');
+        var rm = window.prompt('룸/테이블 (쉼표로 여러 개)', roomTextFromItem(row));
         if (rm === null) return;
         var ph = window.prompt('전화번호 (비우면 유지)', row.phone || '');
         if (ph === null) return;
-        var body = { time: t.trim(), name: n.trim(), room: rm.trim() };
+        var rooms = parseRoomSelection(null, rm);
+        var body = { time: t.trim(), name: n.trim(), room: roomTextFromSelection(rooms), rooms: rooms };
         if (ph.trim()) body.phone = ph.trim();
         fetch(withBranch(API + '/' + id), {
           method: 'PATCH',

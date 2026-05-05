@@ -129,6 +129,7 @@
   let editingIndex = -1;
   let staffRoomStatus = [];
   let staffSelectedRoomSection = 'all';
+  let selectedStaffRooms = [];
 
   function dateKey(d) {
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
@@ -364,7 +365,7 @@
       var selectedTimeText = timeVal ? (timeVal + ' 기준') : '';
       var occupiedRanges = Array.isArray(room.occupied_ranges) ? room.occupied_ranges : [];
       if (room.reserved) className += ' reserved';
-      if (roomInput && roomInput.value === room.label) className += ' selected';
+      if (selectedStaffRooms.indexOf(room.label) >= 0) className += ' selected';
       var base = staffSelectedRoomSection === 'all' && room.section ? room.section + ' · ' : '';
       var statusText = room.reserved ? '예약 완료' : '선택 가능';
       var timeText = room.reserved ? (room.reservation_range || room.time || timeVal || '') : selectedTimeText;
@@ -388,8 +389,13 @@
     staffRoomGrid.querySelectorAll('.room-option').forEach(function (btn) {
       btn.addEventListener('click', function () {
         if (btn.disabled) return;
-        if (roomInput) roomInput.value = btn.getAttribute('data-room') || '';
-        closeStaffRoomDialog();
+        var room = btn.getAttribute('data-room') || '';
+        var next = selectedStaffRooms.slice();
+        var idx = next.indexOf(room);
+        if (idx >= 0) next.splice(idx, 1);
+        else next.push(room);
+        setStaffSelectedRooms(next);
+        renderStaffRoomDialog();
       });
     });
   }
@@ -402,7 +408,7 @@
     }
 
     var today = new Date();
-    var q = '?date=' + encodeURIComponent(dateKey(today)) + '&time=' + encodeURIComponent((timeInput.value || '').trim()) + '&' + branchQuery();
+    var q = '?date=' + encodeURIComponent(dateKey(today)) + '&time=' + encodeURIComponent((timeInput.value || '').trim()) + '&' + branchQuery() + currentStaffRoomStatusExtras();
     if (staffRoomMeta) {
       staffRoomMeta.textContent = formatStaffDate(today) + ' · ' + (timeInput.value || '').trim() + ' 기준';
     }
@@ -411,9 +417,15 @@
       .then(function (r) { return r.json(); })
       .then(function (data) {
         staffRoomStatus = Array.isArray(data.rooms) ? data.rooms : [];
-        var current = staffRoomStatus.filter(function (room) { return room.label === roomInput.value; })[0];
-        if (current && current.reserved && roomInput) {
-          roomInput.value = '';
+        var blocked = selectedStaffRooms.filter(function (selected) {
+          return staffRoomStatus.some(function (room) {
+            return room.label === selected && room.reserved;
+          });
+        });
+        if (blocked.length) {
+          setStaffSelectedRooms(selectedStaffRooms.filter(function (selected) {
+            return blocked.indexOf(selected) === -1;
+          }));
           showToast('선택한 시간에 이미 예약된 자리입니다. 다시 선택하세요.');
         }
         if (openIfNeeded || (staffRoomDialog && !staffRoomDialog.classList.contains('hidden'))) {
@@ -508,6 +520,50 @@
       .replace(/"/g, '&quot;');
   }
 
+  function normalizeRoomLabel(value) {
+    return String(value || '').replace(/\s+/g, ' ').trim();
+  }
+
+  function parseRoomSelection(rawRooms, rawRoom) {
+    var values = [];
+    if (Array.isArray(rawRooms)) values = rawRooms.slice();
+    else if (rawRooms != null && String(rawRooms).trim()) values = [rawRooms];
+    else if (rawRoom != null && String(rawRoom).trim()) values = [rawRoom];
+    var out = [];
+    values.forEach(function (raw) {
+      String(raw || '').split(',').forEach(function (part) {
+        var room = normalizeRoomLabel(part);
+        if (!room || out.indexOf(room) >= 0) return;
+        out.push(room);
+      });
+    });
+    return out;
+  }
+
+  function roomTextFromSelection(rawRooms, rawRoom) {
+    return parseRoomSelection(rawRooms, rawRoom).join(', ');
+  }
+
+  function roomTextFromItem(item) {
+    var text = roomTextFromSelection(item && item.rooms, item && item.room);
+    return text || '—';
+  }
+
+  function setStaffSelectedRooms(rooms) {
+    selectedStaffRooms = parseRoomSelection(rooms);
+    if (roomInput) roomInput.value = roomTextFromSelection(selectedStaffRooms);
+  }
+
+  function currentStaffRoomStatusExtras() {
+    if (editingIndex < 0) return '';
+    var current = list[editingIndex];
+    if (!current || current.id == null) return '';
+    var source = current.source === 'tel' ? 'tel' : 'staff';
+    var excludeId = source === 'tel' ? telNumericId(current) : current.id;
+    if (excludeId == null || excludeId === '') return '';
+    return '&exclude_source=' + encodeURIComponent(source) + '&exclude_id=' + encodeURIComponent(String(excludeId));
+  }
+
   /** 예약조회·전화예약(tel)과 동일한 인원 표기 */
   function partyLine(r) {
     var a = r.adult;
@@ -591,8 +647,9 @@
 
   function normalizeRow(r) {
     if (!r) return r;
-    if (r.source === 'tel' || r.source === 'admin') return r;
-    return { time: r.time, name: r.name, room: r.room, id: r.id, source: 'admin' };
+    var rooms = parseRoomSelection(r.rooms, r.room);
+    if (r.source === 'tel' || r.source === 'admin') return { ...r, rooms: rooms, room: roomTextFromSelection(rooms) };
+    return { time: r.time, name: r.name, room: roomTextFromSelection(rooms), rooms: rooms, id: r.id, source: 'admin' };
   }
 
   function load() {
@@ -627,7 +684,7 @@
         '<span class="row-no">' + (i + 1) + '</span>' +
         '<span class="time">' + escapeHtml(item.time || '—') + '</span>' +
         '<span class="name">' + escapeHtml(item.name || '—') + '</span>' +
-        '<span class="room">' + escapeHtml(item.room || '—') + '</span>' +
+        '<span class="room">' + escapeHtml(roomTextFromItem(item)) + '</span>' +
         '<span class="party">' + escapeHtml(partyLine(item)) + '</span>' +
         '<div class="row-actions">' +
           '<button type="button" class="btn btn-edit" data-index="' + i + '">수정</button>' +
@@ -677,7 +734,7 @@
         if (!item) return;
         document.getElementById('time').value = normalizeTimeValue(item.time || '');
         document.getElementById('name').value = item.name || '';
-        document.getElementById('room').value = item.room || '';
+        setStaffSelectedRooms(parseRoomSelection(item.rooms, item.room));
         applyPartyFromItem(item);
         editingIndex = i;
         if (formTitle) formTitle.textContent = '예약 수정';
@@ -692,7 +749,7 @@
     editingIndex = -1;
     document.getElementById('time').value = '';
     document.getElementById('name').value = '';
-    document.getElementById('room').value = '';
+    setStaffSelectedRooms([]);
     resetPartyInputs();
     if (formTitle) formTitle.textContent = '예약 추가';
     if (submitBtn) { submitBtn.textContent = '추가'; submitBtn.classList.remove('btn-edit-submit'); }
@@ -710,7 +767,8 @@
           id: id,
           time: r.time || '',
           name: r.name || '',
-          room: r.room || '',
+          room: roomTextFromSelection(r.rooms, r.room),
+          rooms: parseRoomSelection(r.rooms, r.room),
           count: total > 0 ? total : (r.count != null ? r.count : 2),
           adult: p.adult,
           child: p.child,
@@ -746,8 +804,9 @@
     e.preventDefault();
     var time = normalizeTimeValue((document.getElementById('time').value || '').trim());
     var name = (document.getElementById('name').value || '').trim();
-    var room = (document.getElementById('room').value || '').trim();
-    if (!time || !name || !room) {
+    var rooms = parseRoomSelection(selectedStaffRooms);
+    var room = roomTextFromSelection(rooms);
+    if (!time || !name || !rooms.length) {
       showToast('시간, 이름, 호실을 모두 입력하세요.');
       return;
     }
@@ -777,6 +836,7 @@
             time: time,
             name: name,
             room: room,
+            rooms: rooms,
             count: partyP.count,
             adult: partyP.adult,
             child: partyP.child,
@@ -801,6 +861,7 @@
         time: time,
         name: name,
         room: room,
+        rooms: rooms.slice(),
         id: list[editingIndex].id,
         source: 'admin',
         count: partyP.count,
@@ -818,6 +879,7 @@
         time: time,
         name: name,
         room: room,
+        rooms: rooms.slice(),
         source: 'admin',
         count: partyP.count,
         adult: partyP.adult,
@@ -828,7 +890,7 @@
       render();
       document.getElementById('time').value = '';
       document.getElementById('name').value = '';
-      document.getElementById('room').value = '';
+      setStaffSelectedRooms([]);
       resetPartyInputs();
       document.getElementById('time').focus();
       showToast('추가했습니다. 현황판에 반영 중…');
