@@ -233,6 +233,35 @@
     return text;
   }
 
+  function ychowonPrintRoomSortKey(room) {
+    var text = String(room || '').trim();
+    var floorRoom = text.match(/^(\d+F)\s*룸\s*룸?\s*(\d+)\s*(?:호|호실)?$/i);
+    if (floorRoom) {
+      var floor = floorRoom[1].toUpperCase();
+      var num = parseInt(floorRoom[2], 10);
+      if (floor === '4F') return [0, isNaN(num) ? 999 : num, text];
+      if (floor === '5F') return [2, isNaN(num) ? 999 : num, text];
+    }
+    if (/홀/i.test(text)) return [1, text.toUpperCase(), text];
+    return [3, text, text];
+  }
+
+  function sortYchowonPrintRows(rows) {
+    var list = Array.isArray(rows) ? rows.slice() : [];
+    if (!isYchowonBranch()) return list;
+    list.sort(function (a, b) {
+      var roomA = ychowonPrintRoomSortKey(a && a.room);
+      var roomB = ychowonPrintRoomSortKey(b && b.room);
+      if (roomA[0] !== roomB[0]) return roomA[0] - roomB[0];
+      var timeA = String((a && a.time) || '');
+      var timeB = String((b && b.time) || '');
+      if (timeA !== timeB) return timeA.localeCompare(timeB);
+      if (roomA[1] !== roomB[1]) return String(roomA[1]).localeCompare(String(roomB[1]), 'ko');
+      return String((a && a.id) || '').localeCompare(String((b && b.id) || ''), 'ko');
+    });
+    return list;
+  }
+
   function printableRoom(r) {
     var room = String((r && r.room) || '').trim();
     if (!room) return '—';
@@ -316,7 +345,9 @@
       showToast('당일 출력은 시작일과 종료일을 같은 날짜로 맞춰주세요.');
       return;
     }
-    var rows = rowsCache.filter(function (r) { return String(r.date || '') === dateText; });
+    var rows = sortYchowonPrintRows(
+      rowsCache.filter(function (r) { return String(r.date || '') === dateText; })
+    );
     if (!rows.length) {
       showToast('선택한 날짜의 예약이 없습니다.');
       return;
