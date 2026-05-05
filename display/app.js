@@ -104,12 +104,12 @@
     var list = Array.isArray(items) ? items.slice() : [];
     if (!isYchowonDisplay()) return list;
     list.sort(function (a, b) {
-      var timeA = String((a && a.time) || '');
-      var timeB = String((b && b.time) || '');
-      if (timeA !== timeB) return timeA.localeCompare(timeB);
       var roomA = ychowonRoomSortKey(a && a.room);
       var roomB = ychowonRoomSortKey(b && b.room);
       if (roomA[0] !== roomB[0]) return roomA[0] - roomB[0];
+      var timeA = String((a && a.time) || '');
+      var timeB = String((b && b.time) || '');
+      if (timeA !== timeB) return timeA.localeCompare(timeB);
       if (roomA[1] !== roomB[1]) return String(roomA[1]).localeCompare(String(roomB[1]), 'ko');
       return String((a && a.id) || '').localeCompare(String((b && b.id) || ''), 'ko');
     });
