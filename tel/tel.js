@@ -163,11 +163,11 @@
       '@page{size:80mm auto;margin:6mm;}' +
       'html,body{margin:0;padding:0;background:#fff;color:#000;font-family:\"Malgun Gothic\",\"Noto Sans KR\",sans-serif;}' +
       'body{width:72mm;margin:0 auto;padding:2mm 0;}' +
-      '.wrap{text-align:left;line-height:1.45;font-size:12px;}' +
-      '.title{text-align:center;font-size:18px;font-weight:700;letter-spacing:0.18em;margin:0 0 8px;}' +
+      '.wrap{text-align:left;line-height:1.15;font-size:24px;}' +
+      '.title{text-align:center;font-size:36px;font-weight:700;letter-spacing:0.08em;margin:0 0 8px;}' +
       '.line{border-top:1px dashed #000;margin:8px 0;}' +
-      '.row{display:flex;align-items:flex-start;gap:6px;margin:2px 0;}' +
-      '.label{flex:0 0 52px;font-weight:700;}' +
+      '.row{display:flex;align-items:flex-start;gap:8px;margin:0;}' +
+      '.label{flex:0 0 104px;font-weight:700;}' +
       '.value{flex:1;white-space:pre-wrap;word-break:keep-all;}' +
       '</style></head><body><div class="wrap"><div class="title">예약 현황</div><div class="line"></div>' +
       rows.map(function (row) {
