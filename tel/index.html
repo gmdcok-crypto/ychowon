@@ -11,7 +11,7 @@
   <title>전화 예약 접수 · 초원농원</title>
   <link rel="manifest" href="manifest.json" />
   <link rel="apple-touch-icon" href="/display/icon-192.png" />
-  <link rel="stylesheet" href="tel.css?v=11" />
+  <link rel="stylesheet" href="tel.css?v=12" />
 </head>
 <body>
   <div class="tel-root">
@@ -90,11 +90,19 @@
               <input type="text" id="tel-room" placeholder="탭하여 선택" autocomplete="off" readonly />
             </div>
 
+            <div class="field">
+              <label for="tel-note">비고</label>
+              <textarea id="tel-note" rows="3" placeholder="비고를 입력하세요" autocomplete="off"></textarea>
+            </div>
+
             <div class="form-submit-row">
               <button type="button" class="submit-btn form-action-btn" id="tel-add-btn">추가</button>
               <button type="button" class="submit-btn form-action-btn" id="tel-update-btn">수정</button>
               <button type="button" class="submit-btn form-action-btn" id="tel-delete-btn">삭제</button>
               <button type="button" class="picker-btn hidden" id="tel-edit-cancel">선택해제</button>
+            </div>
+            <div class="form-print-row">
+              <button type="button" class="submit-btn tel-print-btn" id="tel-print-btn" disabled>인쇄</button>
             </div>
           </form>
         </div>
@@ -212,7 +220,7 @@
   </div>
 
   <script src="/api/branch-boot.js"></script>
-  <script src="tel.js?v=14"></script>
+  <script src="tel.js?v=15"></script>
   <script>
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/tel/sw.js', { scope: '/tel/' }).catch(function () {});

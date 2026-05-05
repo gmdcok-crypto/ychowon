@@ -282,7 +282,8 @@
     color: var(--cream-dim);
   }
   
-  .field input {
+  .field input,
+  .field textarea {
     padding: 0.5rem 0.6rem;
     border-radius: 6px;
     border: 1px solid var(--border);
@@ -290,6 +291,13 @@
     color: var(--cream);
     font-size: 16px;
     scroll-margin-top: 1rem;
+  }
+
+  .field textarea {
+    min-height: 5.4rem;
+    resize: vertical;
+    font-family: inherit;
+    line-height: 1.45;
   }
 
 .field input[readonly] {
@@ -602,6 +610,14 @@
   white-space: nowrap;
 }
 
+.form-print-row {
+  margin-top: 0.5rem;
+}
+
+.form-print-row .tel-print-btn {
+  margin-top: 0;
+}
+
 .tel-confirm-dialog-panel {
   width: min(360px, 100%);
   max-width: 360px;
@@ -667,7 +683,8 @@
     body { padding: 0.5rem; }
     .tel-main { min-height: 45dvh; gap: 0.5rem; }
     .day-cell { min-height: var(--touch-min); padding: 0.35rem 0.2rem; font-size: 0.85rem; }
-    .field input { min-height: var(--touch-min); padding: 0.55rem 0.65rem; }
+    .field input,
+    .field textarea { min-height: var(--touch-min); padding: 0.55rem 0.65rem; }
     .time-btn { min-height: var(--touch-min); min-width: 72px; }
     .chip { min-height: var(--touch-min); padding: 0.4rem 0.7rem; }
     .submit-btn { min-height: var(--touch-min); }

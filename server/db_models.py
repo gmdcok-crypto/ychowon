@@ -46,6 +46,7 @@ class TelReservationRow(Base):
     slot: Mapped[str] = mapped_column(String(32))
     phone: Mapped[str] = mapped_column(String(64))
     name: Mapped[str] = mapped_column(String(255))
+    note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     count: Mapped[int] = mapped_column(Integer, default=2)
     room: Mapped[str] = mapped_column(String(255))
     adult: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)

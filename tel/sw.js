@@ -1,6 +1,6 @@
 /* 전화예약 /tel PWA — 홈 화면 추가 시 브라우저가 앱 모드로 인식하도록 최소 캐시 */
-const CACHE_NAME = 'reserve-tel-v2';
-const STATIC_URLS = ['./', './index.html', './tel.css', './tel.js', './manifest.json'];
+const CACHE_NAME = 'reserve-tel-v3';
+const STATIC_URLS = ['./', './index.html', './tel.css?v=12', './tel.js?v=15', './manifest.json'];
 
 self.addEventListener('install', function (event) {
   event.waitUntil(

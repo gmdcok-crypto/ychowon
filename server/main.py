@@ -626,6 +626,7 @@ class TelReservationItem(BaseModel):
     time: str
     phone: str
     name: str
+    note: Optional[str] = None
     room: str
     count: int = 2
     adult: Optional[int] = None
@@ -792,6 +793,7 @@ async def create_tel_reservation(
         "slot": slot,
         "phone": payload.phone,
         "name": payload.name,
+        "note": str(payload.note or "").strip(),
         "count": payload.count,
         "room": payload.room,
         "adult": payload.adult,
@@ -810,6 +812,7 @@ class TelReservationPatch(BaseModel):
     name: Optional[str] = None
     room: Optional[str] = None
     phone: Optional[str] = None
+    note: Optional[str] = None
     count: Optional[int] = None
     adult: Optional[int] = None
     child: Optional[int] = None
@@ -1087,6 +1090,7 @@ async def patch_tel_reservation(
     new_room = payload.room if payload.room is not None else cur.get("room", "")
     new_name = payload.name if payload.name is not None else cur.get("name", "")
     new_phone = payload.phone if payload.phone is not None else cur.get("phone", "")
+    new_note = payload.note if payload.note is not None else cur.get("note", "")
     date = cur.get("date", "")
     for item in items:
         if int(item.get("id", 0) or 0) == reservation_id:
@@ -1105,6 +1109,7 @@ async def patch_tel_reservation(
     cur["room"] = new_room
     cur["name"] = new_name
     cur["phone"] = new_phone
+    cur["note"] = str(new_note or "").strip()
     if payload.count is not None:
         cur["count"] = int(payload.count)
     if payload.adult is not None:

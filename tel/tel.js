@@ -60,6 +60,7 @@
   var partyDisplayInput = document.getElementById('tel-party-display');
   var phoneInput = document.getElementById('tel-phone');
   var nameInput = document.getElementById('tel-name');
+  var noteInput = document.getElementById('tel-note');
   var adultInput = document.getElementById('tel-count-adult');
   var childInput = document.getElementById('tel-count-child');
   var infantInput = document.getElementById('tel-count-infant');
@@ -74,6 +75,7 @@
   var deleteConfirmCancelBtn = document.getElementById('delete-confirm-cancel');
   var deleteConfirmOkBtn = document.getElementById('delete-confirm-ok');
   var fullscreenBtn = document.getElementById('tel-fullscreen-btn');
+  var printBtn = document.getElementById('tel-print-btn');
 
   function formatDate(d) {
     var y = d.getFullYear();
@@ -125,6 +127,73 @@
     return parts.length ? parts.join(', ') : (r.count != null ? String(r.count) + '명' : '—');
   }
 
+  function receiptPartyLine(r) {
+    var a = r.adult;
+    var c = r.child;
+    var i = r.infant;
+    if (a == null && c == null && i == null) {
+      return r.count != null ? '총 ' + String(r.count) + '명' : '—';
+    }
+    var parts = [];
+    if (a != null) parts.push('성인 ' + (parseInt(a, 10) || 0) + '명');
+    if (c != null) parts.push('어린이 ' + (parseInt(c, 10) || 0) + '명');
+    if (i != null) parts.push('유아 ' + (parseInt(i, 10) || 0) + '명');
+    return parts.join(', ');
+  }
+
+  function formatReceiptDate(dateText) {
+    var raw = String(dateText || '').trim();
+    return raw ? raw.replace(/-/g, '') : '—';
+  }
+
+  function buildReceiptHtml(item) {
+    var rows = [
+      ['방문일자', formatReceiptDate(item.date)],
+      ['예약명', item.name || '—'],
+      ['호실', item.room || '—'],
+      ['예약시간', item.time || '—'],
+      ['고객수', receiptPartyLine(item)]
+    ];
+    if (String(item.note || '').trim()) {
+      rows.push(['비고', item.note]);
+    }
+    return '<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8">' +
+      '<title>예약 현황 인쇄</title>' +
+      '<style>' +
+      '@page{size:80mm auto;margin:6mm;}' +
+      'html,body{margin:0;padding:0;background:#fff;color:#000;font-family:\"Malgun Gothic\",\"Noto Sans KR\",sans-serif;}' +
+      'body{width:72mm;margin:0 auto;padding:2mm 0;}' +
+      '.wrap{text-align:left;line-height:1.45;font-size:12px;}' +
+      '.title{text-align:center;font-size:18px;font-weight:700;letter-spacing:0.18em;margin:0 0 8px;}' +
+      '.line{border-top:1px dashed #000;margin:8px 0;}' +
+      '.row{display:flex;align-items:flex-start;gap:6px;margin:2px 0;}' +
+      '.label{flex:0 0 52px;font-weight:700;}' +
+      '.value{flex:1;white-space:pre-wrap;word-break:keep-all;}' +
+      '</style></head><body><div class="wrap"><div class="title">예약 현황</div><div class="line"></div>' +
+      rows.map(function (row) {
+        return '<div class="row"><div class="label">' + escapeHtml(row[0]) + ' :</div><div class="value">' + escapeHtml(row[1]) + '</div></div>';
+      }).join('') +
+      '</div><script>window.onload=function(){setTimeout(function(){window.print();},150);};</script></body></html>';
+  }
+
+  function printReservation(item) {
+    if (!item) {
+      showToast('먼저 인쇄할 예약을 선택하세요.');
+      return;
+    }
+    var win = window.open('', '_blank', 'width=420,height=700');
+    if (!win) {
+      showToast('팝업이 차단되어 인쇄 창을 열 수 없습니다.');
+      return;
+    }
+    win.document.open();
+    win.document.write(buildReceiptHtml(item));
+    win.document.close();
+    try {
+      win.focus();
+    } catch (e) {}
+  }
+
   function showToast(msg) {
     if (!toastEl) return;
     toastEl.textContent = msg;
@@ -146,12 +215,14 @@
     if (editStatusEl) editStatusEl.classList.toggle('hidden', !editing);
     if (updateBtn) updateBtn.disabled = !editing;
     if (deleteBtn) deleteBtn.disabled = !editing;
+    if (printBtn) printBtn.disabled = !editing;
     if (editCancelBtn) editCancelBtn.classList.toggle('hidden', !editing);
   }
 
   function resetFormFields() {
     phoneInput.value = '';
     nameInput.value = '';
+    if (noteInput) noteInput.value = '';
     roomInput.value = '';
     adultInput.value = '2';
     childInput.value = '0';
@@ -171,6 +242,7 @@
     if (!item) return;
     phoneInput.value = item.phone || '';
     nameInput.value = item.name || '';
+    if (noteInput) noteInput.value = item.note || '';
     timeInput.value = item.time || '';
     roomInput.value = item.room || '';
     adultInput.value = String(item.adult != null ? item.adult : 0);
@@ -626,6 +698,7 @@
         time: (timeInput.value || '').trim(),
         phone: (phoneInput.value || '').trim(),
         name: (nameInput.value || '').trim(),
+        note: noteInput ? (noteInput.value || '').trim() : '',
         room: (roomInput.value || '').trim(),
         count: total,
         adult: adult,
@@ -652,6 +725,19 @@
     return true;
   }
 
+  function refreshAfterSave(savedId, message) {
+    return fetchTelReservations()
+      .then(function () {
+        return refreshRoomAvailability(false);
+      })
+      .then(function () {
+        var saved = findReservationById(savedId);
+        if (saved) startEditingReservation(saved);
+        else clearEditingReservation(true);
+        showToast(message);
+      });
+  }
+
   function saveReservation(isEditing) {
     var payload = collectPayload();
     if (!validatePayload(payload)) return;
@@ -675,11 +761,8 @@
         if (!result.ok) {
           throw new Error(result.data.detail || (isEditing ? '예약 수정에 실패했습니다.' : '예약 저장에 실패했습니다.'));
         }
-        clearEditingReservation(true);
-        showToast(isEditing ? '예약이 수정되었습니다.' : '예약이 등록되었습니다.');
-        return fetchTelReservations().then(function () {
-          return refreshRoomAvailability(false);
-        });
+        var savedId = result.data && result.data.item ? result.data.item.id : editingReservationId;
+        return refreshAfterSave(savedId, isEditing ? '예약이 수정되었습니다.' : '예약이 등록되었습니다.');
       })
       .catch(function (err) {
         showToast(err.message || (isEditing ? '예약 수정에 실패했습니다.' : '예약 저장에 실패했습니다.'));
@@ -937,6 +1020,12 @@
   if (editCancelBtn) {
     editCancelBtn.addEventListener('click', function () {
       clearEditingReservation(true);
+    });
+  }
+
+  if (printBtn) {
+    printBtn.addEventListener('click', function () {
+      printReservation(findReservationById(editingReservationId));
     });
   }
 

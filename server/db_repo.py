@@ -372,6 +372,7 @@ def load_tel_store() -> dict[str, Any]:
                     "slot": r.slot,
                     "phone": r.phone,
                     "name": r.name,
+                    "note": r.note or "",
                     "count": r.count,
                     "room": r.room,
                 }
@@ -426,6 +427,7 @@ def save_tel_store(data: dict[str, Any]) -> None:
                 "slot": str(it.get("slot") or ""),
                 "phone": str(it.get("phone") or ""),
                 "name": str(it.get("name") or ""),
+                "note": str(it.get("note") or ""),
                 "count": int(it.get("count") or 2),
                 "room": str(it.get("room") or ""),
             }

@@ -261,6 +261,27 @@ def _ensure_accounts_branch_column() -> None:
         conn.execute(text("ALTER TABLE accounts ADD COLUMN branch_id VARCHAR(64) NULL"))
 
 
+def _ensure_tel_reservation_note_column() -> None:
+    """기존 DB에 tel_reservations.note 가 없으면 추가."""
+    from sqlalchemy import inspect, text
+
+    eng = get_engine()
+    insp = inspect(eng)
+    try:
+        if not insp.has_table("tel_reservations"):
+            return
+    except Exception:
+        return
+    try:
+        cols = {c["name"] for c in insp.get_columns("tel_reservations")}
+    except Exception:
+        return
+    if "note" in cols:
+        return
+    with eng.begin() as conn:
+        conn.execute(text("ALTER TABLE tel_reservations ADD COLUMN note TEXT NULL"))
+
+
 def init_db() -> None:
     from db_models import Base
 
@@ -268,3 +289,4 @@ def init_db() -> None:
     _ensure_staff_reservation_party_columns()
     _ensure_display_content_columns()
     _ensure_accounts_branch_column()
+    _ensure_tel_reservation_note_column()
