@@ -279,6 +279,16 @@
     renderReserveList();
   }
 
+  function beginNewReservationEntry(message) {
+    clearEditingReservation(true);
+    if (phoneInput && typeof phoneInput.focus === 'function') {
+      try {
+        phoneInput.focus();
+      } catch (e) {}
+    }
+    if (message) showToast(message);
+  }
+
   function fillFormFromReservation(item) {
     if (!item) return;
     phoneInput.value = item.phone || '';
@@ -731,7 +741,12 @@
     reserveListEl.addEventListener('click', function (e) {
       var row = e.target.closest('.reserve-item');
       if (!row) return;
-      startEditingReservation(findReservationById(row.getAttribute('data-id')));
+      var clickedId = row.getAttribute('data-id');
+      if (String(editingReservationId || '') === String(clickedId || '')) {
+        beginNewReservationEntry('선택을 해제했습니다. 새 예약을 입력하세요.');
+        return;
+      }
+      startEditingReservation(findReservationById(clickedId));
     });
   }
 
@@ -1058,6 +1073,10 @@
 
   if (addBtn) {
     addBtn.addEventListener('click', function () {
+      if (editingReservationId != null) {
+        beginNewReservationEntry('새 예약 입력으로 전환했습니다.');
+        return;
+      }
       saveReservation(false);
     });
   }
