@@ -37,9 +37,18 @@
     return url + sep + branchQuery();
   }
 
+  function getBuildVersion() {
+    try {
+      return String(window.__RESERVE_BUILD_VERSION__ || '').trim();
+    } catch (e) {}
+    return '';
+  }
+
   function syncAdminIframes() {
     var b = getBranch();
     var q = 'branch=' + encodeURIComponent(b);
+    var version = getBuildVersion();
+    if (version) q += '&v=' + encodeURIComponent(version);
     var tel = document.getElementById('iframe-tel-admin');
     if (tel) tel.src = '/tel/?' + q;
     var all = document.getElementById('iframe-all-admin');

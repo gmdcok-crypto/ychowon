@@ -31,6 +31,10 @@
     return url + sep + 'branch=' + encodeURIComponent(getBranch());
   }
 
+  if (typeof window.reserveInstallBuildVersionWatcher === 'function') {
+    window.reserveInstallBuildVersionWatcher({ intervalMs: 10000 });
+  }
+
   var filterFrom = document.getElementById('filter-from');
   var filterTo = document.getElementById('filter-to');
   var btnSearch = document.getElementById('btn-search');

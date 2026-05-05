@@ -55,6 +55,10 @@
     return apiUrlWithBranch('/api/display/upload');
   }
 
+  if (typeof window.reserveInstallBuildVersionWatcher === 'function') {
+    window.reserveInstallBuildVersionWatcher({ intervalMs: 10000 });
+  }
+
   function el(section, suffix) {
     return document.getElementById('dc-' + section.key + '-' + suffix);
   }
