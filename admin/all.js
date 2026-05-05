@@ -214,6 +214,13 @@
     return room || '—';
   }
 
+  function printableGuestName(r) {
+    var name = String((r && r.name) || '').trim();
+    if (!name) return '—';
+    if (/님\s*$/u.test(name)) return name;
+    return name + ' 님';
+  }
+
   function currentPrintDate() {
     var from = (filterFrom.value || '').trim();
     var to = (filterTo.value || '').trim();
@@ -236,7 +243,7 @@
     var body = rows.map(function (r) {
       return '<tr>' +
         '<td>' + escapeHtml(r.time || '—') + '</td>' +
-        '<td>' + escapeHtml((r.name || '') + ' 님') + '</td>' +
+        '<td>' + escapeHtml(printableGuestName(r)) + '</td>' +
         '<td>' + escapeHtml(displayPartyShort(r)) + '</td>' +
         '<td>' + escapeHtml(printableRoom(r)) + '</td>' +
       '</tr>';
