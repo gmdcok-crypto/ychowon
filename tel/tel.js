@@ -778,15 +778,19 @@
     return true;
   }
 
-  function refreshAfterSave(savedId, message) {
+  function refreshAfterSave(savedId, message, keepEditing) {
     return fetchTelReservations()
       .then(function () {
         return refreshRoomAvailability(false);
       })
       .then(function () {
-        var saved = findReservationById(savedId);
-        if (saved) startEditingReservation(saved);
-        else clearEditingReservation(true);
+        if (keepEditing) {
+          var saved = findReservationById(savedId);
+          if (saved) startEditingReservation(saved);
+          else clearEditingReservation(true);
+        } else {
+          clearEditingReservation(true);
+        }
         showToast(message);
       });
   }
@@ -815,7 +819,11 @@
           throw new Error(result.data.detail || (isEditing ? '예약 수정에 실패했습니다.' : '예약 저장에 실패했습니다.'));
         }
         var savedId = result.data && result.data.item ? result.data.item.id : editingReservationId;
-        return refreshAfterSave(savedId, isEditing ? '예약이 수정되었습니다.' : '예약이 등록되었습니다.');
+        return refreshAfterSave(
+          savedId,
+          isEditing ? '예약이 수정되었습니다.' : '예약이 등록되었습니다.',
+          isEditing
+        );
       })
       .catch(function (err) {
         showToast(err.message || (isEditing ? '예약 수정에 실패했습니다.' : '예약 저장에 실패했습니다.'));
