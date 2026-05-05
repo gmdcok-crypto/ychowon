@@ -214,6 +214,12 @@
   }
 
   function isYchowonBranch() {
+    try {
+      if (String(window.location.hostname || '').toLowerCase().indexOf('ychowon') >= 0) return true;
+    } catch (e) {}
+    try {
+      if (typeof reserveInferDefaultBranch === 'function' && reserveInferDefaultBranch() === 'ychowon') return true;
+    } catch (e2) {}
     return getBranch() === 'ychowon';
   }
 
