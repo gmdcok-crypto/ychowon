@@ -78,7 +78,7 @@
     if (!isYchowonDisplay()) return text;
     var floorRoom = text.match(/^(\d+F)\s*룸\s*룸?\s*(\d+)$/i);
     if (floorRoom) {
-      if (floorRoom[1].toUpperCase() === '4F') return floorRoom[2] + '호';
+      if (floorRoom[1].toUpperCase() === '4F') return floorRoom[2] + '호실';
       if (floorRoom[1].toUpperCase() === '5F') return '5층 ' + floorRoom[2] + '호';
     }
     var hallTable = text.match(/^([A-Z])홀\s*([A-Z]\d+(?:\(임시\))?)$/i);
