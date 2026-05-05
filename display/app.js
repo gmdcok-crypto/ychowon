@@ -68,11 +68,12 @@
   function formatRoomLabel(room) {
     var text = String(room || '').trim();
     if (!text) return '—';
+    if (getDisplayBranch() !== 'ychowon') return text;
     var floorRoom = text.match(/^(\d+F)\s*룸\s*룸?\s*(\d+)$/i);
-    if (floorRoom) return floorRoom[1].toUpperCase() + floorRoom[2];
+    if (floorRoom) return '룸' + floorRoom[2] + '호';
     var hallTable = text.match(/^([A-Z])홀\s*([A-Z]\d+(?:\(임시\))?)$/i);
-    if (hallTable) return hallTable[2].toUpperCase();
-    return text.replace(/\s+/g, '');
+    if (hallTable) return '3층 ' + hallTable[2].toUpperCase();
+    return text;
   }
 
   function renderRow(item) {
