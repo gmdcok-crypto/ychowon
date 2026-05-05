@@ -22,11 +22,13 @@
         return id;
       }
     } catch (e) {}
+    var inferred = typeof reserveInferDefaultBranch === 'function' ? reserveInferDefaultBranch() : 'default';
+    if (inferred && inferred !== 'default') return inferred;
     try {
       var v = localStorage.getItem(BRANCH_KEY);
       if (v && String(v).trim()) return String(v).trim().toLowerCase();
     } catch (e2) {}
-    return typeof reserveInferDefaultBranch === 'function' ? reserveInferDefaultBranch() : 'default';
+    return inferred;
   }
 
   function branchQuery() {
