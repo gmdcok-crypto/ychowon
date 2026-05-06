@@ -857,6 +857,34 @@ async def set_today_reservations(
     return {"ok": True, "count": len(items)}
 
 
+@app.delete("/api/reservations/today/{reservation_id}")
+async def delete_today_reservation(
+    request: Request,
+    reservation_id: int,
+    branch: str = Query(default="default"),
+):
+    """??(admin) ?? ?? ? ? ??."""
+    bid = resolve_effective_branch(branch, request.headers.get("host"))
+    today = _today_str()
+    data = load_branch_today(bid)
+    items = list(data.get("reservations") or []) if data.get("date") == today else []
+
+    removed = None
+    kept = []
+    for item in items:
+        if int(item.get("id", 0) or 0) == reservation_id:
+            removed = item
+            continue
+        kept.append(item)
+
+    if removed is None:
+        raise HTTPException(status_code=404, detail="??? ?? ??? ?? ? ????.")
+
+    save_branch_today(bid, {"date": today, "reservations": kept})
+    await broadcast_reservations(bid)
+    return {"ok": True}
+
+
 @app.post("/api/reservations/today/swap-rooms")
 async def swap_today_reservation_rooms(
     request: Request,

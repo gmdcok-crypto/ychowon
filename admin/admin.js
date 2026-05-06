@@ -846,12 +846,34 @@
             });
           return;
         }
-        list.splice(i, 1);
-        if (editingIndex === i) cancelEdit();
-        else if (editingIndex > i) editingIndex--;
-        render();
-        showToast('삭제했습니다. 현황판에 반영 중…');
-        saveAndNotify('삭제되었습니다. 예약현황판에 바로 반영됩니다.');
+        if (item.id == null) {
+          showToast('??? ?? ?? ID? ?? ? ????.');
+          return;
+        }
+        fetch(withBranch(API + '/' + encodeURIComponent(String(item.id))), {
+          method: 'DELETE',
+          credentials: 'same-origin'
+        })
+          .then(function (r) {
+            if (!r.ok) {
+              return r.json()
+                .catch(function () { return {}; })
+                .then(function (j) {
+                  throw new Error(errorDetailText(j && j.detail, '?? ??'));
+                });
+            }
+            return r.json();
+          })
+          .then(function () {
+            if (editingIndex === i) cancelEdit();
+            else if (editingIndex > i) editingIndex--;
+            showToast('???????. ?????? ?? ?????.');
+            load();
+          })
+          .catch(function (err) {
+            load();
+            showToast((err && err.message) || '??? ??????.');
+          });
       });
     });
     listEl.querySelectorAll('.btn-edit').forEach(function (btn) {
