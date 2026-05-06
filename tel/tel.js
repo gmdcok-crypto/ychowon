@@ -2,6 +2,7 @@
   'use strict';
 
   var API_TEL_RESERVATIONS = '/api/tel/reservations';
+  var API_TODAY_RESERVATIONS = '/api/reservations/today';
   var API_TEL_ROOMS = '/api/tel/rooms';
   var API_SWAP_ROOMS = '/api/reservations/today/swap-rooms';
   var BRANCH_KEY = 'reserve_branch_id';
@@ -150,9 +151,54 @@
     if (roomInput) roomInput.value = roomTextFromSelection(selectedRooms);
   }
 
+  function selectedDateIsToday() {
+    return sameDate(selectedDate, new Date());
+  }
+
+  function reservationSource(item) {
+    return String(item && item.source || 'tel');
+  }
+
+  function telDisplayId(rawId) {
+    var text = String(rawId == null ? '' : rawId);
+    if (!text) return '';
+    return text.indexOf('tel-') === 0 ? text : ('tel-' + text);
+  }
+
+  function normalizeReservationItem(item) {
+    if (!item) return item;
+    var source = reservationSource(item);
+    var normalized = Object.assign({}, item);
+    normalized.source = source;
+    normalized.slot = item.slot || timeSlot(item.time || '');
+    if (source === 'tel') {
+      normalized.apiId = String(item.apiId != null ? item.apiId : item.id || '');
+      normalized.id = telDisplayId(item.id);
+    } else {
+      normalized.apiId = String(item.id == null ? '' : item.id);
+      normalized.id = String(item.id == null ? '' : item.id);
+    }
+    return normalized;
+  }
+
+  function normalizeReservationList(items) {
+    return (Array.isArray(items) ? items : []).map(normalizeReservationItem);
+  }
+
+  function currentEditingReservation() {
+    return editingReservationId == null ? null : findReservationById(editingReservationId);
+  }
+
+  function currentEditingTelApiId() {
+    var item = currentEditingReservation();
+    if (!item || reservationSource(item) !== 'tel') return '';
+    return String(item.apiId || '');
+  }
+
   function roomStatusQueryExtras() {
-    if (editingReservationId == null) return '';
-    return '&exclude_source=tel&exclude_id=' + encodeURIComponent(String(editingReservationId));
+    var currentId = currentEditingTelApiId();
+    if (!currentId) return '';
+    return '&exclude_source=tel&exclude_id=' + encodeURIComponent(currentId);
   }
 
   /** 예약조회(all.js)와 동일한 인원 표기 */
@@ -458,8 +504,9 @@
       var isSelected = String(editingReservationId || '') === String(item.id || '');
       var selectedClass = isSelected ? ' selected' : '';
       var swapTargetClass = roomSwapPending && !isSelected ? ' swap-target' : '';
+      var readonlyClass = reservationSource(item) === 'admin' ? ' is-readonly' : '';
       return (
-        '<div class="reserve-row reserve-item' + selectedClass + swapTargetClass + '" data-id="' + escapeHtml(item.id) + '">' +
+        '<div class="reserve-row reserve-item' + selectedClass + swapTargetClass + readonlyClass + '" data-id="' + escapeHtml(item.id) + '" data-source="' + escapeHtml(reservationSource(item)) + '">' +
           '<span class="time col-time">' + escapeHtml(item.time) + '</span>' +
           '<span class="name col-name">' + escapeHtml(item.name) + '</span>' +
           '<span class="room col-room">' + escapeHtml(roomTextFromItem(item)) + '</span>' +
@@ -470,10 +517,13 @@
   }
 
   function fetchTelReservations() {
-    return fetch(withBranch(API_TEL_RESERVATIONS + '?date=' + encodeURIComponent(dateKey(selectedDate))), { credentials: 'same-origin' })
+    var requestUrl = selectedDateIsToday()
+      ? withBranch(API_TODAY_RESERVATIONS)
+      : withBranch(API_TEL_RESERVATIONS + '?date=' + encodeURIComponent(dateKey(selectedDate)));
+    return fetch(requestUrl, { credentials: 'same-origin' })
       .then(function (r) { return r.json(); })
       .then(function (data) {
-        telReservations = Array.isArray(data) ? data : [];
+        telReservations = normalizeReservationList(data);
         if (editingReservationId != null && !findReservationById(editingReservationId)) {
           clearEditingReservation(true);
         }
@@ -488,7 +538,7 @@
   var telWs = null;
 
   function refreshTodayFromRealtime() {
-    if (!sameDate(selectedDate, new Date())) return;
+    if (!selectedDateIsToday()) return;
     fetchTelReservations().then(function () {
       return refreshRoomAvailability(false);
     });
@@ -816,6 +866,12 @@
       var row = e.target.closest('.reserve-item');
       if (!row) return;
       var clickedId = row.getAttribute('data-id');
+      var item = findReservationById(clickedId);
+      if (!item) return;
+      if (reservationSource(item) !== 'tel') {
+        showToast('admin?? ??? ?? ??? ??? ???? ?????.');
+        return;
+      }
       if (roomSwapPending) {
         if (String(editingReservationId || '') === String(clickedId || '')) {
           showToast('교환할 다른 예약을 선택하세요.');
@@ -828,7 +884,7 @@
         beginNewReservationEntry('선택을 해제했습니다. 새 예약을 입력하세요.');
         return;
       }
-      startEditingReservation(findReservationById(clickedId));
+      startEditingReservation(item);
     });
   }
 
@@ -944,7 +1000,12 @@
       showToast('먼저 수정할 예약을 선택하세요.');
       return;
     }
-    var requestUrl = withBranch(API_TEL_RESERVATIONS + (isEditing ? '/' + encodeURIComponent(editingReservationId) : ''));
+    var currentApiId = isEditing ? currentEditingTelApiId() : '';
+    if (isEditing && !currentApiId) {
+      showToast('?? ??? ? ???? ??? ? ????.');
+      return;
+    }
+    var requestUrl = withBranch(API_TEL_RESERVATIONS + (isEditing ? '/' + encodeURIComponent(currentApiId) : ''));
     fetch(requestUrl, {
       method: isEditing ? 'PATCH' : 'POST',
       credentials: 'same-origin',
@@ -960,7 +1021,7 @@
         if (!result.ok) {
           throw new Error(result.data.detail || (isEditing ? '예약 수정에 실패했습니다.' : '예약 저장에 실패했습니다.'));
         }
-        var savedId = result.data && result.data.item ? result.data.item.id : editingReservationId;
+        var savedId = result.data && result.data.item ? telDisplayId(result.data.item.id) : editingReservationId;
         return refreshAfterSave(
           savedId,
           isEditing ? '예약이 수정되었습니다.' : '예약이 등록되었습니다.',
@@ -977,7 +1038,11 @@
       showToast('먼저 삭제할 예약을 선택하세요.');
       return;
     }
-    var delId = editingReservationId;
+    var delId = currentEditingTelApiId();
+    if (!delId) {
+      showToast('?? ??? ? ???? ??? ? ????.');
+      return;
+    }
     fetch(withBranch(API_TEL_RESERVATIONS + '/' + encodeURIComponent(delId)), {
       method: 'DELETE',
       credentials: 'same-origin'
