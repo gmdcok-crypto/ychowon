@@ -23,8 +23,7 @@ textarea {
 
 .print-header,
 .print-toolbar,
-.print-table-wrap,
-.print-actions {
+.print-table-wrap {
   background: #201913;
   border: 1px solid rgba(201, 169, 98, 0.18);
   border-radius: 18px;
@@ -99,6 +98,7 @@ textarea {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
+  align-items: center;
 }
 
 .print-chip {
@@ -182,13 +182,6 @@ textarea {
   text-align: center !important;
 }
 
-.print-actions {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 14px;
-  padding: 16px 20px;
-}
-
 .print-primary-btn {
   min-width: 180px;
   min-height: 48px;
@@ -199,6 +192,10 @@ textarea {
   color: #1a1510;
   font-weight: 700;
   cursor: pointer;
+}
+
+.print-inline-btn {
+  min-width: 110px;
 }
 
 .print-primary-btn:disabled {
@@ -232,8 +229,7 @@ textarea {
 
   .print-header,
   .print-toolbar,
-  .print-table-wrap,
-  .print-actions {
+  .print-table-wrap {
     padding: 16px;
   }
 
@@ -241,10 +237,6 @@ textarea {
   .print-toolbar {
     flex-direction: column;
     align-items: stretch;
-  }
-
-  .print-actions {
-    justify-content: stretch;
   }
 
   .print-primary-btn {

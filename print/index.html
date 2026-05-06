@@ -31,6 +31,7 @@
     <section class="print-toolbar">
       <div class="print-date" id="print-date-label">오늘 예약</div>
       <div class="print-filters" role="tablist" aria-label="예약 시간대 필터">
+        <button type="button" class="print-primary-btn print-inline-btn" id="print-selected-btn">인쇄</button>
         <button type="button" class="print-chip active" data-filter="all">전체</button>
         <button type="button" class="print-chip" data-filter="lunch">점심</button>
         <button type="button" class="print-chip" data-filter="dinner">저녁</button>
@@ -61,11 +62,6 @@
         <p class="print-empty" id="print-empty" hidden>표시할 당일 예약이 없습니다.</p>
       </section>
     </main>
-
-    <div class="print-actions">
-      <button type="button" class="print-primary-btn" id="print-selected-btn">선택 예약 인쇄</button>
-    </div>
-
     <div class="print-toast" id="print-toast" aria-live="polite"></div>
   </div>
 

@@ -238,7 +238,7 @@
     if (!printSelectedBtn) return;
     var item = selectedReservation();
     printSelectedBtn.disabled = !item;
-    printSelectedBtn.textContent = item ? '선택 예약 인쇄' : '예약을 선택하세요';
+    printSelectedBtn.textContent = '인쇄';
   }
 
   function render() {
