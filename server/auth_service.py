@@ -513,6 +513,8 @@ def api_allows(path: str, method: str, role: Optional[str]) -> bool:
 
     if role == "admin":
         return True
+    if p == "/api/reservations/today":
+        return role == "tel" and method == "GET"
     if p.startswith("/api/reservations/today"):
         return False
     if p.startswith("/api/tel/"):
@@ -561,7 +563,7 @@ def ws_role_allowed(websocket, branch_id: Optional[str] = None) -> bool:
     if not payload:
         return True
     role = payload.get("role")
-    if role not in ("admin", "display"):
+    if role not in ("admin", "display", "tel"):
         return False
     return branch_allows_request(payload, branch_id, websocket.headers.get("host"))
 

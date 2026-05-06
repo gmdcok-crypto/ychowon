@@ -663,6 +663,28 @@
     return { time: r.time, name: r.name, room: roomTextFromSelection(rooms), rooms: rooms, id: r.id, source: 'admin' };
   }
 
+  function errorDetailText(detail, fallback) {
+    if (typeof detail === 'string' && detail.trim()) return detail;
+    if (Array.isArray(detail) && detail.length) {
+      var first = detail[0];
+      if (typeof first === 'string' && first.trim()) return first;
+      if (first && typeof first === 'object') {
+        if (typeof first.msg === 'string' && first.msg.trim()) return first.msg;
+        if (Array.isArray(first.loc) && first.loc.length && typeof first.loc[first.loc.length - 1] === 'string') {
+          return String(first.loc[first.loc.length - 1]) + ' ??? ?????.';
+        }
+      }
+    }
+    if (detail && typeof detail === 'object') {
+      if (typeof detail.msg === 'string' && detail.msg.trim()) return detail.msg;
+      try {
+        var text = JSON.stringify(detail);
+        if (text && text !== '{}') return text;
+      } catch (e) {}
+    }
+    return fallback;
+  }
+
   function load() {
     fetch(withBranch(API), { credentials: 'same-origin' })
       .then(function (r) { return r.json(); })
@@ -909,10 +931,11 @@
     })
       .then(function (r) {
         if (!r.ok) {
-          return r.json().then(function (j) {
-            var d = j && j.detail;
-            throw new Error(typeof d === 'string' ? d : '저장 실패');
-          });
+          return r.json()
+            .catch(function () { return {}; })
+            .then(function (j) {
+              throw new Error(errorDetailText(j && j.detail, '?? ??'));
+            });
         }
         return r.json();
       })
@@ -921,7 +944,8 @@
         load();
       })
       .catch(function (err) {
-        showToast((err && err.message) || '저장에 실패했습니다.');
+        load();
+        showToast((err && err.message) || '??? ??????.');
       });
   }
 
