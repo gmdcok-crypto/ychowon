@@ -22,7 +22,7 @@
     <header class="print-header">
       <div>
         <p class="print-eyebrow">POS 개별 예약 인쇄</p>
-        <h1>당일 예약 현황</h1>
+        <h1 id="print-title">당일 예약 현황</h1>
         <p class="print-status" id="print-status">서버와 동기화 중...</p>
       </div>
       <button type="button" class="print-refresh-btn" id="print-refresh-btn">새로고침</button>
@@ -38,10 +38,33 @@
     </section>
 
     <main>
-      <div class="print-list" id="print-list">
-        <div class="print-empty">당일 예약을 불러오는 중입니다.</div>
-      </div>
+      <section class="print-table-wrap">
+        <div class="print-table-scroll">
+          <table class="print-table" id="print-table">
+            <thead>
+              <tr>
+                <th>시간</th>
+                <th>이름</th>
+                <th>전화</th>
+                <th>룸/테이블</th>
+                <th>인원</th>
+                <th>구분</th>
+              </tr>
+            </thead>
+            <tbody id="print-tbody">
+              <tr>
+                <td colspan="6" class="print-loading-cell">당일 예약을 불러오는 중입니다.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="print-empty" id="print-empty" hidden>표시할 당일 예약이 없습니다.</p>
+      </section>
     </main>
+
+    <div class="print-actions">
+      <button type="button" class="print-primary-btn" id="print-selected-btn">선택 예약 인쇄</button>
+    </div>
 
     <div class="print-toast" id="print-toast" aria-live="polite"></div>
   </div>

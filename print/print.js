@@ -2,17 +2,23 @@
   'use strict';
 
   var API_TODAY_RESERVATIONS = '/api/reservations/today';
+  var API_BRANCHES = '/api/branches';
   var BRANCH_KEY = 'reserve_branch_id';
 
-  var listEl = document.getElementById('print-list');
+  var titleEl = document.getElementById('print-title');
   var statusEl = document.getElementById('print-status');
   var dateLabelEl = document.getElementById('print-date-label');
   var toastEl = document.getElementById('print-toast');
   var refreshBtn = document.getElementById('print-refresh-btn');
+  var tbody = document.getElementById('print-tbody');
+  var emptyEl = document.getElementById('print-empty');
+  var printSelectedBtn = document.getElementById('print-selected-btn');
 
   var reservations = [];
   var selectedFilter = 'all';
   var printWs = null;
+  var selectedReservationKey = '';
+  var branchName = '';
 
   function getBranch() {
     try {
@@ -127,11 +133,18 @@
     return String(source || '') === 'tel' ? '전화예약' : '관리자';
   }
 
+  function branchDisplayName(branchId) {
+    var id = String(branchId || '').trim().toLowerCase();
+    if (!id || id === 'default') return '양정점';
+    return branchName || id;
+  }
+
   function normalizeReservation(item) {
     var out = Object.assign({}, item || {});
     out.source = String(out.source || 'admin');
     out.slot = timeSlot(out.time || '');
     out.date = out.date || dateKey(new Date());
+    out.key = out.source + ':' + String(out.id || '');
     return out;
   }
 
@@ -149,8 +162,12 @@
     if (statusEl) statusEl.textContent = text;
   }
 
+  function updateTitle() {
+    if (titleEl) titleEl.textContent = branchDisplayName(getBranch()) + ' 당일 예약 현황';
+  }
+
   function formatStatusText(count) {
-    return formatDate(new Date()) + ' · 총 ' + count + '건 · 지점 ' + getBranch();
+    return formatDate(new Date()) + ' · 총 ' + count + '건 · 지점 ' + branchDisplayName(getBranch());
   }
 
   function buildReceiptHtml(item) {
@@ -210,48 +227,84 @@
     });
   }
 
+  function selectedReservation() {
+    var rows = filteredReservations();
+    return rows.filter(function (item) {
+      return item.key === selectedReservationKey;
+    })[0] || null;
+  }
+
+  function updatePrintButton() {
+    if (!printSelectedBtn) return;
+    var item = selectedReservation();
+    printSelectedBtn.disabled = !item;
+    printSelectedBtn.textContent = item ? '선택 예약 인쇄' : '예약을 선택하세요';
+  }
+
   function render() {
-    if (!listEl) return;
+    if (!tbody) return;
     var rows = filteredReservations();
     if (dateLabelEl) {
       dateLabelEl.textContent = formatDate(new Date()) + ' · ' + (selectedFilter === 'all' ? '전체' : (selectedFilter === 'lunch' ? '점심' : '저녁'));
     }
+    updateTitle();
     updateStatus(formatStatusText(rows.length));
     if (!rows.length) {
-      listEl.innerHTML = '<div class="print-empty">표시할 당일 예약이 없습니다.</div>';
+      tbody.innerHTML = '';
+      if (emptyEl) emptyEl.hidden = false;
+      updatePrintButton();
       return;
     }
-    listEl.innerHTML = rows.map(function (item, index) {
-      var phone = String(item.phone || '').trim();
+    if (emptyEl) emptyEl.hidden = true;
+    if (!selectedReservation() && rows.length) {
+      selectedReservationKey = rows[0].key;
+    }
+    tbody.innerHTML = rows.map(function (item) {
       return (
-        '<article class="print-card" data-index="' + index + '">' +
-          '<div class="print-time">' + escapeHtml(item.time || '—') + '</div>' +
-          '<div class="print-main">' +
-            '<div class="print-name-row">' +
-              '<strong class="print-name">' + escapeHtml(item.name || '이름없음') + '</strong>' +
-              '<span class="print-source">' + escapeHtml(sourceLabel(item.source)) + '</span>' +
-            '</div>' +
-            '<div class="print-meta">호실: ' + escapeHtml(roomTextFromItem(item)) + '</div>' +
-            '<div class="print-meta">인원: ' + escapeHtml(partyLine(item)) + '</div>' +
-            (phone ? '<div class="print-phone">전화번호: ' + escapeHtml(phone) + '</div>' : '') +
-          '</div>' +
-          '<div><button type="button" class="print-row-btn" data-index="' + index + '">인쇄</button></div>' +
-        '</article>'
+        '<tr class="print-row' + (item.key === selectedReservationKey ? ' is-selected' : '') + '" data-key="' + escapeHtml(item.key) + '">' +
+          '<td class="print-cell-time">' + escapeHtml(item.time || '—') + '</td>' +
+          '<td class="print-cell-name">' + escapeHtml(item.name || '이름없음') + '</td>' +
+          '<td>' + escapeHtml(item.phone || '—') + '</td>' +
+          '<td>' + escapeHtml(roomTextFromItem(item)) + '</td>' +
+          '<td>' + escapeHtml(partyLine(item)) + '</td>' +
+          '<td class="print-cell-source">' + escapeHtml(sourceLabel(item.source)) + '</td>' +
+        '</tr>'
       );
     }).join('');
-
-    listEl.querySelectorAll('.print-row-btn').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        var idx = parseInt(btn.getAttribute('data-index'), 10);
-        if (isNaN(idx)) return;
-        printReservation(rows[idx]);
+    tbody.querySelectorAll('.print-row').forEach(function (row) {
+      row.addEventListener('click', function () {
+        selectedReservationKey = row.getAttribute('data-key') || '';
+        render();
       });
     });
+    updatePrintButton();
   }
 
   function applyReservationPayload(data) {
     reservations = (Array.isArray(data) ? data : []).map(normalizeReservation);
     render();
+  }
+
+  function fetchBranchName() {
+    return fetch(withBranch(API_BRANCHES), { credentials: 'same-origin' })
+      .then(function (r) {
+        if (!r.ok) throw new Error('지점 정보를 불러오지 못했습니다.');
+        return r.json();
+      })
+      .then(function (data) {
+        var branchId = getBranch();
+        var rows = Array.isArray(data && data.branches) ? data.branches : [];
+        var matched = rows.filter(function (item) {
+          return String(item && item.id || '').trim().toLowerCase() === branchId;
+        })[0] || null;
+        branchName = matched && matched.name ? String(matched.name) : '';
+        if (branchId === 'default') branchName = '양정점';
+        updateTitle();
+      })
+      .catch(function () {
+        branchName = getBranch() === 'default' ? '양정점' : '';
+        updateTitle();
+      });
   }
 
   function fetchReservations() {
@@ -314,6 +367,13 @@
     });
   }
 
+  if (printSelectedBtn) {
+    printSelectedBtn.addEventListener('click', function () {
+      printReservation(selectedReservation());
+    });
+  }
+
+  fetchBranchName();
   fetchReservations();
   connectRealtime();
 })();
