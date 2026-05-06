@@ -70,6 +70,7 @@ def startup():
     print("  현황판:   http://%s:8000/display/" % ip)
     print("  예약입력: http://%s:8000/admin/ (당일용)" % ip)
     print("  예약접수: http://%s:8000/tel/   (태블릿)" % ip)
+    print("  Print:     http://%s:8000/print/ (POS)" % ip)
     from room_config import ACTIVE_ROOMS_CONFIG_REF as _room_cfg_ref
 
     if _room_cfg_ref:
@@ -130,6 +131,12 @@ def root():
     return RedirectResponse(url="/display/")
 
 
+@app.get("/print")
+def print_redirect():
+    """Redirect /print to the print screen."""
+    return RedirectResponse(url="/print/")
+
+
 @app.get("/display")
 def display_redirect():
     """끝에 슬래시 없이 /display 로 접속해도 현황판으로."""
@@ -139,6 +146,7 @@ def display_redirect():
 DISPLAY_DIR = Path(__file__).resolve().parent.parent / "display"
 ADMIN_DIR = Path(__file__).resolve().parent.parent / "admin"
 TEL_DIR = Path(__file__).resolve().parent.parent / "tel"
+PRINT_DIR = Path(__file__).resolve().parent.parent / "print"
 
 # 모바일 → 예약 접수 화면으로
 @app.get("/mobile")
@@ -177,6 +185,10 @@ _NO_STORE_PATHS = {
     "/tel/index.html",
     "/tel/login.html",
     "/tel/sw.js",
+    "/print",
+    "/print/",
+    "/print/index.html",
+    "/print/login.html",
 }
 
 
@@ -1686,3 +1698,5 @@ if ADMIN_DIR.exists():
     app.mount("/admin", StaticFiles(directory=str(ADMIN_DIR), html=True), name="admin")
 if TEL_DIR.exists():
     app.mount("/tel", StaticFiles(directory=str(TEL_DIR), html=True), name="tel")
+if PRINT_DIR.exists():
+    app.mount("/print", StaticFiles(directory=str(PRINT_DIR), html=True), name="print")

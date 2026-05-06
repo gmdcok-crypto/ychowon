@@ -634,6 +634,7 @@ def migrate_from_data_dir(data_dir: Path) -> bool:
                         {"id": "admin", "name": "관리자", "role": "admin", "password_hash": None},
                         {"id": "display", "name": "현황판", "role": "display", "password_hash": None},
                         {"id": "tel", "name": "전화예약", "role": "tel", "password_hash": None},
+                        {"id": "print", "name": "개별인쇄", "role": "print", "password_hash": None},
                     ]
                 }
             )

@@ -4,8 +4,8 @@
 (function () {
   'use strict';
 
-  var SYSTEM_IDS = { admin: 1, display: 1, tel: 1 };
-  var ROLES = ['admin', 'display', 'tel'];
+  var SYSTEM_IDS = { admin: 1, display: 1, tel: 1, print: 1 };
+  var ROLES = ['admin', 'display', 'tel', 'print'];
   var BRANCH_KEY = 'reserve_branch_id';
 
   var tbody = document.getElementById('accounts-table-body');
@@ -247,7 +247,7 @@
       return;
     }
     if (SYSTEM_IDS[selectedId]) {
-      showToast('기본 계정(admin, display, tel)은 삭제할 수 없습니다.');
+      showToast('기본 계정(admin, display, tel, print)은 삭제할 수 없습니다.');
       return;
     }
     if (!window.confirm('선택한 계정을 삭제할까요? 이 작업은 되돌릴 수 없습니다.')) return;

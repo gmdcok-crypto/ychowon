@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#1a1510" />
+  <title>개별 예약 인쇄 · 초원농원</title>
+  <script src="/api/branch-boot.js"></script>
+  <script>
+    (function () {
+      var raw = String(window.__RESERVE_BUILD_VERSION__ || '').trim();
+      var version = raw ? encodeURIComponent(raw) : String(Date.now());
+      var css = document.createElement('link');
+      css.rel = 'stylesheet';
+      css.href = 'print.css?v=' + version;
+      document.head.appendChild(css);
+    })();
+  </script>
+</head>
+<body>
+  <div class="print-app">
+    <header class="print-header">
+      <div>
+        <p class="print-eyebrow">POS 개별 예약 인쇄</p>
+        <h1>당일 예약 현황</h1>
+        <p class="print-status" id="print-status">서버와 동기화 중...</p>
+      </div>
+      <button type="button" class="print-refresh-btn" id="print-refresh-btn">새로고침</button>
+    </header>
+
+    <section class="print-toolbar">
+      <div class="print-date" id="print-date-label">오늘 예약</div>
+      <div class="print-filters" role="tablist" aria-label="예약 시간대 필터">
+        <button type="button" class="print-chip active" data-filter="all">전체</button>
+        <button type="button" class="print-chip" data-filter="lunch">점심</button>
+        <button type="button" class="print-chip" data-filter="dinner">저녁</button>
+      </div>
+    </section>
+
+    <main>
+      <div class="print-list" id="print-list">
+        <div class="print-empty">당일 예약을 불러오는 중입니다.</div>
+      </div>
+    </main>
+
+    <div class="print-toast" id="print-toast" aria-live="polite"></div>
+  </div>
+
+  <script>
+    (function () {
+      var raw = String(window.__RESERVE_BUILD_VERSION__ || '').trim();
+      var version = raw ? encodeURIComponent(raw) : String(Date.now());
+      var appScript = document.createElement('script');
+      appScript.src = 'print.js?v=' + version;
+      document.body.appendChild(appScript);
+    })();
+    if (typeof window.reserveInstallBuildVersionWatcher === 'function') {
+      window.reserveInstallBuildVersionWatcher({ intervalMs: 10000 });
+    }
+  </script>
+</body>
+</html>

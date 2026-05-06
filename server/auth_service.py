@@ -1,6 +1,6 @@
 """
 JWT + bcrypt(직접 사용). 계정은 accounts[] (id, name, role, password_hash).
-역할(role): admin / display / tel — 권한 판별에 사용.
+역할(role): admin / display / tel / print — 권한 판별에 사용.
 """
 from __future__ import annotations
 
@@ -16,8 +16,8 @@ import jwt
 from starlette.requests import Request
 from starlette.responses import JSONResponse, RedirectResponse, Response
 
-ROLES = ("admin", "display", "tel")
-SYSTEM_IDS = frozenset({"admin", "display", "tel"})
+ROLES = ("admin", "display", "tel", "print")
+SYSTEM_IDS = frozenset({"admin", "display", "tel", "print"})
 ID_RE = re.compile(r"^[a-zA-Z][a-zA-Z0-9_-]{1,63}$")
 
 COOKIE_NAME = "access_token"
@@ -28,6 +28,7 @@ DEFAULT_NAMES = {
     "admin": "관리자",
     "display": "현황판",
     "tel": "전화예약",
+    "print": "개별인쇄",
 }
 
 # bcrypt: UTF-8로 인코딩한 뒤 최대 72바이트만 사용(알고리즘 한계). 글자 수가 아니라 바이트 기준.
@@ -86,6 +87,7 @@ def _ensure_auth_file() -> None:
             {"id": "admin", "name": DEFAULT_NAMES["admin"], "role": "admin", "password_hash": None},
             {"id": "display", "name": DEFAULT_NAMES["display"], "role": "display", "password_hash": None},
             {"id": "tel", "name": DEFAULT_NAMES["tel"], "role": "tel", "password_hash": None},
+            {"id": "print", "name": DEFAULT_NAMES["print"], "role": "print", "password_hash": None},
         ]
         _auth_file.write_text(json.dumps({"accounts": accs}, ensure_ascii=False, indent=2), encoding="utf-8")
 
@@ -107,18 +109,48 @@ def _migrate_passwords_to_accounts(raw: dict[str, Any]) -> dict[str, Any]:
     return {"accounts": accounts}
 
 
+def _ensure_system_accounts(raw: dict[str, Any]) -> dict[str, Any]:
+    accounts = raw.get("accounts")
+    if not isinstance(accounts, list):
+        return raw
+    existing_ids = {str(a.get("id")) for a in accounts if isinstance(a, dict)}
+    changed = False
+    out = list(accounts)
+    for rid in ROLES:
+        if rid in existing_ids:
+            continue
+        out.append(
+            {
+                "id": rid,
+                "name": DEFAULT_NAMES.get(rid, rid),
+                "role": rid,
+                "password_hash": None,
+            }
+        )
+        changed = True
+    if not changed:
+        return raw
+    merged = dict(raw)
+    merged["accounts"] = out
+    return merged
+
+
 def _load_store() -> dict[str, Any]:
     if _use_db():
-        from db_repo import load_auth_store
+        from db_repo import load_auth_store, save_auth_store
 
-        return load_auth_store()
+        raw = load_auth_store()
+        merged = _ensure_system_accounts(_migrate_passwords_to_accounts(raw))
+        if merged != raw:
+            save_auth_store(merged)
+        return merged
     assert _auth_file is not None
     _ensure_auth_file()
     try:
         raw = json.loads(_auth_file.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         raw = {}
-    merged = _migrate_passwords_to_accounts(raw)
+    merged = _ensure_system_accounts(_migrate_passwords_to_accounts(raw))
     if merged != raw and _auth_file.is_file():
         _save_store(merged)
     return merged
@@ -438,6 +470,8 @@ def login_redirect_for(path: str) -> str:
         return "/display/login.html"
     if path.startswith("/tel"):
         return "/tel/login.html"
+    if path.startswith("/print"):
+        return "/print/login.html"
     return "/display/login.html"
 
 
@@ -454,7 +488,7 @@ def is_public_path(path: str) -> bool:
         return True
     if path in ("/api/health", "/api/branch-boot.js", "/favicon.ico", "/sw.js"):
         return True
-    if path in ("/admin/login.html", "/display/login.html", "/tel/login.html"):
+    if path in ("/admin/login.html", "/display/login.html", "/tel/login.html", "/print/login.html"):
         return True
     if path in ("/tel/manifest.json", "/tel/sw.js", "/display/manifest.json", "/display/sw.js"):
         return True
@@ -477,6 +511,8 @@ def static_allows(path: str, role: Optional[str]) -> bool:
         return role == "display"
     if path.startswith("/tel/"):
         return role == "tel"
+    if path.startswith("/print/"):
+        return role == "print"
     return False
 
 
@@ -494,7 +530,7 @@ def api_allows(path: str, method: str, role: Optional[str]) -> bool:
 
     if p == "/api/branches":
         if method == "GET":
-            return role in ("admin", "display", "tel")
+            return role in ("admin", "display", "tel", "print")
         if method == "POST":
             return role == "admin"
         return False
@@ -545,11 +581,13 @@ async def auth_middleware(request: Request, call_next) -> Response:
             return RedirectResponse(url="/display/login.html", status_code=302)
         if token_role == "tel":
             return RedirectResponse(url="/tel/", status_code=302)
+        if token_role == "print":
+            return RedirectResponse(url="/print/", status_code=302)
         if token_role in ("admin", "display"):
             return await call_next(request)
         return RedirectResponse(url="/display/login.html", status_code=302)
 
-    if path.startswith("/admin/") or path.startswith("/display/") or path.startswith("/tel/"):
+    if path.startswith("/admin/") or path.startswith("/display/") or path.startswith("/tel/") or path.startswith("/print/"):
         if static_allows(path, token_role):
             return await call_next(request)
         return RedirectResponse(url=login_redirect_for(path), status_code=302)
@@ -563,7 +601,7 @@ def ws_role_allowed(websocket, branch_id: Optional[str] = None) -> bool:
     if not payload:
         return True
     role = payload.get("role")
-    if role not in ("admin", "display", "tel"):
+    if role not in ("admin", "display", "tel", "print"):
         return False
     return branch_allows_request(payload, branch_id, websocket.headers.get("host"))
 
@@ -633,7 +671,7 @@ def account_update(aid: str, branch_id: Optional[str], name: Optional[str] = Non
 
 def account_delete(aid: str, branch_id: Optional[str]) -> None:
     if aid in SYSTEM_IDS:
-        raise ValueError("기본 계정(admin, display, tel)은 삭제할 수 없습니다. 인증 취소만 가능합니다.")
+        raise ValueError("기본 계정(admin, display, tel, print)은 삭제할 수 없습니다. 인증 취소만 가능합니다.")
     bid = _ensure_known_branch(branch_id)
     store = _load_store()
     rows = _accounts_list(store)

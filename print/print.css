@@ -1,0 +1,228 @@
+html, body {
+  margin: 0;
+  padding: 0;
+  background: #120f0b;
+  color: #f5efe6;
+  font-family: "Noto Sans KR", system-ui, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
+
+.print-app {
+  min-height: 100vh;
+  padding: 20px;
+}
+
+.print-header,
+.print-toolbar,
+.print-card {
+  background: #201913;
+  border: 1px solid rgba(201, 169, 98, 0.18);
+  border-radius: 18px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+}
+
+.print-header,
+.print-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 20px;
+}
+
+.print-header {
+  margin-bottom: 14px;
+}
+
+.print-eyebrow {
+  margin: 0 0 6px;
+  color: #c9a962;
+  font-size: 0.84rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.print-header h1 {
+  margin: 0;
+  font-size: 1.8rem;
+}
+
+.print-status,
+.print-date,
+.print-meta,
+.print-source,
+.print-phone,
+.print-empty {
+  color: #cbbca7;
+}
+
+.print-status,
+.print-date,
+.print-phone,
+.print-empty {
+  margin: 6px 0 0;
+  font-size: 0.96rem;
+}
+
+.print-refresh-btn,
+.print-row-btn,
+.print-chip {
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.print-refresh-btn,
+.print-row-btn {
+  background: #c9a962;
+  color: #1a1510;
+  font-weight: 700;
+}
+
+.print-refresh-btn {
+  min-width: 110px;
+  min-height: 46px;
+  padding: 0 18px;
+}
+
+.print-filters {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.print-chip {
+  background: rgba(201, 169, 98, 0.12);
+  color: #f5efe6;
+  min-height: 40px;
+  padding: 0 14px;
+}
+
+.print-chip.active {
+  background: #c9a962;
+  color: #1a1510;
+  font-weight: 700;
+}
+
+.print-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.print-card {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr) 120px;
+  gap: 16px;
+  align-items: center;
+  padding: 18px 20px;
+}
+
+.print-time {
+  font-size: 1.45rem;
+  font-weight: 800;
+  color: #f3d68d;
+}
+
+.print-main {
+  min-width: 0;
+}
+
+.print-name-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+
+.print-name {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #fff9ef;
+}
+
+.print-source {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 9px;
+  border-radius: 999px;
+  background: rgba(201, 169, 98, 0.16);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.print-meta {
+  font-size: 0.98rem;
+  line-height: 1.5;
+}
+
+.print-row-btn {
+  min-height: 50px;
+  width: 100%;
+}
+
+.print-empty {
+  padding: 40px 20px;
+  text-align: center;
+  background: #201913;
+  border: 1px dashed rgba(201, 169, 98, 0.22);
+  border-radius: 18px;
+}
+
+.print-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 22px;
+  transform: translateX(-50%);
+  background: rgba(10, 8, 6, 0.92);
+  color: #fff7ea;
+  padding: 10px 16px;
+  border-radius: 999px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.28);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.print-toast.show {
+  opacity: 1;
+}
+
+@media (max-width: 820px) {
+  .print-app {
+    padding: 14px;
+  }
+
+  .print-header,
+  .print-toolbar,
+  .print-card {
+    padding: 16px;
+  }
+
+  .print-header,
+  .print-toolbar,
+  .print-card {
+    grid-template-columns: 1fr;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .print-card {
+    gap: 12px;
+  }
+
+  .print-time {
+    font-size: 1.3rem;
+  }
+}
