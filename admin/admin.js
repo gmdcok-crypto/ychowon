@@ -135,146 +135,6 @@
     el.addEventListener('touchend', go, { passive: false });
   }
 
-  function isYchowonAdminBranch() {
-    try {
-      if (String(window.location.hostname || '').toLowerCase().indexOf('ychowon') >= 0) return true;
-    } catch (e) {}
-    try {
-      if (typeof reserveInferDefaultBranch === 'function' && reserveInferDefaultBranch() === 'ychowon') return true;
-    } catch (e2) {}
-    return getBranch() === 'ychowon';
-  }
-
-  function isYchowon4fSection(section) {
-    return /^(?:4f|4층)\s*룸$/i.test(String(section || '').replace(/\s+/g, ' ').trim());
-  }
-
-  function ychowon4fRoomNumber(room) {
-    var text = String((room && (room.label || room.display_label)) || '').trim();
-    var match = text.match(/(?:(?:4f|4층)\s*룸\s*룸?|룸)\s*(\d+)/i);
-    if (!match) return null;
-    var num = parseInt(match[1], 10);
-    return isNaN(num) ? null : num;
-  }
-
-  function staffRoomStatusText(room, timeVal) {
-    if (roomSwapMode) return room.reserved ? '교환 대상' : '예약 없음';
-    if (selectedStaffRooms.indexOf(room.label) >= 0) return '현재 선택';
-    return room.reserved ? '예약 완료' : (timeVal ? (timeVal + ' 가능') : '선택 가능');
-  }
-
-  function setStaffRoomDialogMapMode(enabled) {
-    if (staffRoomPanel) staffRoomPanel.classList.toggle('room-dialog-panel-map', !!enabled);
-    if (staffRoomGrid) staffRoomGrid.classList.toggle('room-grid-map', !!enabled);
-  }
-
-  function clampStaffRoomMapZoom(next) {
-    var value = Number(next);
-    if (!isFinite(value)) value = 1;
-    if (value < STAFF_ROOM_MAP_ZOOM_MIN) value = STAFF_ROOM_MAP_ZOOM_MIN;
-    if (value > STAFF_ROOM_MAP_ZOOM_MAX) value = STAFF_ROOM_MAP_ZOOM_MAX;
-    return Math.round(value * 100) / 100;
-  }
-
-  function updateStaffRoomMapZoomUi() {
-    if (!staffRoomGrid) return;
-    var viewport = staffRoomGrid.querySelector('.ychowon-room-map-viewport');
-    var stage = staffRoomGrid.querySelector('.ychowon-room-map-stage');
-    var zoomValue = staffRoomGrid.querySelector('.room-map-zoom-value');
-    var zoomOut = staffRoomGrid.querySelector('[data-map-zoom="out"]');
-    var zoomIn = staffRoomGrid.querySelector('[data-map-zoom="in"]');
-    var zoomReset = staffRoomGrid.querySelector('[data-map-zoom="reset"]');
-    if (viewport) viewport.setAttribute('data-zoom', String(staffRoomMapZoom));
-    if (stage) stage.style.width = String(Math.round(staffRoomMapZoom * 100)) + '%';
-    if (zoomValue) zoomValue.textContent = Math.round(staffRoomMapZoom * 100) + '%';
-    if (zoomOut) zoomOut.disabled = staffRoomMapZoom <= STAFF_ROOM_MAP_ZOOM_MIN;
-    if (zoomIn) zoomIn.disabled = staffRoomMapZoom >= STAFF_ROOM_MAP_ZOOM_MAX;
-    if (zoomReset) zoomReset.disabled = Math.abs(staffRoomMapZoom - 1) < 0.01;
-  }
-
-  function setStaffRoomMapZoom(next) {
-    var clamped = clampStaffRoomMapZoom(next);
-    if (Math.abs(clamped - staffRoomMapZoom) < 0.001) return;
-    staffRoomMapZoom = clamped;
-    updateStaffRoomMapZoomUi();
-  }
-
-  function shouldUseYchowon4fMap(rooms) {
-    if (!isYchowonAdminBranch()) return false;
-    if (!isYchowon4fSection(staffSelectedRoomSection)) return false;
-    return (Array.isArray(rooms) ? rooms : []).some(function (room) {
-      return ychowon4fRoomNumber(room) != null;
-    });
-  }
-
-  function renderYchowon4fRoomMap(rooms, timeVal) {
-    var byNumber = {};
-    (Array.isArray(rooms) ? rooms : []).forEach(function (room) {
-      var num = ychowon4fRoomNumber(room);
-      if (num == null) return;
-      byNumber[num] = room;
-    });
-
-    var items = Object.keys(YCHOWON_4F_ROOM_LAYOUT).map(function (key) {
-      var num = parseInt(key, 10);
-      var pos = YCHOWON_4F_ROOM_LAYOUT[num];
-      var room = byNumber[num];
-      if (!room) {
-        return (
-          '<div class="room-option room-map-room room-map-room-missing" style="' +
-          'left:' + pos.left + '%;top:' + pos.top + '%;width:' + pos.width + '%;height:' + pos.height + '%;">' +
-            '<span class="room-map-number">' + num + '</span>' +
-          '</div>'
-        );
-      }
-
-      var className = 'room-option room-map-room';
-      if (room.reserved) className += ' reserved';
-      if (!roomSwapMode && selectedStaffRooms.indexOf(room.label) >= 0) className += ' selected';
-      if (roomSwapMode) {
-        className += room.reserved ? ' swap-candidate' : ' swap-disabled';
-        if (isRoomSwapTarget(room)) className += ' swap-selected';
-      }
-      var detailPrimary = room.reserved
-        ? (room.reservation_range || room.time || timeVal || '')
-        : (timeVal ? (timeVal + ' 기준') : '');
-      var detailSecondary = room.reserved
-        ? (room.reservation_name || '')
-        : (selectedStaffRooms.indexOf(room.label) >= 0 ? '선택됨' : '');
-      var stateClass = room.reserved ? ' is-reserved' : ' is-available';
-      if (!roomSwapMode && selectedStaffRooms.indexOf(room.label) >= 0) stateClass = ' is-selected';
-      if (roomSwapMode && isRoomSwapTarget(room)) stateClass = ' is-swap';
-      return (
-        '<button type="button" class="' + className + '" data-room="' + escapeHtml(room.label) + '"' +
-          ' style="left:' + pos.left + '%;top:' + pos.top + '%;width:' + pos.width + '%;height:' + pos.height + '%;"' +
-          (!roomSwapMode && room.reserved ? ' disabled' : '') + '>' +
-          '<span class="room-map-state' + stateClass + '"></span>' +
-          '<span class="room-map-number">' + escapeHtml(room.display_label || String(num)) + '</span>' +
-          '<span class="room-map-status">' + escapeHtml(staffRoomStatusText(room, timeVal)) + '</span>' +
-          '<span class="room-map-detail">' + escapeHtml(detailPrimary || '\u00a0') + '</span>' +
-          '<span class="room-map-detail">' + escapeHtml(detailSecondary || '\u00a0') + '</span>' +
-        '</button>'
-      );
-    }).join('');
-
-    return (
-      '<div class="ychowon-room-map-wrap">' +
-        '<div class="ychowon-room-map-toolbar">' +
-          '<div class="ychowon-room-map-hint">축소 화면에서는 색상으로 예약 여부를 확인하고, PC에서는 확대 버튼이나 Ctrl + 휠로 상세를 볼 수 있습니다.</div>' +
-          '<div class="room-map-zoom-controls">' +
-            '<button type="button" class="room-map-zoom-btn" data-map-zoom="out">-</button>' +
-            '<span class="room-map-zoom-value">100%</span>' +
-            '<button type="button" class="room-map-zoom-btn" data-map-zoom="in">+</button>' +
-            '<button type="button" class="room-map-zoom-btn room-map-zoom-reset" data-map-zoom="reset">원래크기</button>' +
-          '</div>' +
-        '</div>' +
-        '<div class="ychowon-room-map-viewport">' +
-          '<div class="ychowon-room-map-stage">' + items + '</div>' +
-        '</div>' +
-      '</div>'
-    );
-  }
-
   let list = [];
   let editingIndex = -1;
   let staffRoomStatus = [];
@@ -282,37 +142,6 @@
   let selectedStaffRooms = [];
   let roomSwapMode = false;
   let roomSwapTargets = [];
-  let staffRoomMapZoom = 1;
-  const STAFF_ROOM_MAP_ZOOM_MIN = 1;
-  const STAFF_ROOM_MAP_ZOOM_MAX = 2.5;
-  const STAFF_ROOM_MAP_ZOOM_STEP = 0.25;
-  const staffRoomPanel = staffRoomDialog ? staffRoomDialog.querySelector('.room-dialog-panel') : null;
-  const YCHOWON_4F_ROOM_LAYOUT = {
-    1: { left: 64.0, top: 23.0, width: 9.8, height: 10.0 },
-    2: { left: 74.2, top: 23.0, width: 9.8, height: 10.0 },
-    3: { left: 84.4, top: 23.0, width: 9.8, height: 10.0 },
-    4: { left: 88.6, top: 4.6, width: 9.0, height: 8.4 },
-    5: { left: 77.8, top: 4.6, width: 8.8, height: 8.4 },
-    6: { left: 67.2, top: 4.6, width: 8.8, height: 8.4 },
-    7: { left: 56.0, top: 4.2, width: 10.2, height: 8.8 },
-    8: { left: 49.2, top: 4.6, width: 5.8, height: 8.0 },
-    9: { left: 42.0, top: 4.6, width: 5.8, height: 8.0 },
-    10: { left: 30.4, top: 5.0, width: 5.2, height: 7.6 },
-    11: { left: 24.0, top: 5.0, width: 5.2, height: 7.6 },
-    12: { left: 17.6, top: 5.0, width: 5.2, height: 7.6 },
-    13: { left: 11.2, top: 5.0, width: 5.2, height: 7.6 },
-    14: { left: 4.6, top: 5.0, width: 5.4, height: 7.8 },
-    15: { left: 4.0, top: 16.2, width: 5.8, height: 7.8 },
-    16: { left: 13.0, top: 20.4, width: 5.8, height: 7.8 },
-    17: { left: 4.0, top: 31.0, width: 5.8, height: 7.8 },
-    18: { left: 13.2, top: 35.0, width: 5.8, height: 7.8 },
-    19: { left: 4.0, top: 46.0, width: 5.8, height: 7.8 },
-    20: { left: 3.4, top: 56.5, width: 11.8, height: 7.6 },
-    21: { left: 3.2, top: 66.2, width: 18.6, height: 8.2 },
-    22: { left: 3.2, top: 75.8, width: 18.8, height: 8.2 },
-    23: { left: 3.2, top: 85.0, width: 19.4, height: 7.4 },
-    24: { left: 3.2, top: 93.2, width: 23.0, height: 6.6 }
-  };
 
   function dateKey(d) {
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
@@ -506,7 +335,6 @@
   function renderStaffRoomDialog() {
     if (!staffRoomGrid || !staffRoomGroupTabs) return;
     if (!staffTimeOk()) {
-      setStaffRoomDialogMapMode(false);
       staffRoomGroupTabs.innerHTML = '';
       staffRoomGrid.innerHTML = '<div class="empty">예약 시간을 먼저 입력하세요 (예: 12:00).</div>';
       return;
@@ -522,12 +350,6 @@
 
     if (sections.indexOf(staffSelectedRoomSection) === -1) {
       staffSelectedRoomSection = 'all';
-    }
-    if (isYchowonAdminBranch() && staffSelectedRoomSection === 'all') {
-      var ychowon4fSection = sections.filter(function (section) {
-        return isYchowon4fSection(section);
-      })[0];
-      if (ychowon4fSection) staffSelectedRoomSection = ychowon4fSection;
     }
 
     staffRoomGroupTabs.innerHTML = sections.map(function (section) {
@@ -549,41 +371,34 @@
     });
 
     var timeVal = (timeInput.value || '').trim();
-    if (shouldUseYchowon4fMap(filteredRooms)) {
-      setStaffRoomDialogMapMode(true);
-      staffRoomGrid.innerHTML = renderYchowon4fRoomMap(filteredRooms, timeVal);
-    } else {
-      setStaffRoomDialogMapMode(false);
-      staffRoomGrid.innerHTML = filteredRooms.map(function (room) {
-        var className = 'room-option';
-        var roomName = room.display_label || room.label;
-        var selectedTimeText = timeVal ? (timeVal + ' 기준') : '';
-        var occupiedRanges = Array.isArray(room.occupied_ranges) ? room.occupied_ranges : [];
-        if (room.reserved) className += ' reserved';
-        if (!roomSwapMode && selectedStaffRooms.indexOf(room.label) >= 0) className += ' selected';
-        if (roomSwapMode) {
-          className += room.reserved ? ' swap-candidate' : ' swap-disabled';
-          if (isRoomSwapTarget(room)) className += ' swap-selected';
-        }
-        var base = staffSelectedRoomSection === 'all' && room.section ? room.section + ' · ' : '';
-        var statusText = room.reserved ? (roomSwapMode ? '교환 대상' : '예약 완료') : (roomSwapMode ? '예약 없음' : '선택 가능');
-        var timeText = room.reserved ? (room.reservation_range || room.time || timeVal || '') : selectedTimeText;
-        var nameText = room.reserved && room.reservation_name ? (' · ' + room.reservation_name) : '';
-        var sub = base + statusText + (timeText ? (' · ' + timeText) : '') + nameText;
-        var timeSummary = occupiedRanges.length ? ('점유 시간: ' + occupiedRanges.join(', ')) : '점유 시간 없음';
-        return (
-          '<button type="button" class="' + className + '" data-room="' + escapeHtml(room.label) + '"' +
-          (!roomSwapMode && room.reserved ? ' disabled' : '') + '>' +
-            '<span class="room-name">' + escapeHtml(roomName) + '</span>' +
-            '<span class="room-sub">' + escapeHtml(sub) + '</span>' +
-            '<span class="room-sub">' + escapeHtml(timeSummary) + '</span>' +
-          '</button>'
-        );
-      }).join('');
-    }
+    staffRoomGrid.innerHTML = filteredRooms.map(function (room) {
+      var className = 'room-option';
+      var roomName = room.display_label || room.label;
+      var selectedTimeText = timeVal ? (timeVal + ' 기준') : '';
+      var occupiedRanges = Array.isArray(room.occupied_ranges) ? room.occupied_ranges : [];
+      if (room.reserved) className += ' reserved';
+      if (!roomSwapMode && selectedStaffRooms.indexOf(room.label) >= 0) className += ' selected';
+      if (roomSwapMode) {
+        className += room.reserved ? ' swap-candidate' : ' swap-disabled';
+        if (isRoomSwapTarget(room)) className += ' swap-selected';
+      }
+      var base = staffSelectedRoomSection === 'all' && room.section ? room.section + ' · ' : '';
+      var statusText = room.reserved ? (roomSwapMode ? '교환 대상' : '예약 완료') : (roomSwapMode ? '예약 없음' : '선택 가능');
+      var timeText = room.reserved ? (room.reservation_range || room.time || timeVal || '') : selectedTimeText;
+      var nameText = room.reserved && room.reservation_name ? (' · ' + room.reservation_name) : '';
+      var sub = base + statusText + (timeText ? (' · ' + timeText) : '') + nameText;
+      var timeSummary = occupiedRanges.length ? ('점유 시간: ' + occupiedRanges.join(', ')) : '점유 시간 없음';
+      return (
+        '<button type="button" class="' + className + '" data-room="' + escapeHtml(room.label) + '"' +
+        (!roomSwapMode && room.reserved ? ' disabled' : '') + '>' +
+          '<span class="room-name">' + escapeHtml(roomName) + '</span>' +
+          '<span class="room-sub">' + escapeHtml(sub) + '</span>' +
+          '<span class="room-sub">' + escapeHtml(timeSummary) + '</span>' +
+        '</button>'
+      );
+    }).join('');
 
     if (!filteredRooms.length) {
-      setStaffRoomDialogMapMode(false);
       staffRoomGrid.innerHTML = '<div class="empty">이 구역에 등록된 자리가 없습니다.</div>';
     }
 
@@ -603,27 +418,6 @@
         renderStaffRoomDialog();
       });
     });
-    var mapViewport = staffRoomGrid.querySelector('.ychowon-room-map-viewport');
-    if (mapViewport) {
-      mapViewport.addEventListener('wheel', function (ev) {
-        if (!ev.ctrlKey) return;
-        ev.preventDefault();
-        setStaffRoomMapZoom(staffRoomMapZoom + (ev.deltaY < 0 ? STAFF_ROOM_MAP_ZOOM_STEP : -STAFF_ROOM_MAP_ZOOM_STEP));
-      }, { passive: false });
-    }
-    staffRoomGrid.querySelectorAll('.room-map-zoom-btn').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        var action = btn.getAttribute('data-map-zoom') || '';
-        if (action === 'in') {
-          setStaffRoomMapZoom(staffRoomMapZoom + STAFF_ROOM_MAP_ZOOM_STEP);
-        } else if (action === 'out') {
-          setStaffRoomMapZoom(staffRoomMapZoom - STAFF_ROOM_MAP_ZOOM_STEP);
-        } else {
-          setStaffRoomMapZoom(1);
-        }
-      });
-    });
-    updateStaffRoomMapZoomUi();
   }
 
   function refreshStaffRoomAvailability(openIfNeeded) {
@@ -662,7 +456,6 @@
       })
       .catch(function () {
         staffRoomStatus = [];
-        setStaffRoomDialogMapMode(false);
         if (staffRoomGroupTabs) staffRoomGroupTabs.innerHTML = '';
         if (openIfNeeded || (staffRoomDialog && !staffRoomDialog.classList.contains('hidden'))) {
           if (staffRoomGrid) {
@@ -678,13 +471,6 @@
       openStaffTimeDialog();
       return;
     }
-    if (isYchowonAdminBranch() && staffSelectedRoomSection === 'all') {
-      var default4fSection = staffRoomStatus
-        .map(function (room) { return room.section || ''; })
-        .filter(function (section, index, arr) { return arr.indexOf(section) === index && isYchowon4fSection(section); })[0];
-      if (default4fSection) staffSelectedRoomSection = default4fSection;
-    }
-    if (isYchowonAdminBranch()) staffRoomMapZoom = 1;
     if (staffRoomDialog) {
       staffRoomDialog.classList.remove('hidden');
       staffRoomDialog.setAttribute('aria-hidden', 'false');
