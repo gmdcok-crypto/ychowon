@@ -329,6 +329,23 @@
   color: var(--gold-light);
 }
 
+.tel-swap-confirm-btn {
+  min-height: var(--touch-min);
+  padding: 0.45rem 0.85rem;
+  border-radius: 8px;
+  border: 1px solid rgba(201, 169, 98, 0.42);
+  background: rgba(201, 169, 98, 0.22);
+  color: var(--gold-light);
+  font: inherit;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.tel-swap-confirm-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
 .room-dialog-actions {
   display: flex;
   align-items: center;
@@ -360,6 +377,11 @@
     border-radius: 14px;
     padding: 1rem;
     overflow: auto;
+  }
+
+  .room-dialog-panel.room-dialog-panel-map {
+    width: min(1120px, 96vw);
+    max-height: min(88dvh, 900px);
   }
 
 .tel-time-dialog-panel,
@@ -471,6 +493,10 @@
     gap: 0.6rem;
   }
 
+  .room-grid.room-grid-map {
+    display: block;
+  }
+
   .room-option {
     min-height: 84px;
     border-radius: 12px;
@@ -500,6 +526,21 @@
     background: rgba(201,169,98,0.18);
   }
 
+  .room-option.swap-candidate {
+    border-style: dashed;
+    cursor: pointer;
+  }
+
+  .room-option.swap-disabled {
+    opacity: 0.55;
+  }
+
+  .room-option.swap-selected {
+    border-color: var(--gold);
+    background: rgba(201,169,98,0.3);
+    box-shadow: 0 0 0 1px rgba(201,169,98,0.35) inset;
+  }
+
   .room-option.reserved {
     background: rgba(200,80,80,0.2);
     color: #efc6c6;
@@ -508,6 +549,119 @@
 
   .room-option.reserved .room-sub {
     color: #efc6c6;
+  }
+
+  .ychowon-room-map-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+  }
+
+  .ychowon-room-map-hint {
+    font-size: 0.78rem;
+    color: var(--cream-dim);
+  }
+
+  .ychowon-room-map-stage {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1000 / 820;
+    border-radius: 16px;
+    border: 1px solid rgba(201, 169, 98, 0.22);
+    background:
+      radial-gradient(circle at center, rgba(255, 255, 255, 0.03), transparent 42%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(0, 0, 0, 0.05)),
+      rgba(0, 0, 0, 0.18);
+    overflow: hidden;
+  }
+
+  .room-map-room {
+    position: absolute;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: flex-start;
+    gap: 0.1rem;
+    padding: 0.35rem 0.32rem 0.28rem;
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  .room-map-room .room-map-number {
+    font-size: clamp(0.72rem, 0.95vw, 1rem);
+    font-weight: 700;
+    line-height: 1.05;
+  }
+
+  .room-map-room .room-map-status,
+  .room-map-room .room-map-detail {
+    font-size: clamp(0.45rem, 0.62vw, 0.72rem);
+    line-height: 1.1;
+    white-space: nowrap;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .room-map-room .room-map-status {
+    font-weight: 600;
+  }
+
+  .room-map-room.reserved .room-map-status,
+  .room-map-room.reserved .room-map-detail {
+    color: #efc6c6;
+  }
+
+  .room-map-state {
+    position: absolute;
+    top: 0.28rem;
+    right: 0.28rem;
+    width: 0.6rem;
+    height: 0.6rem;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    background: rgba(255, 255, 255, 0.18);
+  }
+
+  .room-map-state.is-available {
+    background: rgba(120, 170, 255, 0.9);
+  }
+
+  .room-map-state.is-reserved {
+    background: rgba(220, 90, 90, 0.92);
+  }
+
+  .room-map-state.is-selected,
+  .room-map-state.is-swap {
+    background: rgba(201, 169, 98, 0.95);
+  }
+
+  .room-map-room.room-map-room-missing {
+    border-style: dashed;
+    opacity: 0.35;
+    cursor: default;
+    pointer-events: none;
+  }
+
+  @media (max-width: 760px) {
+    .room-dialog-panel.room-dialog-panel-map {
+      width: min(100vw, 100%);
+      max-height: min(92dvh, 900px);
+      padding: 0.85rem;
+    }
+
+    .room-map-room {
+      padding: 0.22rem 0.2rem 0.2rem;
+      border-radius: 8px;
+    }
+
+    .room-map-state {
+      top: 0.18rem;
+      right: 0.18rem;
+      width: 0.48rem;
+      height: 0.48rem;
+    }
   }
   
   .time-quick {

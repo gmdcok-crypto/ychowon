@@ -11,7 +11,7 @@
   <title>전화 예약 접수 · 초원농원</title>
   <link rel="manifest" href="manifest.json" />
   <link rel="apple-touch-icon" href="/display/icon-192.png" />
-  <link rel="stylesheet" href="tel.css?v=13" />
+  <link rel="stylesheet" href="tel.css?v=14" />
 </head>
 <body>
   <div class="tel-root">
@@ -122,6 +122,7 @@
         </div>
         <div class="room-dialog-actions">
           <button type="button" class="tel-swap-btn hidden" id="tel-room-swap-btn">자리교환</button>
+          <button type="button" class="tel-swap-confirm-btn hidden" id="tel-room-swap-confirm-btn">확인</button>
           <button type="button" class="room-dialog-close" id="room-dialog-close">닫기</button>
         </div>
       </div>
@@ -223,7 +224,7 @@
   </div>
 
   <script src="/api/branch-boot.js"></script>
-  <script src="tel.js?v=18"></script>
+  <script src="tel.js?v=19"></script>
   <script>
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/tel/sw.js?v=4', { scope: '/tel/' }).catch(function () {});
