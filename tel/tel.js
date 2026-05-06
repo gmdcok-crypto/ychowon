@@ -165,6 +165,12 @@
     return text.indexOf('tel-') === 0 ? text : ('tel-' + text);
   }
 
+  function telApiId(rawId) {
+    var text = String(rawId == null ? '' : rawId);
+    if (!text) return '';
+    return text.indexOf('tel-') === 0 ? text.slice(4) : text;
+  }
+
   function normalizeReservationItem(item) {
     if (!item) return item;
     var source = reservationSource(item);
@@ -172,7 +178,7 @@
     normalized.source = source;
     normalized.slot = item.slot || timeSlot(item.time || '');
     if (source === 'tel') {
-      normalized.apiId = String(item.apiId != null ? item.apiId : item.id || '');
+      normalized.apiId = telApiId(item.apiId != null ? item.apiId : item.id);
       normalized.id = telDisplayId(item.id);
     } else {
       normalized.apiId = String(item.id == null ? '' : item.id);
