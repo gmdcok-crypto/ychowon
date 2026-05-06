@@ -485,6 +485,41 @@
       });
   }
 
+  var telWs = null;
+
+  function refreshTodayFromRealtime() {
+    if (!sameDate(selectedDate, new Date())) return;
+    fetchTelReservations().then(function () {
+      return refreshRoomAvailability(false);
+    });
+  }
+
+  function connectRealtime() {
+    if (telWs) {
+      try {
+        telWs.close();
+      } catch (e) {}
+      telWs = null;
+    }
+    var protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    var ws = new WebSocket(protocol + '//' + window.location.host + '/ws?' + branchQuery());
+    telWs = ws;
+    ws.onmessage = function (ev) {
+      try {
+        var data = JSON.parse(ev.data);
+        if (Array.isArray(data)) {
+          refreshTodayFromRealtime();
+        }
+      } catch (e) {}
+    };
+    ws.onclose = function () {
+      setTimeout(connectRealtime, 3000);
+    };
+    ws.onerror = function () {
+      ws.close();
+    };
+  }
+
   function renderRoomDialog() {
     if (!roomGrid || !roomGroupTabs) return;
     if (!timeInput.value) {
@@ -1238,4 +1273,5 @@
   setupFullscreen();
   setupFullscreenButton();
   fetchTelReservations();
+  connectRealtime();
 })();
