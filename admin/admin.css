@@ -967,9 +967,58 @@ body {
   gap: 0.55rem;
 }
 
+.ychowon-room-map-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
 .ychowon-room-map-hint {
   font-size: 0.78rem;
   color: var(--cream-dim);
+}
+
+.room-map-zoom-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.room-map-zoom-btn {
+  min-height: 38px;
+  padding: 0.35rem 0.7rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.32);
+  color: var(--cream);
+  cursor: pointer;
+  font: inherit;
+}
+
+.room-map-zoom-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.room-map-zoom-reset {
+  color: var(--gold-light);
+}
+
+.room-map-zoom-value {
+  min-width: 3.6rem;
+  text-align: center;
+  font-size: 0.82rem;
+  color: var(--cream-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.ychowon-room-map-viewport {
+  overflow: auto;
+  max-height: min(70vh, 760px);
+  border-radius: 16px;
+  scrollbar-gutter: stable both-edges;
 }
 
 .ychowon-room-map-stage {
@@ -983,6 +1032,7 @@ body {
     linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(0, 0, 0, 0.05)),
     rgba(0, 0, 0, 0.18);
   overflow: hidden;
+  transition: width 0.14s ease;
 }
 
 .room-map-room {
@@ -1059,6 +1109,15 @@ body {
     width: min(100vw, 100%);
     max-height: min(92dvh, 900px);
     padding: 0.85rem;
+  }
+
+  .ychowon-room-map-toolbar {
+    align-items: flex-start;
+  }
+
+  .room-map-zoom-controls {
+    width: 100%;
+    justify-content: flex-end;
   }
 
   .room-map-room {

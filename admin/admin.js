@@ -168,6 +168,37 @@
     if (staffRoomGrid) staffRoomGrid.classList.toggle('room-grid-map', !!enabled);
   }
 
+  function clampStaffRoomMapZoom(next) {
+    var value = Number(next);
+    if (!isFinite(value)) value = 1;
+    if (value < STAFF_ROOM_MAP_ZOOM_MIN) value = STAFF_ROOM_MAP_ZOOM_MIN;
+    if (value > STAFF_ROOM_MAP_ZOOM_MAX) value = STAFF_ROOM_MAP_ZOOM_MAX;
+    return Math.round(value * 100) / 100;
+  }
+
+  function updateStaffRoomMapZoomUi() {
+    if (!staffRoomGrid) return;
+    var viewport = staffRoomGrid.querySelector('.ychowon-room-map-viewport');
+    var stage = staffRoomGrid.querySelector('.ychowon-room-map-stage');
+    var zoomValue = staffRoomGrid.querySelector('.room-map-zoom-value');
+    var zoomOut = staffRoomGrid.querySelector('[data-map-zoom="out"]');
+    var zoomIn = staffRoomGrid.querySelector('[data-map-zoom="in"]');
+    var zoomReset = staffRoomGrid.querySelector('[data-map-zoom="reset"]');
+    if (viewport) viewport.setAttribute('data-zoom', String(staffRoomMapZoom));
+    if (stage) stage.style.width = String(Math.round(staffRoomMapZoom * 100)) + '%';
+    if (zoomValue) zoomValue.textContent = Math.round(staffRoomMapZoom * 100) + '%';
+    if (zoomOut) zoomOut.disabled = staffRoomMapZoom <= STAFF_ROOM_MAP_ZOOM_MIN;
+    if (zoomIn) zoomIn.disabled = staffRoomMapZoom >= STAFF_ROOM_MAP_ZOOM_MAX;
+    if (zoomReset) zoomReset.disabled = Math.abs(staffRoomMapZoom - 1) < 0.01;
+  }
+
+  function setStaffRoomMapZoom(next) {
+    var clamped = clampStaffRoomMapZoom(next);
+    if (Math.abs(clamped - staffRoomMapZoom) < 0.001) return;
+    staffRoomMapZoom = clamped;
+    updateStaffRoomMapZoomUi();
+  }
+
   function shouldUseYchowon4fMap(rooms) {
     if (!isYchowonAdminBranch()) return false;
     if (!isYchowon4fSection(staffSelectedRoomSection)) return false;
@@ -228,8 +259,18 @@
 
     return (
       '<div class="ychowon-room-map-wrap">' +
-        '<div class="ychowon-room-map-hint">축소 화면에서는 색상으로 예약 여부를 확인하고, 확대하면 상세를 볼 수 있습니다.</div>' +
-        '<div class="ychowon-room-map-stage">' + items + '</div>' +
+        '<div class="ychowon-room-map-toolbar">' +
+          '<div class="ychowon-room-map-hint">축소 화면에서는 색상으로 예약 여부를 확인하고, PC에서는 확대 버튼이나 Ctrl + 휠로 상세를 볼 수 있습니다.</div>' +
+          '<div class="room-map-zoom-controls">' +
+            '<button type="button" class="room-map-zoom-btn" data-map-zoom="out">-</button>' +
+            '<span class="room-map-zoom-value">100%</span>' +
+            '<button type="button" class="room-map-zoom-btn" data-map-zoom="in">+</button>' +
+            '<button type="button" class="room-map-zoom-btn room-map-zoom-reset" data-map-zoom="reset">원래크기</button>' +
+          '</div>' +
+        '</div>' +
+        '<div class="ychowon-room-map-viewport">' +
+          '<div class="ychowon-room-map-stage">' + items + '</div>' +
+        '</div>' +
       '</div>'
     );
   }
@@ -241,32 +282,36 @@
   let selectedStaffRooms = [];
   let roomSwapMode = false;
   let roomSwapTargets = [];
+  let staffRoomMapZoom = 1;
+  const STAFF_ROOM_MAP_ZOOM_MIN = 1;
+  const STAFF_ROOM_MAP_ZOOM_MAX = 2.5;
+  const STAFF_ROOM_MAP_ZOOM_STEP = 0.25;
   const staffRoomPanel = staffRoomDialog ? staffRoomDialog.querySelector('.room-dialog-panel') : null;
   const YCHOWON_4F_ROOM_LAYOUT = {
-    1: { left: 61.0, top: 73.0, width: 8.6, height: 13.5 },
-    2: { left: 69.8, top: 73.0, width: 8.6, height: 13.5 },
-    3: { left: 78.6, top: 73.0, width: 8.6, height: 13.5 },
-    4: { left: 88.4, top: 74.8, width: 8.8, height: 9.6 },
-    5: { left: 88.4, top: 63.8, width: 8.8, height: 9.6 },
-    6: { left: 88.4, top: 52.8, width: 8.8, height: 9.6 },
-    7: { left: 88.0, top: 42.0, width: 9.2, height: 10.0 },
-    8: { left: 90.0, top: 35.0, width: 6.8, height: 6.4 },
-    9: { left: 90.0, top: 28.2, width: 6.8, height: 6.4 },
-    10: { left: 91.2, top: 20.6, width: 5.8, height: 6.1 },
-    11: { left: 91.0, top: 14.2, width: 5.8, height: 6.1 },
-    12: { left: 90.8, top: 7.8, width: 5.8, height: 6.1 },
-    13: { left: 89.6, top: 1.8, width: 6.0, height: 5.8 },
-    14: { left: 84.8, top: 0.8, width: 7.2, height: 5.8 },
-    15: { left: 74.6, top: 2.8, width: 6.4, height: 6.2 },
-    16: { left: 77.2, top: 10.2, width: 6.4, height: 6.4 },
-    17: { left: 66.0, top: 2.4, width: 6.4, height: 6.2 },
-    18: { left: 64.6, top: 10.4, width: 6.4, height: 6.4 },
-    19: { left: 56.6, top: 8.8, width: 5.2, height: 5.6 },
-    20: { left: 46.2, top: 8.2, width: 7.0, height: 10.2 },
-    21: { left: 35.6, top: 10.0, width: 8.0, height: 14.0 },
-    22: { left: 24.4, top: 10.6, width: 8.0, height: 14.8 },
-    23: { left: 13.2, top: 11.0, width: 8.2, height: 15.6 },
-    24: { left: 2.2, top: 12.0, width: 8.6, height: 19.6 }
+    1: { left: 64.0, top: 23.0, width: 9.8, height: 10.0 },
+    2: { left: 74.2, top: 23.0, width: 9.8, height: 10.0 },
+    3: { left: 84.4, top: 23.0, width: 9.8, height: 10.0 },
+    4: { left: 88.6, top: 4.6, width: 9.0, height: 8.4 },
+    5: { left: 77.8, top: 4.6, width: 8.8, height: 8.4 },
+    6: { left: 67.2, top: 4.6, width: 8.8, height: 8.4 },
+    7: { left: 56.0, top: 4.2, width: 10.2, height: 8.8 },
+    8: { left: 49.2, top: 4.6, width: 5.8, height: 8.0 },
+    9: { left: 42.0, top: 4.6, width: 5.8, height: 8.0 },
+    10: { left: 30.4, top: 5.0, width: 5.2, height: 7.6 },
+    11: { left: 24.0, top: 5.0, width: 5.2, height: 7.6 },
+    12: { left: 17.6, top: 5.0, width: 5.2, height: 7.6 },
+    13: { left: 11.2, top: 5.0, width: 5.2, height: 7.6 },
+    14: { left: 4.6, top: 5.0, width: 5.4, height: 7.8 },
+    15: { left: 4.0, top: 16.2, width: 5.8, height: 7.8 },
+    16: { left: 13.0, top: 20.4, width: 5.8, height: 7.8 },
+    17: { left: 4.0, top: 31.0, width: 5.8, height: 7.8 },
+    18: { left: 13.2, top: 35.0, width: 5.8, height: 7.8 },
+    19: { left: 4.0, top: 46.0, width: 5.8, height: 7.8 },
+    20: { left: 3.4, top: 56.5, width: 11.8, height: 7.6 },
+    21: { left: 3.2, top: 66.2, width: 18.6, height: 8.2 },
+    22: { left: 3.2, top: 75.8, width: 18.8, height: 8.2 },
+    23: { left: 3.2, top: 85.0, width: 19.4, height: 7.4 },
+    24: { left: 3.2, top: 93.2, width: 23.0, height: 6.6 }
   };
 
   function dateKey(d) {
@@ -558,6 +603,27 @@
         renderStaffRoomDialog();
       });
     });
+    var mapViewport = staffRoomGrid.querySelector('.ychowon-room-map-viewport');
+    if (mapViewport) {
+      mapViewport.addEventListener('wheel', function (ev) {
+        if (!ev.ctrlKey) return;
+        ev.preventDefault();
+        setStaffRoomMapZoom(staffRoomMapZoom + (ev.deltaY < 0 ? STAFF_ROOM_MAP_ZOOM_STEP : -STAFF_ROOM_MAP_ZOOM_STEP));
+      }, { passive: false });
+    }
+    staffRoomGrid.querySelectorAll('.room-map-zoom-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var action = btn.getAttribute('data-map-zoom') || '';
+        if (action === 'in') {
+          setStaffRoomMapZoom(staffRoomMapZoom + STAFF_ROOM_MAP_ZOOM_STEP);
+        } else if (action === 'out') {
+          setStaffRoomMapZoom(staffRoomMapZoom - STAFF_ROOM_MAP_ZOOM_STEP);
+        } else {
+          setStaffRoomMapZoom(1);
+        }
+      });
+    });
+    updateStaffRoomMapZoomUi();
   }
 
   function refreshStaffRoomAvailability(openIfNeeded) {
@@ -618,6 +684,7 @@
         .filter(function (section, index, arr) { return arr.indexOf(section) === index && isYchowon4fSection(section); })[0];
       if (default4fSection) staffSelectedRoomSection = default4fSection;
     }
+    if (isYchowonAdminBranch()) staffRoomMapZoom = 1;
     if (staffRoomDialog) {
       staffRoomDialog.classList.remove('hidden');
       staffRoomDialog.setAttribute('aria-hidden', 'false');
