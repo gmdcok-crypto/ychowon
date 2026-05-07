@@ -109,6 +109,28 @@
     var groups = [];
     var byKey = {};
 
+    function compactNumberRanges(values) {
+      var nums = values
+        .map(function (value) { return parseInt(value, 10); })
+        .filter(function (value) { return !isNaN(value); })
+        .sort(function (a, b) { return a - b; });
+      if (!nums.length) return values.join(', ');
+      var ranges = [];
+      var start = nums[0];
+      var prev = nums[0];
+      for (var i = 1; i <= nums.length; i++) {
+        var current = i < nums.length ? nums[i] : null;
+        if (current != null && current === prev + 1) {
+          prev = current;
+          continue;
+        }
+        ranges.push(start === prev ? String(start) : (String(start) + '~' + String(prev)));
+        start = current;
+        prev = current;
+      }
+      return ranges.join(', ');
+    }
+
     function ensureGroup(key, render) {
       if (!byKey[key]) {
         byKey[key] = { values: [], render: render };
@@ -126,14 +148,14 @@
         var number = String(parseInt(floorRoom[2], 10) || floorRoom[2]);
         if (floor === '4F') {
           var fourGroup = ensureGroup('4f-room', function (values) {
-            return values.join(', ') + '호실';
+            return compactNumberRanges(values) + '호실';
           });
           if (fourGroup.values.indexOf(number) === -1) fourGroup.values.push(number);
           return;
         }
         if (floor === '5F') {
           var fiveGroup = ensureGroup('5f-room', function (values) {
-            return '5층 ' + values.join(', ') + '호실';
+            return '5층 ' + compactNumberRanges(values) + '호실';
           });
           if (fiveGroup.values.indexOf(number) === -1) fiveGroup.values.push(number);
           return;
