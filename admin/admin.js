@@ -37,6 +37,76 @@
     return url + sep + branchQuery();
   }
 
+  function isYchowonAdminBranch() {
+    return getBranch() === 'ychowon';
+  }
+
+  function parseStaffTimeMinutes(timeText) {
+    var m = String(timeText || '').trim().match(/^(\d{1,2}):(\d{2})$/);
+    if (!m) return null;
+    var hour = parseInt(m[1], 10);
+    var minute = parseInt(m[2], 10);
+    if (isNaN(hour) || isNaN(minute) || hour < 0 || hour > 23 || minute < 0 || minute > 59) return null;
+    return hour * 60 + minute;
+  }
+
+  function formatStaffTimeMinutes(totalMinutes) {
+    var hour = Math.floor(totalMinutes / 60);
+    var minute = totalMinutes % 60;
+    return String(hour).padStart(2, '0') + ':' + String(minute).padStart(2, '0');
+  }
+
+  function buildStaffHalfHourTimes(startText, endText) {
+    var start = parseStaffTimeMinutes(startText);
+    var end = parseStaffTimeMinutes(endText);
+    var out = [];
+    if (start == null || end == null || start > end) return out;
+    for (var cur = start; cur <= end; cur += 30) {
+      out.push(formatStaffTimeMinutes(cur));
+    }
+    return out;
+  }
+
+  function getStaffTimeConfig() {
+    if (isYchowonAdminBranch()) {
+      return {
+        defaultTime: '11:30',
+        tabs: [
+          { slot: 'lunch', label: '점심 11:30~15:30', times: buildStaffHalfHourTimes('11:30', '15:30') },
+          { slot: 'dinner', label: '저녁 16:00~19:30', times: buildStaffHalfHourTimes('16:00', '19:30') }
+        ]
+      };
+    }
+    return {
+      defaultTime: '12:00',
+      tabs: [
+        { slot: 'lunch', label: '점심 12:00~14:00', times: buildStaffHalfHourTimes('12:00', '14:00') },
+        { slot: 'dinner', label: '저녁 17:00~19:00', times: buildStaffHalfHourTimes('17:00', '19:00') }
+      ]
+    };
+  }
+
+  function renderStaffTimeButtonList(times) {
+    return times.map(function (timeText) {
+      return '<button type="button" class="staff-time-btn" data-time="' + escapeHtml(timeText) + '">' + escapeHtml(timeText) + '</button>';
+    }).join('');
+  }
+
+  function applyStaffTimeConfigUi() {
+    var config = getStaffTimeConfig();
+    var tabs = document.querySelectorAll('.staff-time-tab');
+    config.tabs.forEach(function (tabConfig, index) {
+      var tabEl = tabs[index];
+      if (!tabEl) return;
+      tabEl.textContent = tabConfig.label;
+      tabEl.setAttribute('data-slot', tabConfig.slot);
+    });
+    var lunchBox = document.getElementById('staff-time-buttons-lunch');
+    var dinnerBox = document.getElementById('staff-time-buttons-dinner');
+    if (lunchBox) lunchBox.innerHTML = renderStaffTimeButtonList(config.tabs[0].times);
+    if (dinnerBox) dinnerBox.innerHTML = renderStaffTimeButtonList(config.tabs[1].times);
+  }
+
   function getBuildVersion() {
     try {
       return String(window.__RESERVE_BUILD_VERSION__ || '').trim();
@@ -174,9 +244,13 @@
 
   function staffSlotFromTime(t) {
     var n = normalizeTimeValue(t);
-    if (!n) return 'lunch';
-    var h = parseInt(n.split(':')[0], 10);
-    if (!isNaN(h) && h >= 17 && h <= 19) return 'dinner';
+    var minutes = parseStaffTimeMinutes(n);
+    if (minutes == null) return 'lunch';
+    if (isYchowonAdminBranch()) {
+      if (minutes >= parseStaffTimeMinutes('16:00') && minutes <= parseStaffTimeMinutes('19:30')) return 'dinner';
+      return 'lunch';
+    }
+    if (minutes >= parseStaffTimeMinutes('17:00') && minutes <= parseStaffTimeMinutes('19:59')) return 'dinner';
     return 'lunch';
   }
 
@@ -212,11 +286,12 @@
   function openStaffTimeDialog() {
     var dlg = staffTimeDialogEl();
     var inp = timeInput || document.getElementById('time');
+    var config = getStaffTimeConfig();
     if (!dlg || !inp) return;
     var t = (inp.value || '').trim();
     if (!staffTimeOk(t)) {
-      inp.value = '12:00';
-      t = '12:00';
+      inp.value = config.defaultTime;
+      t = config.defaultTime;
     } else {
       t = normalizeTimeValue(t);
       inp.value = t;
@@ -239,6 +314,7 @@
 
   function setupStaffTimeDialog() {
     if (!timeInput) return;
+    applyStaffTimeConfigUi();
     /* readonly 입력·라벨 탭으로만 팝업 (별도 버튼 없음) */
     /* readonly + label(for): 라벨 탭은 input으로 이벤트가 안 올 수 있음 */
     var timeLabel = document.querySelector('label[for="time"]');
@@ -267,6 +343,9 @@
         applyStaffTimeChoice(btn.getAttribute('data-time') || '');
       });
     });
+    if (!timeInput.value) {
+      timeInput.value = getStaffTimeConfig().defaultTime;
+    }
   }
 
   function openStaffPartyDialog() {

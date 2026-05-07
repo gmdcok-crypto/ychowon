@@ -30,9 +30,91 @@
     return 'branch=' + encodeURIComponent(getTelBranch());
   }
 
+  function isYchowonTelBranch() {
+    return getTelBranch() === 'ychowon';
+  }
+
   function withBranch(url) {
     var sep = url.indexOf('?') >= 0 ? '&' : '?';
     return url + sep + branchQuery();
+  }
+
+  function parseTimeMinutes(timeText) {
+    var m = String(timeText || '').trim().match(/^(\d{1,2}):(\d{2})$/);
+    if (!m) return null;
+    var hour = parseInt(m[1], 10);
+    var minute = parseInt(m[2], 10);
+    if (isNaN(hour) || isNaN(minute) || hour < 0 || hour > 23 || minute < 0 || minute > 59) return null;
+    return hour * 60 + minute;
+  }
+
+  function formatTimeMinutes(totalMinutes) {
+    var hour = Math.floor(totalMinutes / 60);
+    var minute = totalMinutes % 60;
+    return String(hour).padStart(2, '0') + ':' + String(minute).padStart(2, '0');
+  }
+
+  function buildHalfHourTimes(startText, endText) {
+    var start = parseTimeMinutes(startText);
+    var end = parseTimeMinutes(endText);
+    var out = [];
+    if (start == null || end == null || start > end) return out;
+    for (var cur = start; cur <= end; cur += 30) {
+      out.push(formatTimeMinutes(cur));
+    }
+    return out;
+  }
+
+  function getTelTimeConfig() {
+    if (isYchowonTelBranch()) {
+      return {
+        defaultTime: '11:30',
+        filterLabels: {
+          lunch: '점심 11:30~15:30',
+          dinner: '저녁 16:00~19:30'
+        },
+        tabs: [
+          { slot: 'lunch', label: '점심 11:30~15:30', times: buildHalfHourTimes('11:30', '15:30') },
+          { slot: 'dinner', label: '저녁 16:00~19:30', times: buildHalfHourTimes('16:00', '19:30') }
+        ]
+      };
+    }
+    return {
+      defaultTime: '12:00',
+      filterLabels: {
+        lunch: '점심 12~14',
+        dinner: '저녁 17~19'
+      },
+      tabs: [
+        { slot: 'lunch', label: '점심 12:00~14:00', times: buildHalfHourTimes('12:00', '14:00') },
+        { slot: 'dinner', label: '저녁 17:00~19:00', times: buildHalfHourTimes('17:00', '19:00') }
+      ]
+    };
+  }
+
+  function renderTimeButtonList(times) {
+    return times.map(function (timeText) {
+      return '<button type="button" class="time-btn" data-time="' + escapeHtml(timeText) + '">' + escapeHtml(timeText) + '</button>';
+    }).join('');
+  }
+
+  function applyTelTimeConfigUi() {
+    var config = getTelTimeConfig();
+    var tabs = document.querySelectorAll('.time-tab');
+    config.tabs.forEach(function (tabConfig, index) {
+      var tabEl = tabs[index];
+      if (!tabEl) return;
+      tabEl.textContent = tabConfig.label;
+      tabEl.setAttribute('data-slot', tabConfig.slot);
+    });
+    var lunchBox = document.getElementById('time-buttons-lunch');
+    var dinnerBox = document.getElementById('time-buttons-dinner');
+    if (lunchBox) lunchBox.innerHTML = renderTimeButtonList(config.tabs[0].times);
+    if (dinnerBox) dinnerBox.innerHTML = renderTimeButtonList(config.tabs[1].times);
+    var lunchChip = document.querySelector('.chip[data-filter="lunch"]');
+    var dinnerChip = document.querySelector('.chip[data-filter="dinner"]');
+    if (lunchChip) lunchChip.textContent = config.filterLabels.lunch;
+    if (dinnerChip) dinnerChip.textContent = config.filterLabels.dinner;
   }
 
   var today = new Date();
@@ -103,9 +185,15 @@
   }
 
   function timeSlot(timeText) {
-    var hour = parseInt((timeText || '').split(':')[0], 10);
-    if (hour >= 12 && hour <= 14) return 'lunch';
-    if (hour >= 17 && hour <= 19) return 'dinner';
+    var minutes = parseTimeMinutes(timeText);
+    if (minutes == null) return 'other';
+    if (isYchowonTelBranch()) {
+      if (minutes >= parseTimeMinutes('11:30') && minutes <= parseTimeMinutes('15:30')) return 'lunch';
+      if (minutes >= parseTimeMinutes('16:00') && minutes <= parseTimeMinutes('19:30')) return 'dinner';
+      return 'other';
+    }
+    if (minutes >= parseTimeMinutes('12:00') && minutes <= parseTimeMinutes('14:59')) return 'lunch';
+    if (minutes >= parseTimeMinutes('17:00') && minutes <= parseTimeMinutes('19:59')) return 'dinner';
     return 'other';
   }
 
@@ -859,6 +947,8 @@
   }
 
   function setupTime() {
+    applyTelTimeConfigUi();
+    var config = getTelTimeConfig();
     var tabs = document.querySelectorAll('.time-tab');
     var lunchBox = document.getElementById('time-buttons-lunch');
     var dinnerBox = document.getElementById('time-buttons-dinner');
@@ -899,7 +989,7 @@
       });
     });
 
-    if (!timeInput.value) setTime('12:00');
+    if (!timeInput.value) setTime(config.defaultTime);
     syncTimeQuickDisplay();
   }
 

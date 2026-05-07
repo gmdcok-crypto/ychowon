@@ -296,7 +296,8 @@ except Exception:
     traceback.print_exc()
     raise
 
-MEAL_DURATION_MINUTES = 120
+DEFAULT_MEAL_DURATION_MINUTES = 120
+YCHOWON_MEAL_DURATION_MINUTES = 105
 
 from room_config import CONFIG_FILENAME, ensure_example_file, load_room_options
 
@@ -375,9 +376,14 @@ def _assert_no_room_overlap_with_others(
     time_text: str,
     others: list[dict[str, Any]],
     detail: str,
+    branch_id: Optional[str] = None,
 ) -> None:
     for other in others:
-        if _rooms_overlap(rooms, _reservation_rooms(other)) and _times_overlap(str(other.get("time") or ""), time_text):
+        if _rooms_overlap(rooms, _reservation_rooms(other)) and _times_overlap(
+            str(other.get("time") or ""),
+            time_text,
+            branch_id,
+        ):
             raise HTTPException(status_code=409, detail=detail)
 
 
@@ -442,14 +448,33 @@ def _rollover_branch_today_if_stale(branch_id: str) -> bool:
     return True
 
 
-def _time_slot(time_text: str) -> str:
-    try:
-        hour = int((time_text or "").split(":")[0])
-    except (TypeError, ValueError, IndexError):
+def _is_ychowon_branch(branch_id: Optional[str]) -> bool:
+    return str(branch_id or "").strip().lower() == "ychowon"
+
+
+def _meal_duration_minutes(branch_id: Optional[str] = None) -> int:
+    return YCHOWON_MEAL_DURATION_MINUTES if _is_ychowon_branch(branch_id) else DEFAULT_MEAL_DURATION_MINUTES
+
+
+def _room_overlap_detail(branch_id: Optional[str] = None) -> str:
+    if _is_ychowon_branch(branch_id):
+        return "기본 사용시간 1시간 45분 기준으로 이미 예약된 호실/테이블입니다."
+    return "기본 식사시간 2시간 기준으로 이미 예약된 호실/테이블입니다."
+
+
+def _time_slot(time_text: str, branch_id: Optional[str] = None) -> str:
+    start_minutes = _parse_time_minutes(time_text)
+    if start_minutes is None:
         return "other"
-    if 12 <= hour <= 14:
+    if _is_ychowon_branch(branch_id):
+        if 11 * 60 + 30 <= start_minutes <= 15 * 60 + 30:
+            return "lunch"
+        if 16 * 60 <= start_minutes <= 19 * 60 + 30:
+            return "dinner"
+        return "other"
+    if 12 * 60 <= start_minutes <= 14 * 60 + 59:
         return "lunch"
-    if 17 <= hour <= 19:
+    if 17 * 60 <= start_minutes <= 19 * 60 + 59:
         return "dinner"
     return "other"
 
@@ -472,35 +497,36 @@ def _format_time_minutes(total_minutes: int) -> str:
     return f"{hour:02d}:{minute:02d}"
 
 
-def _reservation_end_time(time_text: str) -> str:
+def _reservation_end_time(time_text: str, branch_id: Optional[str] = None) -> str:
     start_minutes = _parse_time_minutes(time_text)
     if start_minutes is None:
         return time_text
-    return _format_time_minutes(start_minutes + MEAL_DURATION_MINUTES)
+    return _format_time_minutes(start_minutes + _meal_duration_minutes(branch_id))
 
 
-def _reservation_range_text(time_text: str) -> str:
+def _reservation_range_text(time_text: str, branch_id: Optional[str] = None) -> str:
     if not time_text:
         return ""
-    return f"{time_text}~{_reservation_end_time(time_text)}"
+    return f"{time_text}~{_reservation_end_time(time_text, branch_id)}"
 
 
-def _covers_time(start_time: str, target_time: str) -> bool:
+def _covers_time(start_time: str, target_time: str, branch_id: Optional[str] = None) -> bool:
     start_minutes = _parse_time_minutes(start_time)
     target_minutes = _parse_time_minutes(target_time)
     if start_minutes is None or target_minutes is None:
         return start_time == target_time
-    end_minutes = start_minutes + MEAL_DURATION_MINUTES
+    end_minutes = start_minutes + _meal_duration_minutes(branch_id)
     return start_minutes <= target_minutes <= end_minutes
 
 
-def _times_overlap(time_a: str, time_b: str) -> bool:
+def _times_overlap(time_a: str, time_b: str, branch_id: Optional[str] = None) -> bool:
     start_a = _parse_time_minutes(time_a)
     start_b = _parse_time_minutes(time_b)
     if start_a is None or start_b is None:
         return time_a == time_b
-    end_a = start_a + MEAL_DURATION_MINUTES
-    end_b = start_b + MEAL_DURATION_MINUTES
+    duration = _meal_duration_minutes(branch_id)
+    end_a = start_a + duration
+    end_b = start_b + duration
     return start_a <= end_b and start_b <= end_a
 
 
@@ -609,7 +635,7 @@ def _get_tel_reservations(date_text: Optional[str] = None, branch_id: Optional[s
     items = data.get("reservations") or []
     normalized = []
     for item in items:
-        slot = item.get("slot") or _time_slot(item.get("time", ""))
+        slot = item.get("slot") or _time_slot(item.get("time", ""), tel_branch_key(item))
         rooms = _reservation_rooms(item)
         normalized.append({**item, "slot": slot, "source": "tel", "rooms": rooms, "room": _format_room_text(rooms)})
     if branch_id is not None:
@@ -639,7 +665,7 @@ def _staff_today_items_for_date(date_text: str, branch_id: str) -> list[dict]:
                 "room": _format_room_text(rooms),
                 "rooms": rooms,
                 "name": str(r.get("name") or ""),
-                "slot": _time_slot(t),
+                "slot": _time_slot(t, branch_id),
                 "source": "staff",
             }
         )
@@ -671,13 +697,13 @@ def _room_status(
     for room in ROOM_OPTIONS:
         room_items = by_room.get(room["label"], [])
         current = next(
-            (item for item in room_items if _covers_time(item.get("time", ""), time_text)),
+            (item for item in room_items if _covers_time(item.get("time", ""), time_text, branch_id)),
             None,
         )
         occupied_ranges = []
         seen_ranges = set()
         for item in room_items:
-            range_text = _reservation_range_text(item.get("time", ""))
+            range_text = _reservation_range_text(item.get("time", ""), branch_id)
             if range_text and range_text not in seen_ranges:
                 seen_ranges.add(range_text)
                 occupied_ranges.append(range_text)
@@ -686,7 +712,7 @@ def _room_status(
             "reserved": bool(current),
             "reservation_name": (current or {}).get("name", ""),
             "time": (current or {}).get("time", ""),
-            "reservation_range": _reservation_range_text((current or {}).get("time", "")),
+            "reservation_range": _reservation_range_text((current or {}).get("time", ""), branch_id),
             "occupied_ranges": occupied_ranges,
         })
     return result
@@ -850,7 +876,7 @@ async def set_today_reservations(
         if not ra or not ta:
             continue
         for t in tel_day:
-            if _rooms_overlap(_reservation_rooms(t), ra) and _times_overlap(str(t.get("time") or ""), ta):
+            if _rooms_overlap(_reservation_rooms(t), ra) and _times_overlap(str(t.get("time") or ""), ta, bid):
                 raise HTTPException(
                     status_code=409,
                     detail="전화 예약과 시간이 겹칩니다. 해당 호실/시간은 전화 예약 화면에서 확인하세요.",
@@ -858,7 +884,7 @@ async def set_today_reservations(
         for b in items[i + 1 :]:
             rb = _reservation_rooms(b)
             tb = str(b.get("time") or "")
-            if _rooms_overlap(ra, rb) and tb and _times_overlap(ta, tb):
+            if _rooms_overlap(ra, rb) and tb and _times_overlap(ta, tb, bid):
                 raise HTTPException(
                     status_code=409,
                     detail="같은 호실에서 식사 시간(2시간)이 겹치는 예약은 넣을 수 없습니다.",
@@ -995,12 +1021,14 @@ async def swap_today_reservation_rooms(
         str(first_item.get("time") or ""),
         others,
         "교환 후 첫 번째 예약의 호실/테이블이 다른 예약과 겹칩니다.",
+        bid,
     )
     _assert_no_room_overlap_with_others(
         first_rooms,
         str(second_item.get("time") or ""),
         others,
         "교환 후 두 번째 예약의 호실/테이블이 다른 예약과 겹칩니다.",
+        bid,
     )
 
     first_item["rooms"] = list(second_rooms)
@@ -1054,7 +1082,7 @@ def get_tel_room_status(
     return {
         "date": date,
         "time": time,
-        "slot": _time_slot(time),
+        "slot": _time_slot(time, bid),
         "rooms": _room_status(date, time, bid, exclude_id=exclude_id, exclude_source=exclude_source),
     }
 
@@ -1068,7 +1096,7 @@ async def create_tel_reservation(
     """전화 예약 접수 등록. 당일이면 현황판에 즉시 반영."""
     bid = resolve_effective_branch(branch, request.headers.get("host"))
     items = _get_tel_reservations()
-    slot = payload.slot or _time_slot(payload.time)
+    slot = payload.slot or _time_slot(payload.time, bid)
     rooms = _normalize_rooms(payload.rooms, payload.room)
     if not rooms:
         raise HTTPException(status_code=400, detail="호실/테이블을 하나 이상 선택하세요.")
@@ -1079,12 +1107,12 @@ async def create_tel_reservation(
         if (
             item.get("date") == payload.date
             and _rooms_overlap(_reservation_rooms(item), rooms)
-            and _times_overlap(item.get("time", ""), payload.time)
+            and _times_overlap(item.get("time", ""), payload.time, bid)
         ):
-            raise HTTPException(status_code=409, detail="기본 식사시간 2시간 기준으로 이미 예약된 호실/테이블입니다.")
+            raise HTTPException(status_code=409, detail=_room_overlap_detail(bid))
 
     for s in _staff_today_items_for_date(payload.date, bid):
-        if _rooms_overlap(_reservation_rooms(s), rooms) and _times_overlap(s.get("time", ""), payload.time):
+        if _rooms_overlap(_reservation_rooms(s), rooms) and _times_overlap(s.get("time", ""), payload.time, bid):
             raise HTTPException(
                 status_code=409,
                 detail="직원 당일 예약과 시간이 겹칩니다. 관리자 화면에서 해당 호실/시간을 확인하세요.",
@@ -1410,10 +1438,10 @@ async def patch_tel_reservation(
             continue
         if tel_branch_key(item) != bid:
             continue
-        if item.get("date") == date and _rooms_overlap(_reservation_rooms(item), new_rooms) and _times_overlap(item.get("time", ""), new_time):
-            raise HTTPException(status_code=409, detail="기본 식사시간 2시간 기준으로 이미 예약된 호실/테이블입니다.")
+        if item.get("date") == date and _rooms_overlap(_reservation_rooms(item), new_rooms) and _times_overlap(item.get("time", ""), new_time, bid):
+            raise HTTPException(status_code=409, detail=_room_overlap_detail(bid))
     for s in _staff_today_items_for_date(date, bid):
-        if _rooms_overlap(_reservation_rooms(s), new_rooms) and _times_overlap(s.get("time", ""), new_time):
+        if _rooms_overlap(_reservation_rooms(s), new_rooms) and _times_overlap(s.get("time", ""), new_time, bid):
             raise HTTPException(
                 status_code=409,
                 detail="직원 당일 예약과 시간이 겹칩니다. 관리자 화면에서 해당 호실/시간을 확인하세요.",
@@ -1445,7 +1473,7 @@ async def patch_tel_reservation(
             total = int(cur.get("count") or 0)
         if total > 0:
             cur["count"] = total
-    cur["slot"] = _time_slot(new_time)
+    cur["slot"] = _time_slot(new_time, bid)
     items[idx] = cur
     _save_tel({"reservations": items})
     if date == _today_str():
