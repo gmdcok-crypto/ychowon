@@ -16,6 +16,7 @@
   --font-serif: "Noto Serif KR", serif;
   --font-sans: "Noto Sans KR", sans-serif;
   --rows-per-block: 25;
+  --display-cols: 0.72fr 2fr 1.18fr;
 }
 
 *,
@@ -108,7 +109,7 @@ body {
 /* 테이블 헤더 - 시간 | 이름 | 호실 (블록마다) */
 .table-header {
   display: grid;
-  grid-template-columns: 1fr 2fr 0.9fr;
+  grid-template-columns: var(--display-cols);
   padding: 0.4em 0.6em;
   background: rgba(201, 169, 98, 0.12);
   border-bottom: 1px solid var(--border);
@@ -162,7 +163,7 @@ body {
 
 .block .table-body .row {
   display: grid;
-  grid-template-columns: 1fr 2fr 0.9fr;
+  grid-template-columns: var(--display-cols);
   padding: 0.35em 0.6em;
   border-bottom: 1px solid rgba(201, 169, 98, 0.1);
   font-size: 0.85em;
