@@ -16,7 +16,7 @@
   --font-serif: "Noto Serif KR", serif;
   --font-sans: "Noto Sans KR", sans-serif;
   --rows-per-block: 25;
-  --display-cols: 0.72fr 2fr 1.18fr;
+  --display-cols: 0.56fr 1.94fr 1.5fr;
 }
 
 *,
@@ -147,7 +147,7 @@ body {
   flex-direction: column;
   flex: 1 1 0;
   min-width: 12rem;
-  max-width: 20rem;
+  max-width: 21.5rem;
   background: rgba(0, 0, 0, 0.15);
   border: 1px solid var(--border);
   border-radius: 6px;
@@ -189,6 +189,7 @@ body {
 .row .col-time {
   color: var(--gold-light);
   font-weight: 500;
+  font-size: 0.92em;
 }
 
 .row .col-name {
@@ -322,7 +323,7 @@ body {
 @media (min-width: 1920px) {
   .block {
     min-width: 14rem;
-    max-width: 22rem;
+    max-width: 24rem;
   }
   .block .table-body .row {
     font-size: 0.9em;
