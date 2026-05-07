@@ -105,10 +105,65 @@
     return text;
   }
 
+  function formatYchowonRoomLabelList(rooms) {
+    var groups = [];
+    var byKey = {};
+
+    function ensureGroup(key, render) {
+      if (!byKey[key]) {
+        byKey[key] = { values: [], render: render };
+        groups.push(byKey[key]);
+      }
+      return byKey[key];
+    }
+
+    rooms.forEach(function (room) {
+      var text = String(room || '').trim();
+      if (!text) return;
+      var floorRoom = text.match(/^(\d+F)\s*룸\s*룸?\s*(\d+)\s*(?:호|호실)?$/i);
+      if (floorRoom) {
+        var floor = floorRoom[1].toUpperCase();
+        var number = String(parseInt(floorRoom[2], 10) || floorRoom[2]);
+        if (floor === '4F') {
+          var fourGroup = ensureGroup('4f-room', function (values) {
+            return values.join(', ') + '호실';
+          });
+          if (fourGroup.values.indexOf(number) === -1) fourGroup.values.push(number);
+          return;
+        }
+        if (floor === '5F') {
+          var fiveGroup = ensureGroup('5f-room', function (values) {
+            return '5층 ' + values.join(', ') + '호실';
+          });
+          if (fiveGroup.values.indexOf(number) === -1) fiveGroup.values.push(number);
+          return;
+        }
+      }
+
+      if (/홀/i.test(text)) {
+        ensureGroup('hall-3f', function () {
+          return '3층';
+        });
+        return;
+      }
+
+      var label = formatRoomLabel(text);
+      var otherGroup = ensureGroup('other', function (values) {
+        return values.join(', ');
+      });
+      if (otherGroup.values.indexOf(label) === -1) otherGroup.values.push(label);
+    });
+
+    return groups.map(function (group) {
+      return group.render(group.values);
+    }).filter(Boolean).join(', ');
+  }
+
   function formatRoomLabelList(item) {
     var rooms = parseRoomSelection(item && item.rooms, item && item.room);
     if (!rooms.length) return '—';
-    return rooms.map(formatRoomLabel).join(', ');
+    if (!isYchowonDisplay()) return rooms.map(formatRoomLabel).join(', ');
+    return formatYchowonRoomLabelList(rooms);
   }
 
   function ychowonRoomSortKey(room) {
