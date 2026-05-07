@@ -1660,7 +1660,9 @@ def api_auth_accounts_revoke(account_id: str, request: Request, branch: str = Qu
 def branch_boot_js(request: Request):
     """API의 resolve_effective_branch 와 동일 규칙으로 기본 지점을 내려줌 (컨텐츠·현황과 정합)."""
     try:
-        bid = resolve_effective_branch("default", request.headers.get("host"))
+        payload = request_payload(request)
+        account_branch = account_branch_from_payload(payload) if payload else None
+        bid = account_branch or resolve_effective_branch("default", request.headers.get("host"))
         env_literal = json.dumps(bid)
     except HTTPException:
         env_literal = "null"
